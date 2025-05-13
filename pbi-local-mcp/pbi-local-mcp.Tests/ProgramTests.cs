@@ -1,9 +1,3 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Collections.Generic;
 using Microsoft.AnalysisServices.Tabular;
 using System.Data;
 
@@ -85,21 +79,6 @@ namespace pbi_local_mcp.Tests
         }
 
         [TestMethod]
-        public void RelationshipsTool_ReturnsDataTable()
-        {
-            Console.WriteLine("[RelationshipsTool_ReturnsDataTable] Calling PbiLocalTools.Relationships().");
-            var result = PbiLocalTools.Relationships();
-            Assert.IsInstanceOfType(result, typeof(System.Data.DataTable)); // Explicitly System.Data.DataTable
-            var dt = (System.Data.DataTable)result; // Explicitly System.Data.DataTable
-            Assert.IsTrue(dt.Columns.Count > 0, "Relationships() returned 0‑column DataTable – unexpected.");
-            Console.WriteLine($"[RelationshipsTool_ReturnsDataTable] Relationships(): {dt.Rows.Count} rows, {dt.Columns.Count} cols.");
-            if (dt.Rows.Count > 0)
-            {
-                Console.WriteLine($"[RelationshipsTool_ReturnsDataTable] First relationship (if any): FromTable='{dt.Rows[0]["FromTable"]}', FromColumn='{dt.Rows[0]["FromColumn"]}', ToTable='{dt.Rows[0]["ToTable"]}', ToColumn='{dt.Rows[0]["ToColumn"]}'");
-            }
-        }
-
-        [TestMethod]
         public void MeasureDetailsTool_SucceedsAndErrorsWhenExpected()
         {
             Console.WriteLine("[MeasureDetailsTool_SucceedsAndErrorsWhenExpected] Connecting to server.");
@@ -116,7 +95,7 @@ namespace pbi_local_mcp.Tests
                 string msg = "[MeasureDetailsTool_SucceedsAndErrorsWhenExpected] Model contains no measures – cannot perform MeasureDetails happy-path assertions. This is treated as a test failure.";
                 Console.WriteLine(msg);
                 Assert.Fail(msg);
-                return; 
+                return;
             }
             var measure = tableWithMeasure.Measures.First();
             Console.WriteLine($"[MeasureDetailsTool_SucceedsAndErrorsWhenExpected] Testing happy path with Table: '{tableWithMeasure.Name}', Measure: '{measure.Name}'.");
@@ -200,8 +179,6 @@ namespace pbi_local_mcp.Tests
                 var err = type.GetProperty("error")?.GetValue(result) as string;
                 Assert.IsFalse(string.IsNullOrWhiteSpace(err), "EvalTool returned an object that is not a DataTable and has no 'error' property or the error is empty.");
                 Console.WriteLine($"[EvalTool_ReturnsDataTableOrError] Evaluation resulted in an error object. Error: '{err}'. This is expected for invalid DAX or other issues.");
-                // This part of the test assumes ROW("Col1",1) is valid. If testing an invalid DAX, the 'else' block is the success path.
-                // For this specific DAX, we expect a DataTable. If it's an error, the Assert.IsFalse above will fail if err is null/whitespace.
             }
 
             string invalidDaxExpression = "EVALUATE NonExistentTable";
@@ -213,5 +190,67 @@ namespace pbi_local_mcp.Tests
             Assert.IsFalse(string.IsNullOrWhiteSpace(errorMessage), "Evaluating invalid DAX should return an error message.");
             Console.WriteLine($"[EvalTool_ReturnsDataTableOrError] Evaluation of invalid DAX successful. Error: '{errorMessage}'.");
         }
+
+        private async Task TestInfoToolAsync(Func<string?, Task<object>> toolMethod, string toolName)
+        {
+            Console.WriteLine($"[{toolName}_ReturnsExpectedType] Calling PbiLocalTools.{toolName}().");
+            var result = await toolMethod(null); // Test with no filter
+            AssertToolResultIsCollectionOrError(result, toolName);
+
+            Console.WriteLine($"[{toolName}_ReturnsExpectedType] Calling PbiLocalTools.{toolName}() with a valid but likely non-matching filter.");
+            var resultWithFilter = await toolMethod("1 = 0"); // Test with a filter that should return empty or error
+            AssertToolResultIsCollectionOrError(resultWithFilter, $"{toolName} with filter");
+
+            Console.WriteLine($"[{toolName}_ReturnsExpectedType] Calling PbiLocalTools.{toolName}() with an invalid DAX filter.");
+            var resultWithInvalidFilter = await toolMethod("This is not valid DAX");
+            AssertToolResultIsError(resultWithInvalidFilter, $"{toolName} with invalid filter");
+        }
+
+        private void AssertToolResultIsCollectionOrError(object result, string toolNameForMessage)
+        {
+            if (result is IEnumerable<object> listResult)
+            {
+                Assert.IsNotNull(listResult, $"{toolNameForMessage} returned null list.");
+                Console.WriteLine($"[{toolNameForMessage}] Result is IEnumerable<object> with {listResult.Count()} items.");
+            }
+            else
+            {
+                AssertToolResultIsError(result, toolNameForMessage);
+            }
+        }
+
+        private void AssertToolResultIsError(object result, string toolNameForMessage)
+        {
+            var type = result.GetType();
+            var errorProp = type.GetProperty("error");
+            Assert.IsNotNull(errorProp, $"{toolNameForMessage} did not return an 'error' property when expected.");
+            var errorMessage = errorProp.GetValue(result) as string;
+            Assert.IsFalse(string.IsNullOrWhiteSpace(errorMessage), $"{toolNameForMessage} returned an empty error message.");
+            Console.WriteLine($"[{toolNameForMessage}] Correctly returned error: {errorMessage}");
+        }
+
+        [TestMethod]
+        public async Task InfoViewTablesTool_ReturnsExpectedType() => await TestInfoToolAsync(PbiLocalTools.InfoViewTables, "InfoViewTables");
+
+        [TestMethod]
+        public async Task InfoViewColumnsTool_ReturnsExpectedType() => await TestInfoToolAsync(PbiLocalTools.InfoViewColumns, "InfoViewColumns");
+
+        [TestMethod]
+        public async Task InfoViewMeasuresTool_ReturnsExpectedType() => await TestInfoToolAsync(PbiLocalTools.InfoViewMeasures, "InfoViewMeasures");
+
+        [TestMethod]
+        public async Task InfoViewRelationshipsTool_ReturnsExpectedType() => await TestInfoToolAsync(PbiLocalTools.InfoViewRelationships, "InfoViewRelationships");
+
+        [TestMethod]
+        public async Task InfoColumnsTool_ReturnsExpectedType() => await TestInfoToolAsync(PbiLocalTools.InfoColumns, "InfoColumns");
+
+        [TestMethod]
+        public async Task InfoMeasuresTool_ReturnsExpectedType() => await TestInfoToolAsync(PbiLocalTools.InfoMeasures, "InfoMeasures");
+
+        [TestMethod]
+        public async Task InfoRelationshipsTool_ReturnsExpectedType() => await TestInfoToolAsync(PbiLocalTools.InfoRelationships, "InfoRelationships");
+
+        [TestMethod]
+        public async Task InfoAnnotationsTool_ReturnsExpectedType() => await TestInfoToolAsync(PbiLocalTools.InfoAnnotations, "InfoAnnotations");
     }
 }
