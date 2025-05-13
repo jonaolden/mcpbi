@@ -1,0 +1,23 @@
+{
+  "mcpServers": {
+    "csharp-sdk Docs": {
+      "url": "https://gitmcp.io/modelcontextprotocol/csharp-sdk",
+      "alwaysAllow": [
+        "fetch_csharp_sdk_documentation",
+        "search_csharp_sdk_documentation",
+        "search_csharp_sdk_code",
+        "fetch_generic_url_content"
+      ]
+    },
+    "Analysis-Services Docs": {
+      "type": "sse",
+      "url": "https://gitmcp.io/microsoft/Analysis-Services",
+      "alwaysAllow": [
+        "fetch_Analysis_Services_docs",
+        "search_Analysis_Services_docs",
+        "search_Analysis_Services_code",
+        "fetch_generic_url_content"
+      ]
+    }
+  }
+}

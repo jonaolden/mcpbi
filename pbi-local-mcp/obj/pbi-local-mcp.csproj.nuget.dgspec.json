@@ -1,0 +1,104 @@
+{
+  "format": 1,
+  "restore": {
+    "C:\\dev\\powerbi\\tabular-mcp\\pbi-local-mcp\\pbi-local-mcp.csproj": {}
+  },
+  "projects": {
+    "C:\\dev\\powerbi\\tabular-mcp\\pbi-local-mcp\\pbi-local-mcp.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\dev\\powerbi\\tabular-mcp\\pbi-local-mcp\\pbi-local-mcp.csproj",
+        "projectName": "pbi-local-mcp",
+        "projectPath": "C:\\dev\\powerbi\\tabular-mcp\\pbi-local-mcp\\pbi-local-mcp.csproj",
+        "packagesPath": "C:\\Users\\jonatan.oldenburg\\.nuget\\packages\\",
+        "outputPath": "C:\\dev\\powerbi\\tabular-mcp\\pbi-local-mcp\\obj\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\jonatan.oldenburg\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net7.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net7.0": {
+            "targetAlias": "net7.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        }
+      },
+      "frameworks": {
+        "net7.0": {
+          "targetAlias": "net7.0",
+          "dependencies": {
+            "Microsoft.AnalysisServices.AdomdClient.NetCore.retail.amd64": {
+              "target": "Package",
+              "version": "[19.84.1, )"
+            },
+            "Microsoft.AnalysisServices.NetCore.Retail.amd64": {
+              "target": "Package",
+              "version": "[19.84.1, )"
+            },
+            "Microsoft.Extensions.Hosting": {
+              "target": "Package",
+              "version": "[7.0.1, )"
+            },
+            "ModelContextProtocol": {
+              "target": "Package",
+              "version": "[0.1.0-preview.13, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.AspNetCore.App.Runtime.win-x64",
+              "version": "[7.0.13, 7.0.13]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Runtime.win-x64",
+              "version": "[7.0.13, 7.0.13]"
+            },
+            {
+              "name": "Microsoft.WindowsDesktop.App.Runtime.win-x64",
+              "version": "[7.0.13, 7.0.13]"
+            }
+          ],
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\7.0.403\\RuntimeIdentifierGraph.json"
+        }
+      },
+      "runtimes": {
+        "win-x64": {
+          "#import": []
+        }
+      }
+    }
+  }
+}
