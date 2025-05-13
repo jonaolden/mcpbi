@@ -10,8 +10,6 @@ using ModelContextProtocol.Server;
 using ModelContextProtocol.Protocol; // Required for McpServerTool attribute
 using ModelContextProtocol.Protocol.Types; // Required for Implementation class
 
-using System.Linq;
-
 public class Program
 {
     public static async Task Main(string[] args)
@@ -93,36 +91,98 @@ public static class PbiLocalTools
     [McpServerTool(Name = "list_relationships"), Description("array { from, to, cardinality, direction }")]
     public static object Relationships()
     {
-        const string sql = @"SELECT f.NAME AS FromTable, fc.NAME AS FromCol,
-                                t.NAME AS ToTable,   tc.NAME AS ToCol,
-                                r.CARDINALITY, r.CROSSFILTER_DIRECTION
-                         FROM $SYSTEM.TMSCHEMA_RELATIONSHIPS r
-                         JOIN $SYSTEM.TMSCHEMA_TABLES f  ON f.ID  = r.FROM_TABLE_ID
-                         JOIN $SYSTEM.TMSCHEMA_COLUMNS fc ON fc.ID = r.FROM_COLUMN_ID
-                         JOIN $SYSTEM.TMSCHEMA_TABLES t  ON t.ID  = r.TO_TABLE_ID
-                         JOIN $SYSTEM.TMSCHEMA_COLUMNS tc ON tc.ID = r.TO_COLUMN_ID;";
+        const string dax = "EVALUATE INFO.VIEW.RELATIONSHIPS()";
+
         using var conn = new AdomdConnection(ConnStr());
         conn.Open();
-        var cmd = conn.CreateCommand(); cmd.CommandText = sql;
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = dax;
         var dt = new DataTable();
         new AdomdDataAdapter(cmd).Fill(dt);
-        return dt;
+
+        // Print column names for debugging
+        Console.WriteLine($"[Relationships()] Source table columns: {string.Join(", ", dt.Columns.Cast<System.Data.DataColumn>().Select(c => c.ColumnName))}");
+
+        var result = new DataTable();
+        result.Columns.Add("ID", typeof(int));
+        result.Columns.Add("Name", typeof(string));
+        result.Columns.Add("Relationship", typeof(string));
+        result.Columns.Add("Model", typeof(string));
+        result.Columns.Add("IsActive", typeof(bool));
+        result.Columns.Add("CrossFilteringBehavior", typeof(string));
+        result.Columns.Add("RelyOnReferentialIntegrity", typeof(bool));
+        result.Columns.Add("FromTable", typeof(string));
+        result.Columns.Add("FromColumn", typeof(string));
+        result.Columns.Add("FromCardinality", typeof(string));
+        result.Columns.Add("ToTable", typeof(string));
+        result.Columns.Add("ToColumn", typeof(string));
+        result.Columns.Add("ToCardinality", typeof(string));
+        result.Columns.Add("State", typeof(string));
+        result.Columns.Add("SecurityFilteringBehavior", typeof(string));
+
+        foreach (DataRow sourceRow in dt.Rows)
+        {
+            var row = result.NewRow();
+            // Always copy these exact columns
+            if (dt.Columns.Contains("[ID]")) row["ID"] = sourceRow["[ID]"];
+            if (dt.Columns.Contains("[Name]")) row["Name"] = sourceRow["[Name]"];
+            if (dt.Columns.Contains("[Relationship]")) row["Relationship"] = sourceRow["[Relationship]"];
+            if (dt.Columns.Contains("[Model]")) row["Model"] = sourceRow["[Model]"];
+            if (dt.Columns.Contains("[IsActive]")) row["IsActive"] = sourceRow["[IsActive]"];
+            if (dt.Columns.Contains("[CrossFilteringBehavior]")) row["CrossFilteringBehavior"] = sourceRow["[CrossFilteringBehavior]"];
+            if (dt.Columns.Contains("[RelyOnReferentialIntegrity]")) row["RelyOnReferentialIntegrity"] = sourceRow["[RelyOnReferentialIntegrity]"];
+            if (dt.Columns.Contains("[FromTable]")) row["FromTable"] = sourceRow["[FromTable]"];
+            if (dt.Columns.Contains("[FromColumn]")) row["FromColumn"] = sourceRow["[FromColumn]"];
+            if (dt.Columns.Contains("[FromCardinality]")) row["FromCardinality"] = sourceRow["[FromCardinality]"];
+            if (dt.Columns.Contains("[ToTable]")) row["ToTable"] = sourceRow["[ToTable]"];
+            if (dt.Columns.Contains("[ToColumn]")) row["ToColumn"] = sourceRow["[ToColumn]"];
+            if (dt.Columns.Contains("[ToCardinality]")) row["ToCardinality"] = sourceRow["[ToCardinality]"];
+            if (dt.Columns.Contains("[State]")) row["State"] = sourceRow["[State]"];
+            if (dt.Columns.Contains("[SecurityFilteringBehavior]")) row["SecurityFilteringBehavior"] = sourceRow["[SecurityFilteringBehavior]"];
+            result.Rows.Add(row);
+        }
+
+        // Print a sample row for debugging
+        if (result.Rows.Count > 0)
+        {
+            Console.WriteLine($"[Relationships()] First row values: {string.Join(", ", result.Columns.Cast<System.Data.DataColumn>().Select(c => $"{c.ColumnName}='{result.Rows[0][c]}'"))}");
+        }
+
+        return result;
     }
 
     [McpServerTool(Name = "measure_details"), Description("{ dax, description, modified }")]
     public static object MeasureDetails(string table, string measure)
     {
-        using var srv = new Microsoft.AnalysisServices.Tabular.Server(); 
-        srv.Connect(ConnStr());
-        var m = srv.Databases[0].Model.Tables[table].Measures[measure];
-        return new { dax = m.Expression, m.Description, m.ModifiedTime };
+        try
+        {
+            using var srv = new Microsoft.AnalysisServices.Tabular.Server();
+            srv.Connect(ConnStr());
+
+            if (!srv.Databases[0].Model.Tables.Contains(table))
+            {
+                return new { error = $"Table '{table}' not found." };
+            }
+            var tableObj = srv.Databases[0].Model.Tables[table];
+
+            if (!tableObj.Measures.Contains(measure))
+            {
+                return new { error = $"Measure '{measure}' not found in table '{table}'." };
+            }
+            var m = tableObj.Measures[measure];
+            return new { dax = m.Expression, m.Description, m.ModifiedTime };
+        }
+        catch (Exception ex) // Catch other potential exceptions
+        {
+            return new { error = $"An error occurred while fetching measure details: {ex.Message}" };
+        }
     }
 
     [McpServerTool(Name = "preview"), Description("rows JSON")]
     public static object Preview(string table, int topN = 20)
     {
         using var conn = new AdomdConnection(ConnStr()); conn.Open();
-        var cmd = conn.CreateCommand();
+        using var cmd = conn.CreateCommand();
         cmd.CommandText = $"EVALUATE TOPN({topN}, '{table}')";
         var dt = new DataTable();
         new AdomdDataAdapter(cmd).Fill(dt);
@@ -133,7 +193,7 @@ public static class PbiLocalTools
     public static object Eval(string expression)
     {
         using var conn = new AdomdConnection(ConnStr()); conn.Open();
-        var cmd = conn.CreateCommand();
+        using var cmd = conn.CreateCommand();
         cmd.CommandText = $"EVALUATE ({expression})";
         try
         {
