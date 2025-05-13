@@ -2,6 +2,7 @@
 using Microsoft.AnalysisServices.Tabular;
 using System.Data;
 using System.ComponentModel;
+using System.IO;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -9,9 +10,25 @@ using ModelContextProtocol.Server;
 using ModelContextProtocol.Protocol; // Required for McpServerTool attribute
 using ModelContextProtocol.Protocol.Types; // Required for Implementation class
 
+using System.Linq;
+
 public class Program
 {
     public static async Task Main(string[] args)
+    {
+        LoadEnvFile(".env"); // Load environment variables from .env at startup
+
+        if (args.Length > 0 && args[0].Equals("discover-pbi", StringComparison.OrdinalIgnoreCase))
+        {
+            PbiInstanceDiscovery.RunInteractive();
+            return;
+        }
+
+        var host = CreateHostBuilder(args);
+        await host.RunAsync();
+    }
+
+    public static IHost CreateHostBuilder(string[] args)
     {
         var builder = Host.CreateApplicationBuilder(args);
 
@@ -31,8 +48,28 @@ public class Program
         .WithStdioServerTransport()
         .WithToolsFromAssembly();
 
-        var host = builder.Build();
-        await host.RunAsync();
+        return builder.Build();
+    }
+
+    public static void LoadEnvFile(string filePath)
+    {
+        if (!File.Exists(filePath))
+        {
+            // .env file not found; silently continue
+            return;
+        }
+
+        foreach (var line in File.ReadAllLines(filePath))
+        {
+            var parts = line.Split('=', 2);
+            if (parts.Length == 2)
+            {
+                var key = parts[0].Trim();
+                var value = parts[1].Trim();
+                Environment.SetEnvironmentVariable(key, value);
+                // Optionally log: Console.WriteLine($"Loaded from .env: {key}={value}");
+            }
+        }
     }
 }
 

@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "+3xoCjkHbjmF21hL24foNtJOpw0Nc7vv0zPWmX3OQM1UK2FdwHP4xJWC4Kc8/pNb4sT+MWaDtn17W6q3Iuw+uw==",
+  "dgSpecHash": "ei+HRLU6faPwxROHpjK2nIjkgrArdUdAPgg4G0rP1RWm1CWQayVS/lMnblpKmzutStrdFIlbRXjDvoiLFF0TcQ==",
   "success": true,
   "projectFilePath": "C:\\dev\\powerbi\\tabular-mcp\\pbi-local-mcp\\pbi-local-mcp.csproj",
   "expectedPackageFiles": [
@@ -47,10 +47,7 @@
     "C:\\Users\\jonatan.oldenburg\\.nuget\\packages\\system.text.encodings.web\\8.0.0\\system.text.encodings.web.8.0.0.nupkg.sha512",
     "C:\\Users\\jonatan.oldenburg\\.nuget\\packages\\system.text.json\\8.0.5\\system.text.json.8.0.5.nupkg.sha512",
     "C:\\Users\\jonatan.oldenburg\\.nuget\\packages\\system.threading.channels\\8.0.0\\system.threading.channels.8.0.0.nupkg.sha512",
-    "C:\\Users\\jonatan.oldenburg\\.nuget\\packages\\system.threading.tasks.extensions\\4.6.0\\system.threading.tasks.extensions.4.6.0.nupkg.sha512",
-    "C:\\Users\\jonatan.oldenburg\\.nuget\\packages\\microsoft.netcore.app.runtime.win-x64\\7.0.13\\microsoft.netcore.app.runtime.win-x64.7.0.13.nupkg.sha512",
-    "C:\\Users\\jonatan.oldenburg\\.nuget\\packages\\microsoft.windowsdesktop.app.runtime.win-x64\\7.0.13\\microsoft.windowsdesktop.app.runtime.win-x64.7.0.13.nupkg.sha512",
-    "C:\\Users\\jonatan.oldenburg\\.nuget\\packages\\microsoft.aspnetcore.app.runtime.win-x64\\7.0.13\\microsoft.aspnetcore.app.runtime.win-x64.7.0.13.nupkg.sha512"
+    "C:\\Users\\jonatan.oldenburg\\.nuget\\packages\\system.threading.tasks.extensions\\4.6.0\\system.threading.tasks.extensions.4.6.0.nupkg.sha512"
   ],
   "logs": []
 }

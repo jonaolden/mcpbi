@@ -1,0 +1,47 @@
+# .NET build results
+bin/
+obj/
+[Bb]uild/
+[Ll]og/
+*.log
+
+# VS/VSCode settings
+.vs/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+
+# Rider settings
+.idea/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Publish outputs
+*.publish/
+*.deploy/
+
+# NuGet packages
+*.nupkg
+*.snupkg
+*.nuspec
+*.psmdcp
+*.ps1
+
+# Test results
+[Tt]est[Rr]esult*/
+*.trx
+
+# Others
+*.cache
+*.pdb
+
+# Ignore local MCP config
+.roo/
+
+# Ignore resources subdir
+resources/

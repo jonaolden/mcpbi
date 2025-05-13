@@ -7,6 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,4 +17,9 @@
     <PackageReference Include="ModelContextProtocol" Version="0.1.0-preview.13" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="pbi-local-mcp.Tests\**\*.cs" />
+    <EmbeddedResource Remove="pbi-local-mcp.Tests\**\*.cs" />
+    <None Remove="pbi-local-mcp.Tests\**\*.cs" />
+  </ItemGroup>
 </Project>
