@@ -40,8 +40,7 @@ Thumbs.db
 *.cache
 *.pdb
 
-# Ignore local MCP config
+# Ignore local configs and resources
 .roo/
-
-# Ignore resources subdir
+.vscode/
 resources/
