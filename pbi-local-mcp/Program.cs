@@ -474,4 +474,32 @@ public static class PbiLocalTools
             return new { error = $"UnexpectedError: {ex.Message}" };
         }
     }
+/// <summary>
+        /// Returns dependencies in the model, filtered by any combination of key columns.
+        /// </summary>
+        /// <param name="objectType">Optional filter for OBJECT_TYPE.</param>
+        /// <param name="objectName">Optional filter for OBJECT.</param>
+        /// <param name="referencedObjectType">Optional filter for REFERENCED_OBJECT_TYPE.</param>
+        /// <param name="referencedTable">Optional filter for REFERENCED_TABLE.</param>
+        /// <param name="referencedObject">Optional filter for REFERENCED_OBJECT.</param>
+        /// <returns>Dependency rows matching the filters, or all if no filters are provided.</returns>
+        [McpServerTool(Name = "InfoDependencies"), Description("Returns dependencies in the model, filtered by OBJECT_TYPE, OBJECT, REFERENCED_OBJECT_TYPE, REFERENCED_TABLE, REFERENCED_OBJECT")]
+        public static async Task<object> InfoDependencies(
+            string? objectType = null,
+            string? objectName = null,
+            string? referencedObjectType = null,
+            string? referencedTable = null,
+            string? referencedObject = null)
+        {
+            string connectionString = GetConnectionString();
+            var result = await _tabularService.InfoDependenciesAsync(
+                connectionString,
+                objectType,
+                objectName,
+                referencedObjectType,
+                referencedTable,
+                referencedObject
+            );
+            return result;
+        }
 }

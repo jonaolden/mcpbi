@@ -118,9 +118,11 @@ namespace pbi_local_mcp
         /// <param name="connectionString">The ADOMD connection string.</param>
         /// <param name="daxFilterExpression">Optional DAX filter expression.</param>
         /// <returns>A collection of dictionaries representing the query results.</returns>
-        public async Task<IEnumerable<Dictionary<string, object?>>> InfoViewTablesAsync(string connectionString, string? daxFilterExpression = null)
+        public async Task<IEnumerable<Dictionary<string, object?>>> InfoViewTablesAsync(string connectionString, string? filter = null)
         {
-            return await ExecuteInfoFunctionAsync("INFO.VIEW.TABLES", connectionString, daxFilterExpression);
+            // Always use SEARCH(filter, [Name], 1, 0) > 0 as the filter expression
+            string searchFilter = $"SEARCH(\"{(string.IsNullOrEmpty(filter) ? "" : filter.Replace("\"", "\"\""))}\", [Name], 1, 0) > 0";
+            return await ExecuteInfoFunctionAsync("INFO.VIEW.TABLES", connectionString, searchFilter);
         }
 
         /// <summary>
@@ -129,9 +131,11 @@ namespace pbi_local_mcp
         /// <param name="connectionString">The ADOMD connection string.</param>
         /// <param name="daxFilterExpression">Optional DAX filter expression.</param>
         /// <returns>A collection of dictionaries representing the query results.</returns>
-        public async Task<IEnumerable<Dictionary<string, object?>>> InfoViewColumnsAsync(string connectionString, string? daxFilterExpression = null)
+        public async Task<IEnumerable<Dictionary<string, object?>>> InfoViewColumnsAsync(string connectionString, string? filter = null)
         {
-            return await ExecuteInfoFunctionAsync("INFO.VIEW.COLUMNS", connectionString, daxFilterExpression);
+            // Always use SEARCH(filter, [Name], 1, 0) > 0 as the filter expression
+            string searchFilter = $"SEARCH(\"{(string.IsNullOrEmpty(filter) ? "" : filter.Replace("\"", "\"\""))}\", [Name], 1, 0) > 0";
+            return await ExecuteInfoFunctionAsync("INFO.VIEW.COLUMNS", connectionString, searchFilter);
         }
 
         /// <summary>
@@ -140,9 +144,11 @@ namespace pbi_local_mcp
         /// <param name="connectionString">The ADOMD connection string.</param>
         /// <param name="daxFilterExpression">Optional DAX filter expression.</param>
         /// <returns>A collection of dictionaries representing the query results.</returns>
-        public async Task<IEnumerable<Dictionary<string, object?>>> InfoViewMeasuresAsync(string connectionString, string? daxFilterExpression = null)
+        public async Task<IEnumerable<Dictionary<string, object?>>> InfoViewMeasuresAsync(string connectionString, string? filter = null)
         {
-            return await ExecuteInfoFunctionAsync("INFO.VIEW.MEASURES", connectionString, daxFilterExpression);
+            // Always use SEARCH(filter, [Name], 1, 0) > 0 as the filter expression
+            string searchFilter = $"SEARCH(\"{(string.IsNullOrEmpty(filter) ? "" : filter.Replace("\"", "\"\""))}\", [Name], 1, 0) > 0";
+            return await ExecuteInfoFunctionAsync("INFO.VIEW.MEASURES", connectionString, searchFilter);
         }
 
         /// <summary>
@@ -151,9 +157,21 @@ namespace pbi_local_mcp
         /// <param name="connectionString">The ADOMD connection string.</param>
         /// <param name="daxFilterExpression">Optional DAX filter expression.</param>
         /// <returns>A collection of dictionaries representing the query results.</returns>
-        public async Task<IEnumerable<Dictionary<string, object?>>> InfoViewRelationshipsAsync(string connectionString, string? daxFilterExpression = null)
+        /// <summary>
+        /// Executes the INFO.VIEW.RELATIONSHIPS() DAX function with filter on FromTable or ToTable.
+        /// </summary>
+        /// <param name="connectionString">The ADOMD connection string.</param>
+        /// <param name="filter">Optional filter string.</param>
+        /// <param name="tableRole">"from" (default) or "to" to select which column to filter on.</param>
+        /// <returns>A collection of dictionaries representing the query results.</returns>
+        public async Task<IEnumerable<Dictionary<string, object?>>> InfoViewRelationshipsAsync(
+            string connectionString,
+            string? filter = null,
+            string tableRole = "from")
         {
-            return await ExecuteInfoFunctionAsync("INFO.VIEW.RELATIONSHIPS", connectionString, daxFilterExpression);
+            string column = tableRole.Equals("to", StringComparison.OrdinalIgnoreCase) ? "ToTable" : "FromTable";
+            string searchFilter = $"SEARCH(\"{(string.IsNullOrEmpty(filter) ? "" : filter.Replace("\"", "\"\""))}\", [{column}], 1, 0) > 0";
+            return await ExecuteInfoFunctionAsync("INFO.VIEW.RELATIONSHIPS", connectionString, searchFilter);
         }
 
         /// <summary>
@@ -183,6 +201,40 @@ namespace pbi_local_mcp
         /// </summary>
         /// <param name="connectionString">The ADOMD connection string.</param>
         /// <param name="daxFilterExpression">Optional DAX filter expression.</param>
+/// <summary>
+        /// Executes the INFO.DEPENDENCIES() DAX function with optional filters on key columns.
+        /// </summary>
+        /// <param name="connectionString">The ADOMD connection string.</param>
+        /// <param name="objectType">Optional filter for OBJECT_TYPE.</param>
+        /// <param name="objectName">Optional filter for OBJECT.</param>
+        /// <param name="referencedObjectType">Optional filter for REFERENCED_OBJECT_TYPE.</param>
+        /// <param name="referencedTable">Optional filter for REFERENCED_TABLE.</param>
+        /// <param name="referencedObject">Optional filter for REFERENCED_OBJECT.</param>
+        /// <returns>A collection of dictionaries representing the query results.</returns>
+        public async Task<IEnumerable<Dictionary<string, object?>>> InfoDependenciesAsync(
+            string connectionString,
+            string? objectType = null,
+            string? objectName = null,
+            string? referencedObjectType = null,
+            string? referencedTable = null,
+            string? referencedObject = null)
+        {
+            var filters = new List<string>();
+            if (!string.IsNullOrEmpty(objectType))
+                filters.Add($"SEARCH(\"{objectType.Replace("\"", "\"\"")}\", [OBJECT_TYPE], 1, 0) > 0");
+            if (!string.IsNullOrEmpty(objectName))
+                filters.Add($"SEARCH(\"{objectName.Replace("\"", "\"\"")}\", [OBJECT], 1, 0) > 0");
+            if (!string.IsNullOrEmpty(referencedObjectType))
+                filters.Add($"SEARCH(\"{referencedObjectType.Replace("\"", "\"\"")}\", [REFERENCED_OBJECT_TYPE], 1, 0) > 0");
+            if (!string.IsNullOrEmpty(referencedTable))
+                filters.Add($"SEARCH(\"{referencedTable.Replace("\"", "\"\"")}\", [REFERENCED_TABLE], 1, 0) > 0");
+            if (!string.IsNullOrEmpty(referencedObject))
+                filters.Add($"SEARCH(\"{referencedObject.Replace("\"", "\"\"")}\", [REFERENCED_OBJECT], 1, 0) > 0");
+
+            string filterExpr = filters.Count > 0 ? string.Join(" && ", filters) : "TRUE()";
+            string query = $"EVALUATE FILTER(INFO.DEPENDENCIES(), {filterExpr})";
+            return await ExecuteDaxQueryAsync(connectionString, query);
+        }
         /// <returns>A collection of dictionaries representing the query results.</returns>
         public async Task<IEnumerable<Dictionary<string, object?>>> InfoRelationshipsAsync(string connectionString, string? daxFilterExpression = null)
         {
