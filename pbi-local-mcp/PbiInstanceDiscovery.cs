@@ -1,11 +1,11 @@
-using System;
-using System.Collections.Generic;
 using System.Data;
-using System.IO;
-using System.Linq;
 using System.Text;
 using Microsoft.AnalysisServices.AdomdClient;
 
+/// <summary>
+/// Provides functionality to discover running Power BI Desktop instances and their Analysis Services ports.
+/// It also allows for interactive selection to update the .env file with connection details.
+/// </summary>
 public static class PbiInstanceDiscovery
 {
     private static readonly string[] WorkspaceRoots = new[]
@@ -18,19 +18,44 @@ public static class PbiInstanceDiscovery
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Microsoft", "Power BI Desktop Store App", "AnalysisServicesWorkspaces")
     };
 
+    /// <summary>
+    /// Represents information about a discovered Power BI Desktop instance.
+    /// </summary>
     public class InstanceInfo
     {
-        public string WorkspacePath { get; set; }
+        /// <summary>
+        /// Gets or sets the file system path to the Analysis Services workspace directory.
+        /// </summary>
+        public string? WorkspacePath { get; set; }
+        /// <summary>
+        /// Gets or sets the port number on which the Analysis Services instance is listening.
+        /// </summary>
         public int Port { get; set; }
+        /// <summary>
+        /// Gets or sets the list of databases found within this instance.
+        /// </summary>
         public List<DatabaseInfo> Databases { get; set; } = new();
     }
 
+    /// <summary>
+    /// Represents information about a database within a Power BI Desktop instance.
+    /// </summary>
     public class DatabaseInfo
     {
-        public string Id { get; set; }
-        public string Name { get; set; }
+        /// <summary>
+        /// Gets or sets the ID (catalog name) of the database.
+        /// </summary>
+        public string? Id { get; set; }
+        /// <summary>
+        /// Gets or sets the friendly name of the database.
+        /// </summary>
+        public string? Name { get; set; }
     }
 
+    /// <summary>
+    /// Runs an interactive discovery process in the console.
+    /// Allows the user to select a Power BI instance and database, then updates the .env file.
+    /// </summary>
     public static void RunInteractive()
     {
         var instances = DiscoverInstances();
@@ -53,7 +78,7 @@ public static class PbiInstanceDiscovery
         }
         var instance = instances[instIdx];
 
-        DatabaseInfo db = null;
+        DatabaseInfo? db = null;
         if (instance.Databases.Count == 1)
         {
             db = instance.Databases[0];
@@ -84,6 +109,8 @@ public static class PbiInstanceDiscovery
     {
         if (items.Count == 0)
         {
+            Console.WriteLine("No items to select.");
+            return -1;
         }
 
         int selected = 0;
@@ -108,8 +135,9 @@ public static class PbiInstanceDiscovery
                     int targetLine = initialListTop + i;
                     if (targetLine >= Console.BufferHeight)
                     {
-                        // Skip drawing this item if it's outside the console buffer
-                        // Console.Error.WriteLine($"Warning: Skipping item {i} as it's outside the console buffer height.");
+                        // Skip drawing this item if it's outside the console buffer.
+                        // The check at initialListTop >= Console.BufferHeight should handle most cases
+                        // where the list itself is too long to even start drawing.
                         continue;
                     }
                     Console.SetCursorPosition(0, targetLine);
@@ -175,6 +203,11 @@ public static class PbiInstanceDiscovery
         }
     }
 
+    /// <summary>
+    /// Discovers running Power BI Desktop instances by checking known workspace root paths
+    /// for msmdsrv.port.txt files and enumerating their databases.
+    /// </summary>
+    /// <returns>A list of <see cref="InstanceInfo"/> objects representing discovered instances.</returns>
     public static List<InstanceInfo> DiscoverInstances()
     {
         var result = new List<InstanceInfo>();
@@ -196,7 +229,7 @@ public static class PbiInstanceDiscovery
                     var portFileCandidate1 = Path.Combine(workspaceDir, "msmdsrv.port.txt");
                     var portFileCandidate2 = Path.Combine(workspaceDir, "Data", "msmdsrv.port.txt");
 
-                    string foundPortFile = null;
+                    string? foundPortFile = null;
                     foreach (var candidate in new[] { portFileCandidate1, portFileCandidate2 })
                     {
                         if (File.Exists(candidate))
@@ -231,6 +264,8 @@ public static class PbiInstanceDiscovery
                 }
                 catch (Exception ex)
                 {
+                    // Log and continue, so one problematic workspace doesn't stop discovery of others.
+                    Console.Error.WriteLine($"[{DateTime.UtcNow:O}] [DiscoverInstances] Error processing workspace directory '{workspaceDir}': {ex.GetType().Name} - {ex.Message}{Environment.NewLine}{ex.StackTrace}");
                 }
             }
         }
@@ -250,12 +285,16 @@ public static class PbiInstanceDiscovery
             {
                 dbs.Add(new DatabaseInfo
                 {
-                    Id = row["CATALOG_NAME"].ToString(),
-                    Name = row["CATALOG_NAME"].ToString()
+                    Id = row["CATALOG_NAME"] as string,
+                    Name = row["CATALOG_NAME"] as string
                 });
             }
         }
-        catch { /* Ignore connection errors */ }
+        catch (Exception ex)
+        {
+            // Intentionally ignoring connection errors during discovery, but log for diagnostics.
+            Console.Error.WriteLine($"Error enumerating databases for port {port}: {ex.Message}");
+        }
         return dbs;
     }
 }
