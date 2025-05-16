@@ -8,7 +8,22 @@
         "search_query_docs_documentation",
         "search_query_docs_code",
         "fetch_generic_url_content"
-      ]
+      ],
+      "disabled": true
+    },
+    "csharp-mcp-sdk Docs": {
+      "type": "sse",
+      "url": "https://gitmcp.io/modelcontextprotocol/csharp-sdk",
+      "alwaysAllow": [
+        "fetch_query_docs_documentation",
+        "search_query_docs_documentation",
+        "search_query_docs_code",
+        "fetch_generic_url_content",
+        "search_csharp_sdk_code",
+        "fetch_csharp_sdk_documentation",
+        "search_csharp_sdk_documentation"
+      ],
+      "disabled": false
     }
   }
 }

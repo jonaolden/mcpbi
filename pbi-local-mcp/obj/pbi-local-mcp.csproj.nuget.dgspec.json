@@ -44,21 +44,17 @@
         "net7.0": {
           "targetAlias": "net7.0",
           "dependencies": {
-            "Microsoft.AnalysisServices.AdomdClient.NetCore.retail.amd64": {
+            "Microsoft.AnalysisServices.AdomdClient": {
               "target": "Package",
-              "version": "[19.84.1, )"
-            },
-            "Microsoft.AnalysisServices.NetCore.Retail.amd64": {
-              "target": "Package",
-              "version": "[19.84.1, )"
+              "version": "[19.96.1, )"
             },
             "Microsoft.Extensions.Hosting": {
               "target": "Package",
-              "version": "[7.0.1, )"
+              "version": "[8.0.0, )"
             },
             "ModelContextProtocol": {
               "target": "Package",
-              "version": "[0.1.0-preview.13, )"
+              "version": "[0.2.0-preview.1, )"
             }
           },
           "imports": [

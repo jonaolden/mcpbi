@@ -1,27 +1,35 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <!--  .NET 8 gives you C# 12, raw-string literals, better trimming, etc. -->
+    <TargetFramework>net8.0</TargetFramework>
+
+    <!-- build + style flags -->
     <OutputType>Exe</OutputType>
-    <TargetFramework>net7.0</TargetFramework>
     <RootNamespace>pbi_local_mcp</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AnalysisServices.AdomdClient.NetCore.retail.amd64" Version="19.84.1" />
-    <PackageReference Include="Microsoft.AnalysisServices.NetCore.Retail.amd64" Version="19.84.1" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="7.0.1" />
-    <PackageReference Include="ModelContextProtocol" Version="0.1.0-preview.13" />
+    <!-- ADOMD.NET client (x64 only – same DLL works for **Windows + Linux**) -->
+    <PackageReference Include="Microsoft.AnalysisServices.AdomdClient" Version="19.96.1.0" />
+
+    <!-- MCP protocol + STDIO host -->
+    <PackageReference Include="ModelContextProtocol"         Version="0.2.0-preview.1" />
+    <!-- ModelContextProtocol.Server not available, removing for build -->
+
+    <!-- Hosting abstractions come transitively with MCP.Server, but keeping this is harmless -->
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
   </ItemGroup>
 
+  <!-- Ignore the tests folder when packing / compiling the main project -->
   <ItemGroup>
     <Compile Remove="pbi-local-mcp.Tests\**\*.cs" />
     <EmbeddedResource Remove="pbi-local-mcp.Tests\**\*.cs" />
     <None Remove="pbi-local-mcp.Tests\**\*.cs" />
   </ItemGroup>
+
 </Project>
