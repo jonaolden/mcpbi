@@ -1,7 +1,7 @@
 {
   "version": 3,
   "targets": {
-    "net7.0": {
+    "net8.0": {
       "Microsoft.AnalysisServices.AdomdClient/19.96.1": {
         "type": "package",
         "dependencies": {
@@ -9,284 +9,284 @@
           "Microsoft.Identity.Client.Broker": "4.65.0"
         },
         "compile": {
-          "lib/net6.0/Microsoft.AnalysisServices.AdomdClient.dll": {
+          "lib/net8.0/Microsoft.AnalysisServices.AdomdClient.dll": {
             "related": ".deps.json;.xml"
           },
-          "lib/net6.0/Microsoft.AnalysisServices.Runtime.Core.dll": {
+          "lib/net8.0/Microsoft.AnalysisServices.Runtime.Core.dll": {
             "related": ".deps.json;.xml"
           },
-          "lib/net6.0/Microsoft.AnalysisServices.Runtime.Windows.dll": {
+          "lib/net8.0/Microsoft.AnalysisServices.Runtime.Windows.dll": {
             "related": ".deps.json;.xml"
           }
         },
         "runtime": {
-          "lib/net6.0/Microsoft.AnalysisServices.AdomdClient.dll": {
+          "lib/net8.0/Microsoft.AnalysisServices.AdomdClient.dll": {
             "related": ".deps.json;.xml"
           },
-          "lib/net6.0/Microsoft.AnalysisServices.Runtime.Core.dll": {
+          "lib/net8.0/Microsoft.AnalysisServices.Runtime.Core.dll": {
             "related": ".deps.json;.xml"
           },
-          "lib/net6.0/Microsoft.AnalysisServices.Runtime.Windows.dll": {
+          "lib/net8.0/Microsoft.AnalysisServices.Runtime.Windows.dll": {
             "related": ".deps.json;.xml"
           }
         },
         "resource": {
-          "lib/net6.0/ar/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/ar/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "ar"
           },
-          "lib/net6.0/ar/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/ar/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "ar"
           },
-          "lib/net6.0/bg/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/bg/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "bg"
           },
-          "lib/net6.0/bg/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/bg/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "bg"
           },
-          "lib/net6.0/ca/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/ca/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "ca"
           },
-          "lib/net6.0/ca/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/ca/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "ca"
           },
-          "lib/net6.0/cs/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/cs/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "cs"
           },
-          "lib/net6.0/cs/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/cs/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "cs"
           },
-          "lib/net6.0/da/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/da/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "da"
           },
-          "lib/net6.0/da/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/da/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "da"
           },
-          "lib/net6.0/de/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/de/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "de"
           },
-          "lib/net6.0/de/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/de/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "de"
           },
-          "lib/net6.0/el/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/el/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "el"
           },
-          "lib/net6.0/el/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/el/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "el"
           },
-          "lib/net6.0/es/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/es/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "es"
           },
-          "lib/net6.0/es/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/es/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "es"
           },
-          "lib/net6.0/et/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/et/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "et"
           },
-          "lib/net6.0/et/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/et/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "et"
           },
-          "lib/net6.0/eu/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/eu/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "eu"
           },
-          "lib/net6.0/eu/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/eu/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "eu"
           },
-          "lib/net6.0/fi/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/fi/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "fi"
           },
-          "lib/net6.0/fi/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/fi/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "fi"
           },
-          "lib/net6.0/fr/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/fr/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "fr"
           },
-          "lib/net6.0/fr/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/fr/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "fr"
           },
-          "lib/net6.0/gl/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/gl/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "gl"
           },
-          "lib/net6.0/gl/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/gl/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "gl"
           },
-          "lib/net6.0/he/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/he/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "he"
           },
-          "lib/net6.0/he/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/he/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "he"
           },
-          "lib/net6.0/hi/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/hi/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "hi"
           },
-          "lib/net6.0/hi/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/hi/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "hi"
           },
-          "lib/net6.0/hr/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/hr/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "hr"
           },
-          "lib/net6.0/hr/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/hr/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "hr"
           },
-          "lib/net6.0/hu/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/hu/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "hu"
           },
-          "lib/net6.0/hu/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/hu/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "hu"
           },
-          "lib/net6.0/id/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/id/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "id"
           },
-          "lib/net6.0/id/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/id/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "id"
           },
-          "lib/net6.0/it/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/it/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "it"
           },
-          "lib/net6.0/it/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/it/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "it"
           },
-          "lib/net6.0/ja/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/ja/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "ja"
           },
-          "lib/net6.0/ja/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/ja/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "ja"
           },
-          "lib/net6.0/kk/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/kk/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "kk"
           },
-          "lib/net6.0/kk/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/kk/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "kk"
           },
-          "lib/net6.0/ko/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/ko/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "ko"
           },
-          "lib/net6.0/ko/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/ko/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "ko"
           },
-          "lib/net6.0/lt/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/lt/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "lt"
           },
-          "lib/net6.0/lt/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/lt/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "lt"
           },
-          "lib/net6.0/lv/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/lv/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "lv"
           },
-          "lib/net6.0/lv/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/lv/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "lv"
           },
-          "lib/net6.0/ms/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/ms/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "ms"
           },
-          "lib/net6.0/ms/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/ms/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "ms"
           },
-          "lib/net6.0/nl/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/nl/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "nl"
           },
-          "lib/net6.0/nl/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/nl/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "nl"
           },
-          "lib/net6.0/no/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/no/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "no"
           },
-          "lib/net6.0/no/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/no/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "no"
           },
-          "lib/net6.0/pl/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/pl/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "pl"
           },
-          "lib/net6.0/pl/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/pl/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "pl"
           },
-          "lib/net6.0/pt-PT/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/pt-PT/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "pt-PT"
           },
-          "lib/net6.0/pt-PT/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/pt-PT/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "pt-PT"
           },
-          "lib/net6.0/pt/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/pt/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "pt"
           },
-          "lib/net6.0/pt/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/pt/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "pt"
           },
-          "lib/net6.0/ro/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/ro/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "ro"
           },
-          "lib/net6.0/ro/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/ro/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "ro"
           },
-          "lib/net6.0/ru/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/ru/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "ru"
           },
-          "lib/net6.0/ru/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/ru/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "ru"
           },
-          "lib/net6.0/sk/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/sk/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "sk"
           },
-          "lib/net6.0/sk/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/sk/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "sk"
           },
-          "lib/net6.0/sl/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/sl/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "sl"
           },
-          "lib/net6.0/sl/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/sl/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "sl"
           },
-          "lib/net6.0/sr-Cyrl/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/sr-Cyrl/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "sr-Cyrl"
           },
-          "lib/net6.0/sr-Cyrl/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/sr-Cyrl/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "sr-Cyrl"
           },
-          "lib/net6.0/sr-Latn/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/sr-Latn/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "sr-Latn"
           },
-          "lib/net6.0/sr-Latn/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/sr-Latn/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "sr-Latn"
           },
-          "lib/net6.0/sv/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/sv/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "sv"
           },
-          "lib/net6.0/sv/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/sv/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "sv"
           },
-          "lib/net6.0/th/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/th/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "th"
           },
-          "lib/net6.0/th/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/th/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "th"
           },
-          "lib/net6.0/tr/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/tr/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "tr"
           },
-          "lib/net6.0/tr/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/tr/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "tr"
           },
-          "lib/net6.0/uk/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/uk/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "uk"
           },
-          "lib/net6.0/uk/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/uk/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "uk"
           },
-          "lib/net6.0/vi/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/vi/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "vi"
           },
-          "lib/net6.0/vi/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/vi/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "vi"
           },
-          "lib/net6.0/zh-Hans/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/zh-Hans/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "zh-Hans"
           },
-          "lib/net6.0/zh-Hans/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/zh-Hans/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "zh-Hans"
           },
-          "lib/net6.0/zh-Hant/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
+          "lib/net8.0/zh-Hant/Microsoft.AnalysisServices.AdomdClient.resources.dll": {
             "locale": "zh-Hant"
           },
-          "lib/net6.0/zh-Hant/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
+          "lib/net8.0/zh-Hant/Microsoft.AnalysisServices.Runtime.Core.resources.dll": {
             "locale": "zh-Hant"
           }
         },
@@ -297,50 +297,15 @@
           }
         }
       },
-      "Microsoft.Bcl.AsyncInterfaces/10.0.0-preview.3.25171.5": {
-        "type": "package",
-        "compile": {
-          "lib/netstandard2.1/Microsoft.Bcl.AsyncInterfaces.dll": {
-            "related": ".xml"
-          }
-        },
-        "runtime": {
-          "lib/netstandard2.1/Microsoft.Bcl.AsyncInterfaces.dll": {
-            "related": ".xml"
-          }
-        }
-      },
-      "Microsoft.Bcl.Memory/9.0.4": {
-        "type": "package",
-        "dependencies": {
-          "System.Runtime.CompilerServices.Unsafe": "6.0.0"
-        },
-        "compile": {
-          "lib/netstandard2.1/Microsoft.Bcl.Memory.dll": {
-            "related": ".xml"
-          }
-        },
-        "runtime": {
-          "lib/netstandard2.1/Microsoft.Bcl.Memory.dll": {
-            "related": ".xml"
-          }
-        },
-        "build": {
-          "buildTransitive/netcoreapp2.0/Microsoft.Bcl.Memory.targets": {}
-        }
-      },
       "Microsoft.Extensions.AI.Abstractions/9.5.0": {
         "type": "package",
-        "dependencies": {
-          "System.Text.Json": "8.0.5"
-        },
         "compile": {
-          "lib/netstandard2.0/Microsoft.Extensions.AI.Abstractions.dll": {
+          "lib/net8.0/Microsoft.Extensions.AI.Abstractions.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/netstandard2.0/Microsoft.Extensions.AI.Abstractions.dll": {
+          "lib/net8.0/Microsoft.Extensions.AI.Abstractions.dll": {
             "related": ".xml"
           }
         }
@@ -352,12 +317,12 @@
           "Microsoft.Extensions.Primitives": "8.0.0"
         },
         "compile": {
-          "lib/net7.0/Microsoft.Extensions.Configuration.dll": {
+          "lib/net8.0/Microsoft.Extensions.Configuration.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net7.0/Microsoft.Extensions.Configuration.dll": {
+          "lib/net8.0/Microsoft.Extensions.Configuration.dll": {
             "related": ".xml"
           }
         },
@@ -371,12 +336,12 @@
           "Microsoft.Extensions.Primitives": "8.0.0"
         },
         "compile": {
-          "lib/net7.0/Microsoft.Extensions.Configuration.Abstractions.dll": {
+          "lib/net8.0/Microsoft.Extensions.Configuration.Abstractions.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net7.0/Microsoft.Extensions.Configuration.Abstractions.dll": {
+          "lib/net8.0/Microsoft.Extensions.Configuration.Abstractions.dll": {
             "related": ".xml"
           }
         },
@@ -390,12 +355,12 @@
           "Microsoft.Extensions.Configuration.Abstractions": "8.0.0"
         },
         "compile": {
-          "lib/net7.0/Microsoft.Extensions.Configuration.Binder.dll": {
+          "lib/net8.0/Microsoft.Extensions.Configuration.Binder.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net7.0/Microsoft.Extensions.Configuration.Binder.dll": {
+          "lib/net8.0/Microsoft.Extensions.Configuration.Binder.dll": {
             "related": ".xml"
           }
         },
@@ -410,12 +375,12 @@
           "Microsoft.Extensions.Configuration.Abstractions": "8.0.0"
         },
         "compile": {
-          "lib/net7.0/Microsoft.Extensions.Configuration.CommandLine.dll": {
+          "lib/net8.0/Microsoft.Extensions.Configuration.CommandLine.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net7.0/Microsoft.Extensions.Configuration.CommandLine.dll": {
+          "lib/net8.0/Microsoft.Extensions.Configuration.CommandLine.dll": {
             "related": ".xml"
           }
         },
@@ -430,12 +395,12 @@
           "Microsoft.Extensions.Configuration.Abstractions": "8.0.0"
         },
         "compile": {
-          "lib/net7.0/Microsoft.Extensions.Configuration.EnvironmentVariables.dll": {
+          "lib/net8.0/Microsoft.Extensions.Configuration.EnvironmentVariables.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net7.0/Microsoft.Extensions.Configuration.EnvironmentVariables.dll": {
+          "lib/net8.0/Microsoft.Extensions.Configuration.EnvironmentVariables.dll": {
             "related": ".xml"
           }
         },
@@ -453,12 +418,12 @@
           "Microsoft.Extensions.Primitives": "8.0.0"
         },
         "compile": {
-          "lib/net7.0/Microsoft.Extensions.Configuration.FileExtensions.dll": {
+          "lib/net8.0/Microsoft.Extensions.Configuration.FileExtensions.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net7.0/Microsoft.Extensions.Configuration.FileExtensions.dll": {
+          "lib/net8.0/Microsoft.Extensions.Configuration.FileExtensions.dll": {
             "related": ".xml"
           }
         },
@@ -476,12 +441,12 @@
           "System.Text.Json": "8.0.0"
         },
         "compile": {
-          "lib/net7.0/Microsoft.Extensions.Configuration.Json.dll": {
+          "lib/net8.0/Microsoft.Extensions.Configuration.Json.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net7.0/Microsoft.Extensions.Configuration.Json.dll": {
+          "lib/net8.0/Microsoft.Extensions.Configuration.Json.dll": {
             "related": ".xml"
           }
         },
@@ -498,12 +463,12 @@
           "Microsoft.Extensions.FileProviders.Physical": "8.0.0"
         },
         "compile": {
-          "lib/net7.0/Microsoft.Extensions.Configuration.UserSecrets.dll": {
+          "lib/net8.0/Microsoft.Extensions.Configuration.UserSecrets.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net7.0/Microsoft.Extensions.Configuration.UserSecrets.dll": {
+          "lib/net8.0/Microsoft.Extensions.Configuration.UserSecrets.dll": {
             "related": ".xml"
           }
         },
@@ -518,12 +483,12 @@
           "Microsoft.Extensions.DependencyInjection.Abstractions": "8.0.0"
         },
         "compile": {
-          "lib/net7.0/Microsoft.Extensions.DependencyInjection.dll": {
+          "lib/net8.0/Microsoft.Extensions.DependencyInjection.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net7.0/Microsoft.Extensions.DependencyInjection.dll": {
+          "lib/net8.0/Microsoft.Extensions.DependencyInjection.dll": {
             "related": ".xml"
           }
         },
@@ -534,12 +499,12 @@
       "Microsoft.Extensions.DependencyInjection.Abstractions/8.0.2": {
         "type": "package",
         "compile": {
-          "lib/net7.0/Microsoft.Extensions.DependencyInjection.Abstractions.dll": {
+          "lib/net8.0/Microsoft.Extensions.DependencyInjection.Abstractions.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net7.0/Microsoft.Extensions.DependencyInjection.Abstractions.dll": {
+          "lib/net8.0/Microsoft.Extensions.DependencyInjection.Abstractions.dll": {
             "related": ".xml"
           }
         },
@@ -555,12 +520,12 @@
           "Microsoft.Extensions.Options.ConfigurationExtensions": "8.0.0"
         },
         "compile": {
-          "lib/net7.0/Microsoft.Extensions.Diagnostics.dll": {
+          "lib/net8.0/Microsoft.Extensions.Diagnostics.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net7.0/Microsoft.Extensions.Diagnostics.dll": {
+          "lib/net8.0/Microsoft.Extensions.Diagnostics.dll": {
             "related": ".xml"
           }
         },
@@ -576,12 +541,12 @@
           "System.Diagnostics.DiagnosticSource": "8.0.0"
         },
         "compile": {
-          "lib/net7.0/Microsoft.Extensions.Diagnostics.Abstractions.dll": {
+          "lib/net8.0/Microsoft.Extensions.Diagnostics.Abstractions.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net7.0/Microsoft.Extensions.Diagnostics.Abstractions.dll": {
+          "lib/net8.0/Microsoft.Extensions.Diagnostics.Abstractions.dll": {
             "related": ".xml"
           }
         },
@@ -595,12 +560,12 @@
           "Microsoft.Extensions.Primitives": "8.0.0"
         },
         "compile": {
-          "lib/net6.0/Microsoft.Extensions.FileProviders.Abstractions.dll": {
+          "lib/net8.0/Microsoft.Extensions.FileProviders.Abstractions.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net6.0/Microsoft.Extensions.FileProviders.Abstractions.dll": {
+          "lib/net8.0/Microsoft.Extensions.FileProviders.Abstractions.dll": {
             "related": ".xml"
           }
         },
@@ -616,12 +581,12 @@
           "Microsoft.Extensions.Primitives": "8.0.0"
         },
         "compile": {
-          "lib/net7.0/Microsoft.Extensions.FileProviders.Physical.dll": {
+          "lib/net8.0/Microsoft.Extensions.FileProviders.Physical.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net7.0/Microsoft.Extensions.FileProviders.Physical.dll": {
+          "lib/net8.0/Microsoft.Extensions.FileProviders.Physical.dll": {
             "related": ".xml"
           }
         },
@@ -632,12 +597,12 @@
       "Microsoft.Extensions.FileSystemGlobbing/8.0.0": {
         "type": "package",
         "compile": {
-          "lib/net7.0/Microsoft.Extensions.FileSystemGlobbing.dll": {
+          "lib/net8.0/Microsoft.Extensions.FileSystemGlobbing.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net7.0/Microsoft.Extensions.FileSystemGlobbing.dll": {
+          "lib/net8.0/Microsoft.Extensions.FileSystemGlobbing.dll": {
             "related": ".xml"
           }
         },
@@ -672,12 +637,12 @@
           "Microsoft.Extensions.Options": "8.0.0"
         },
         "compile": {
-          "lib/net7.0/Microsoft.Extensions.Hosting.dll": {
+          "lib/net8.0/Microsoft.Extensions.Hosting.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net7.0/Microsoft.Extensions.Hosting.dll": {
+          "lib/net8.0/Microsoft.Extensions.Hosting.dll": {
             "related": ".xml"
           }
         },
@@ -695,12 +660,12 @@
           "Microsoft.Extensions.Logging.Abstractions": "8.0.0"
         },
         "compile": {
-          "lib/net7.0/Microsoft.Extensions.Hosting.Abstractions.dll": {
+          "lib/net8.0/Microsoft.Extensions.Hosting.Abstractions.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net7.0/Microsoft.Extensions.Hosting.Abstractions.dll": {
+          "lib/net8.0/Microsoft.Extensions.Hosting.Abstractions.dll": {
             "related": ".xml"
           }
         },
@@ -716,12 +681,12 @@
           "Microsoft.Extensions.Options": "8.0.0"
         },
         "compile": {
-          "lib/net7.0/Microsoft.Extensions.Logging.dll": {
+          "lib/net8.0/Microsoft.Extensions.Logging.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net7.0/Microsoft.Extensions.Logging.dll": {
+          "lib/net8.0/Microsoft.Extensions.Logging.dll": {
             "related": ".xml"
           }
         },
@@ -735,12 +700,12 @@
           "Microsoft.Extensions.DependencyInjection.Abstractions": "8.0.2"
         },
         "compile": {
-          "lib/net7.0/Microsoft.Extensions.Logging.Abstractions.dll": {
+          "lib/net8.0/Microsoft.Extensions.Logging.Abstractions.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net7.0/Microsoft.Extensions.Logging.Abstractions.dll": {
+          "lib/net8.0/Microsoft.Extensions.Logging.Abstractions.dll": {
             "related": ".xml"
           }
         },
@@ -761,12 +726,12 @@
           "Microsoft.Extensions.Options.ConfigurationExtensions": "8.0.0"
         },
         "compile": {
-          "lib/net7.0/Microsoft.Extensions.Logging.Configuration.dll": {
+          "lib/net8.0/Microsoft.Extensions.Logging.Configuration.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net7.0/Microsoft.Extensions.Logging.Configuration.dll": {
+          "lib/net8.0/Microsoft.Extensions.Logging.Configuration.dll": {
             "related": ".xml"
           }
         },
@@ -785,12 +750,12 @@
           "System.Text.Json": "8.0.0"
         },
         "compile": {
-          "lib/net7.0/Microsoft.Extensions.Logging.Console.dll": {
+          "lib/net8.0/Microsoft.Extensions.Logging.Console.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net7.0/Microsoft.Extensions.Logging.Console.dll": {
+          "lib/net8.0/Microsoft.Extensions.Logging.Console.dll": {
             "related": ".xml"
           }
         },
@@ -806,12 +771,12 @@
           "Microsoft.Extensions.Logging.Abstractions": "8.0.0"
         },
         "compile": {
-          "lib/net7.0/Microsoft.Extensions.Logging.Debug.dll": {
+          "lib/net8.0/Microsoft.Extensions.Logging.Debug.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net7.0/Microsoft.Extensions.Logging.Debug.dll": {
+          "lib/net8.0/Microsoft.Extensions.Logging.Debug.dll": {
             "related": ".xml"
           }
         },
@@ -829,12 +794,12 @@
           "System.Diagnostics.EventLog": "8.0.0"
         },
         "compile": {
-          "lib/net7.0/Microsoft.Extensions.Logging.EventLog.dll": {
+          "lib/net8.0/Microsoft.Extensions.Logging.EventLog.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net7.0/Microsoft.Extensions.Logging.EventLog.dll": {
+          "lib/net8.0/Microsoft.Extensions.Logging.EventLog.dll": {
             "related": ".xml"
           }
         },
@@ -853,12 +818,12 @@
           "System.Text.Json": "8.0.0"
         },
         "compile": {
-          "lib/net7.0/Microsoft.Extensions.Logging.EventSource.dll": {
+          "lib/net8.0/Microsoft.Extensions.Logging.EventSource.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net7.0/Microsoft.Extensions.Logging.EventSource.dll": {
+          "lib/net8.0/Microsoft.Extensions.Logging.EventSource.dll": {
             "related": ".xml"
           }
         },
@@ -873,12 +838,12 @@
           "Microsoft.Extensions.Primitives": "8.0.0"
         },
         "compile": {
-          "lib/net7.0/Microsoft.Extensions.Options.dll": {
+          "lib/net8.0/Microsoft.Extensions.Options.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net7.0/Microsoft.Extensions.Options.dll": {
+          "lib/net8.0/Microsoft.Extensions.Options.dll": {
             "related": ".xml"
           }
         },
@@ -896,12 +861,12 @@
           "Microsoft.Extensions.Primitives": "8.0.0"
         },
         "compile": {
-          "lib/net7.0/Microsoft.Extensions.Options.ConfigurationExtensions.dll": {
+          "lib/net8.0/Microsoft.Extensions.Options.ConfigurationExtensions.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net7.0/Microsoft.Extensions.Options.ConfigurationExtensions.dll": {
+          "lib/net8.0/Microsoft.Extensions.Options.ConfigurationExtensions.dll": {
             "related": ".xml"
           }
         },
@@ -912,12 +877,12 @@
       "Microsoft.Extensions.Primitives/8.0.0": {
         "type": "package",
         "compile": {
-          "lib/net7.0/Microsoft.Extensions.Primitives.dll": {
+          "lib/net8.0/Microsoft.Extensions.Primitives.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net7.0/Microsoft.Extensions.Primitives.dll": {
+          "lib/net8.0/Microsoft.Extensions.Primitives.dll": {
             "related": ".xml"
           }
         },
@@ -998,22 +963,19 @@
       "ModelContextProtocol/0.2.0-preview.1": {
         "type": "package",
         "dependencies": {
-          "Microsoft.Bcl.Memory": "9.0.4",
           "Microsoft.Extensions.AI.Abstractions": "9.5.0",
           "Microsoft.Extensions.Hosting.Abstractions": "8.0.0",
           "Microsoft.Extensions.Logging.Abstractions": "8.0.3",
           "System.IO.Pipelines": "8.0.0",
-          "System.Net.ServerSentEvents": "10.0.0-preview.3.25171.5",
-          "System.Text.Json": "8.0.5",
-          "System.Threading.Channels": "8.0.0"
+          "System.Net.ServerSentEvents": "10.0.0-preview.3.25171.5"
         },
         "compile": {
-          "lib/netstandard2.0/ModelContextProtocol.dll": {
+          "lib/net8.0/ModelContextProtocol.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/netstandard2.0/ModelContextProtocol.dll": {
+          "lib/net8.0/ModelContextProtocol.dll": {
             "related": ".xml"
           }
         }
@@ -1021,12 +983,12 @@
       "System.Diagnostics.DiagnosticSource/8.0.0": {
         "type": "package",
         "compile": {
-          "lib/net7.0/System.Diagnostics.DiagnosticSource.dll": {
+          "lib/net8.0/System.Diagnostics.DiagnosticSource.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net7.0/System.Diagnostics.DiagnosticSource.dll": {
+          "lib/net8.0/System.Diagnostics.DiagnosticSource.dll": {
             "related": ".xml"
           }
         },
@@ -1037,12 +999,12 @@
       "System.Diagnostics.EventLog/8.0.0": {
         "type": "package",
         "compile": {
-          "lib/net7.0/System.Diagnostics.EventLog.dll": {
+          "lib/net8.0/System.Diagnostics.EventLog.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net7.0/System.Diagnostics.EventLog.dll": {
+          "lib/net8.0/System.Diagnostics.EventLog.dll": {
             "related": ".xml"
           }
         },
@@ -1050,11 +1012,11 @@
           "buildTransitive/net6.0/_._": {}
         },
         "runtimeTargets": {
-          "runtimes/win/lib/net7.0/System.Diagnostics.EventLog.Messages.dll": {
+          "runtimes/win/lib/net8.0/System.Diagnostics.EventLog.Messages.dll": {
             "assetType": "runtime",
             "rid": "win"
           },
-          "runtimes/win/lib/net7.0/System.Diagnostics.EventLog.dll": {
+          "runtimes/win/lib/net8.0/System.Diagnostics.EventLog.dll": {
             "assetType": "runtime",
             "rid": "win"
           }
@@ -1063,12 +1025,12 @@
       "System.IO.Pipelines/8.0.0": {
         "type": "package",
         "compile": {
-          "lib/net7.0/System.IO.Pipelines.dll": {
+          "lib/net8.0/System.IO.Pipelines.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net7.0/System.IO.Pipelines.dll": {
+          "lib/net8.0/System.IO.Pipelines.dll": {
             "related": ".xml"
           }
         },
@@ -1076,61 +1038,31 @@
           "buildTransitive/net6.0/_._": {}
         }
       },
-      "System.Memory/4.6.0": {
-        "type": "package",
-        "compile": {
-          "lib/netcoreapp2.1/_._": {}
-        },
-        "runtime": {
-          "lib/netcoreapp2.1/_._": {}
-        }
-      },
       "System.Net.ServerSentEvents/10.0.0-preview.3.25171.5": {
         "type": "package",
-        "dependencies": {
-          "Microsoft.Bcl.AsyncInterfaces": "10.0.0-preview.3.25171.5",
-          "System.Memory": "4.6.0",
-          "System.Threading.Tasks.Extensions": "4.6.0"
-        },
         "compile": {
-          "lib/netstandard2.0/System.Net.ServerSentEvents.dll": {
+          "lib/net8.0/System.Net.ServerSentEvents.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/netstandard2.0/System.Net.ServerSentEvents.dll": {
+          "lib/net8.0/System.Net.ServerSentEvents.dll": {
             "related": ".xml"
           }
         },
         "build": {
-          "buildTransitive/netcoreapp2.0/System.Net.ServerSentEvents.targets": {}
-        }
-      },
-      "System.Runtime.CompilerServices.Unsafe/6.0.0": {
-        "type": "package",
-        "compile": {
-          "lib/net6.0/System.Runtime.CompilerServices.Unsafe.dll": {
-            "related": ".xml"
-          }
-        },
-        "runtime": {
-          "lib/net6.0/System.Runtime.CompilerServices.Unsafe.dll": {
-            "related": ".xml"
-          }
-        },
-        "build": {
-          "buildTransitive/netcoreapp3.1/_._": {}
+          "buildTransitive/net8.0/_._": {}
         }
       },
       "System.Text.Encodings.Web/8.0.0": {
         "type": "package",
         "compile": {
-          "lib/net7.0/System.Text.Encodings.Web.dll": {
+          "lib/net8.0/System.Text.Encodings.Web.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net7.0/System.Text.Encodings.Web.dll": {
+          "lib/net8.0/System.Text.Encodings.Web.dll": {
             "related": ".xml"
           }
         },
@@ -1138,54 +1070,29 @@
           "buildTransitive/net6.0/_._": {}
         },
         "runtimeTargets": {
-          "runtimes/browser/lib/net7.0/System.Text.Encodings.Web.dll": {
+          "runtimes/browser/lib/net8.0/System.Text.Encodings.Web.dll": {
             "assetType": "runtime",
             "rid": "browser"
           }
         }
       },
-      "System.Text.Json/8.0.5": {
+      "System.Text.Json/8.0.0": {
         "type": "package",
         "dependencies": {
           "System.Text.Encodings.Web": "8.0.0"
         },
         "compile": {
-          "lib/net7.0/System.Text.Json.dll": {
+          "lib/net8.0/System.Text.Json.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net7.0/System.Text.Json.dll": {
+          "lib/net8.0/System.Text.Json.dll": {
             "related": ".xml"
           }
         },
         "build": {
           "buildTransitive/net6.0/System.Text.Json.targets": {}
-        }
-      },
-      "System.Threading.Channels/8.0.0": {
-        "type": "package",
-        "compile": {
-          "lib/net7.0/System.Threading.Channels.dll": {
-            "related": ".xml"
-          }
-        },
-        "runtime": {
-          "lib/net7.0/System.Threading.Channels.dll": {
-            "related": ".xml"
-          }
-        },
-        "build": {
-          "buildTransitive/net6.0/_._": {}
-        }
-      },
-      "System.Threading.Tasks.Extensions/4.6.0": {
-        "type": "package",
-        "compile": {
-          "lib/netcoreapp2.1/_._": {}
-        },
-        "runtime": {
-          "lib/netcoreapp2.1/_._": {}
         }
       }
     }
@@ -1439,60 +1346,6 @@
         "microsoft.analysisservices.adomdclient.19.96.1.nupkg.sha512",
         "microsoft.analysisservices.adomdclient.nuspec",
         "runtimes/win-x64/native/msasxpress.dll"
-      ]
-    },
-    "Microsoft.Bcl.AsyncInterfaces/10.0.0-preview.3.25171.5": {
-      "sha512": "8F6cme3NqHoUT59blZ6u4iHW+kceRuipeYLd0REydsBV1+/PgOhbAoo9TsKEpPJpJIXTbu/dkMd8B967oFNBFQ==",
-      "type": "package",
-      "path": "microsoft.bcl.asyncinterfaces/10.0.0-preview.3.25171.5",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "Icon.png",
-        "LICENSE.TXT",
-        "PACKAGE.md",
-        "THIRD-PARTY-NOTICES.TXT",
-        "buildTransitive/net461/Microsoft.Bcl.AsyncInterfaces.targets",
-        "buildTransitive/net462/_._",
-        "lib/net462/Microsoft.Bcl.AsyncInterfaces.dll",
-        "lib/net462/Microsoft.Bcl.AsyncInterfaces.xml",
-        "lib/netstandard2.0/Microsoft.Bcl.AsyncInterfaces.dll",
-        "lib/netstandard2.0/Microsoft.Bcl.AsyncInterfaces.xml",
-        "lib/netstandard2.1/Microsoft.Bcl.AsyncInterfaces.dll",
-        "lib/netstandard2.1/Microsoft.Bcl.AsyncInterfaces.xml",
-        "microsoft.bcl.asyncinterfaces.10.0.0-preview.3.25171.5.nupkg.sha512",
-        "microsoft.bcl.asyncinterfaces.nuspec",
-        "useSharedDesignerContext.txt"
-      ]
-    },
-    "Microsoft.Bcl.Memory/9.0.4": {
-      "sha512": "uVvex/6jngf2R5KT77AOSqNv81hpiLr0Mt54xUNUTU8IwNrLIJjHCBxfznEJYA1MlZ5Dt/2TIW6rHhv7DVmDyQ==",
-      "type": "package",
-      "path": "microsoft.bcl.memory/9.0.4",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "Icon.png",
-        "LICENSE.TXT",
-        "PACKAGE.md",
-        "THIRD-PARTY-NOTICES.TXT",
-        "buildTransitive/net461/Microsoft.Bcl.Memory.targets",
-        "buildTransitive/net462/_._",
-        "buildTransitive/net8.0/_._",
-        "buildTransitive/netcoreapp2.0/Microsoft.Bcl.Memory.targets",
-        "lib/net462/Microsoft.Bcl.Memory.dll",
-        "lib/net462/Microsoft.Bcl.Memory.xml",
-        "lib/net8.0/Microsoft.Bcl.Memory.dll",
-        "lib/net8.0/Microsoft.Bcl.Memory.xml",
-        "lib/net9.0/Microsoft.Bcl.Memory.dll",
-        "lib/net9.0/Microsoft.Bcl.Memory.xml",
-        "lib/netstandard2.0/Microsoft.Bcl.Memory.dll",
-        "lib/netstandard2.0/Microsoft.Bcl.Memory.xml",
-        "lib/netstandard2.1/Microsoft.Bcl.Memory.dll",
-        "lib/netstandard2.1/Microsoft.Bcl.Memory.xml",
-        "microsoft.bcl.memory.9.0.4.nupkg.sha512",
-        "microsoft.bcl.memory.nuspec",
-        "useSharedDesignerContext.txt"
       ]
     },
     "Microsoft.Extensions.AI.Abstractions/9.5.0": {
@@ -2602,26 +2455,6 @@
         "useSharedDesignerContext.txt"
       ]
     },
-    "System.Memory/4.6.0": {
-      "sha512": "OEkbBQoklHngJ8UD8ez2AERSk2g+/qpAaSWWCBFbpH727HxDq5ydVkuncBaKcKfwRqXGWx64dS6G1SUScMsitg==",
-      "type": "package",
-      "path": "system.memory/4.6.0",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "Icon.png",
-        "PACKAGE.md",
-        "buildTransitive/net461/System.Memory.targets",
-        "buildTransitive/net462/_._",
-        "lib/net462/System.Memory.dll",
-        "lib/net462/System.Memory.xml",
-        "lib/netcoreapp2.1/_._",
-        "lib/netstandard2.0/System.Memory.dll",
-        "lib/netstandard2.0/System.Memory.xml",
-        "system.memory.4.6.0.nupkg.sha512",
-        "system.memory.nuspec"
-      ]
-    },
     "System.Net.ServerSentEvents/10.0.0-preview.3.25171.5": {
       "sha512": "HYTBlIc4+ym7WCPQiiwoyRVRyFXJfYM5ygl3bkPgXUDB74K9eOJkpTYISpSaQtwkfLjYG2SaPeVGvHkzkiBAmA==",
       "type": "package",
@@ -2649,31 +2482,6 @@
         "lib/netstandard2.0/System.Net.ServerSentEvents.xml",
         "system.net.serversentevents.10.0.0-preview.3.25171.5.nupkg.sha512",
         "system.net.serversentevents.nuspec",
-        "useSharedDesignerContext.txt"
-      ]
-    },
-    "System.Runtime.CompilerServices.Unsafe/6.0.0": {
-      "sha512": "/iUeP3tq1S0XdNNoMz5C9twLSrM/TH+qElHkXWaPvuNOt+99G75NrV0OS2EqHx5wMN7popYjpc8oTjC1y16DLg==",
-      "type": "package",
-      "path": "system.runtime.compilerservices.unsafe/6.0.0",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "Icon.png",
-        "LICENSE.TXT",
-        "THIRD-PARTY-NOTICES.TXT",
-        "buildTransitive/netcoreapp2.0/System.Runtime.CompilerServices.Unsafe.targets",
-        "buildTransitive/netcoreapp3.1/_._",
-        "lib/net461/System.Runtime.CompilerServices.Unsafe.dll",
-        "lib/net461/System.Runtime.CompilerServices.Unsafe.xml",
-        "lib/net6.0/System.Runtime.CompilerServices.Unsafe.dll",
-        "lib/net6.0/System.Runtime.CompilerServices.Unsafe.xml",
-        "lib/netcoreapp3.1/System.Runtime.CompilerServices.Unsafe.dll",
-        "lib/netcoreapp3.1/System.Runtime.CompilerServices.Unsafe.xml",
-        "lib/netstandard2.0/System.Runtime.CompilerServices.Unsafe.dll",
-        "lib/netstandard2.0/System.Runtime.CompilerServices.Unsafe.xml",
-        "system.runtime.compilerservices.unsafe.6.0.0.nupkg.sha512",
-        "system.runtime.compilerservices.unsafe.nuspec",
         "useSharedDesignerContext.txt"
       ]
     },
@@ -2712,10 +2520,10 @@
         "useSharedDesignerContext.txt"
       ]
     },
-    "System.Text.Json/8.0.5": {
-      "sha512": "0f1B50Ss7rqxXiaBJyzUu9bWFOO2/zSlifZ/UNMdiIpDYe4cY4LQQicP4nirK1OS31I43rn062UIJ1Q9bpmHpg==",
+    "System.Text.Json/8.0.0": {
+      "sha512": "OdrZO2WjkiEG6ajEFRABTRCi/wuXQPxeV6g8xvUJqdxMvvuCCEk86zPla8UiIQJz3durtUEbNyY/3lIhS0yZvQ==",
       "type": "package",
-      "path": "system.text.json/8.0.5",
+      "path": "system.text.json/8.0.0",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -2780,66 +2588,14 @@
         "lib/net8.0/System.Text.Json.xml",
         "lib/netstandard2.0/System.Text.Json.dll",
         "lib/netstandard2.0/System.Text.Json.xml",
-        "system.text.json.8.0.5.nupkg.sha512",
+        "system.text.json.8.0.0.nupkg.sha512",
         "system.text.json.nuspec",
         "useSharedDesignerContext.txt"
-      ]
-    },
-    "System.Threading.Channels/8.0.0": {
-      "sha512": "CMaFr7v+57RW7uZfZkPExsPB6ljwzhjACWW1gfU35Y56rk72B/Wu+sTqxVmGSk4SFUlPc3cjeKND0zktziyjBA==",
-      "type": "package",
-      "path": "system.threading.channels/8.0.0",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "Icon.png",
-        "LICENSE.TXT",
-        "PACKAGE.md",
-        "THIRD-PARTY-NOTICES.TXT",
-        "buildTransitive/net461/System.Threading.Channels.targets",
-        "buildTransitive/net462/_._",
-        "buildTransitive/net6.0/_._",
-        "buildTransitive/netcoreapp2.0/System.Threading.Channels.targets",
-        "lib/net462/System.Threading.Channels.dll",
-        "lib/net462/System.Threading.Channels.xml",
-        "lib/net6.0/System.Threading.Channels.dll",
-        "lib/net6.0/System.Threading.Channels.xml",
-        "lib/net7.0/System.Threading.Channels.dll",
-        "lib/net7.0/System.Threading.Channels.xml",
-        "lib/net8.0/System.Threading.Channels.dll",
-        "lib/net8.0/System.Threading.Channels.xml",
-        "lib/netstandard2.0/System.Threading.Channels.dll",
-        "lib/netstandard2.0/System.Threading.Channels.xml",
-        "lib/netstandard2.1/System.Threading.Channels.dll",
-        "lib/netstandard2.1/System.Threading.Channels.xml",
-        "system.threading.channels.8.0.0.nupkg.sha512",
-        "system.threading.channels.nuspec",
-        "useSharedDesignerContext.txt"
-      ]
-    },
-    "System.Threading.Tasks.Extensions/4.6.0": {
-      "sha512": "I5G6Y8jb0xRtGUC9Lahy7FUvlYlnGMMkbuKAQBy8Jb7Y6Yn8OlBEiUOY0PqZ0hy6Ua8poVA1ui1tAIiXNxGdsg==",
-      "type": "package",
-      "path": "system.threading.tasks.extensions/4.6.0",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "Icon.png",
-        "PACKAGE.md",
-        "buildTransitive/net461/System.Threading.Tasks.Extensions.targets",
-        "buildTransitive/net462/_._",
-        "lib/net462/System.Threading.Tasks.Extensions.dll",
-        "lib/net462/System.Threading.Tasks.Extensions.xml",
-        "lib/netcoreapp2.1/_._",
-        "lib/netstandard2.0/System.Threading.Tasks.Extensions.dll",
-        "lib/netstandard2.0/System.Threading.Tasks.Extensions.xml",
-        "system.threading.tasks.extensions.4.6.0.nupkg.sha512",
-        "system.threading.tasks.extensions.nuspec"
       ]
     }
   },
   "projectFileDependencyGroups": {
-    "net7.0": [
+    "net8.0": [
       "Microsoft.AnalysisServices.AdomdClient >= 19.96.1",
       "Microsoft.Extensions.Hosting >= 8.0.0",
       "ModelContextProtocol >= 0.2.0-preview.1"
@@ -2867,15 +2623,15 @@
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
       "originalTargetFrameworks": [
-        "net7.0"
+        "net8.0"
       ],
       "sources": {
         "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
-        "net7.0": {
-          "targetAlias": "net7.0",
+        "net8.0": {
+          "targetAlias": "net8.0",
           "projectReferences": {}
         }
       },
@@ -2883,11 +2639,16 @@
         "warnAsError": [
           "NU1605"
         ]
+      },
+      "restoreAuditProperties": {
+        "enableAudit": "true",
+        "auditLevel": "low",
+        "auditMode": "direct"
       }
     },
     "frameworks": {
-      "net7.0": {
-        "targetAlias": "net7.0",
+      "net8.0": {
+        "targetAlias": "net8.0",
         "dependencies": {
           "Microsoft.AnalysisServices.AdomdClient": {
             "target": "Package",
@@ -2918,7 +2679,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\7.0.403\\RuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.409/PortableRuntimeIdentifierGraph.json"
       }
     }
   }

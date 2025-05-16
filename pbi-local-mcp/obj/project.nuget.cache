@@ -1,12 +1,10 @@
 {
   "version": 2,
-  "dgSpecHash": "SO0Ey1dClsMOoNs3yZbeMSJ1in1s3cNSrVuP14/TLfxDJrgfh+3MHKPU1IT9lgDakjo9cpjtrx8c/ZtzXsxtWw==",
+  "dgSpecHash": "EEowzj4+UGM=",
   "success": true,
   "projectFilePath": "C:\\dev\\powerbi\\tabular-mcp\\pbi-local-mcp\\pbi-local-mcp.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\jonatan.oldenburg\\.nuget\\packages\\microsoft.analysisservices.adomdclient\\19.96.1\\microsoft.analysisservices.adomdclient.19.96.1.nupkg.sha512",
-    "C:\\Users\\jonatan.oldenburg\\.nuget\\packages\\microsoft.bcl.asyncinterfaces\\10.0.0-preview.3.25171.5\\microsoft.bcl.asyncinterfaces.10.0.0-preview.3.25171.5.nupkg.sha512",
-    "C:\\Users\\jonatan.oldenburg\\.nuget\\packages\\microsoft.bcl.memory\\9.0.4\\microsoft.bcl.memory.9.0.4.nupkg.sha512",
     "C:\\Users\\jonatan.oldenburg\\.nuget\\packages\\microsoft.extensions.ai.abstractions\\9.5.0\\microsoft.extensions.ai.abstractions.9.5.0.nupkg.sha512",
     "C:\\Users\\jonatan.oldenburg\\.nuget\\packages\\microsoft.extensions.configuration\\8.0.0\\microsoft.extensions.configuration.8.0.0.nupkg.sha512",
     "C:\\Users\\jonatan.oldenburg\\.nuget\\packages\\microsoft.extensions.configuration.abstractions\\8.0.0\\microsoft.extensions.configuration.abstractions.8.0.0.nupkg.sha512",
@@ -43,13 +41,9 @@
     "C:\\Users\\jonatan.oldenburg\\.nuget\\packages\\system.diagnostics.diagnosticsource\\8.0.0\\system.diagnostics.diagnosticsource.8.0.0.nupkg.sha512",
     "C:\\Users\\jonatan.oldenburg\\.nuget\\packages\\system.diagnostics.eventlog\\8.0.0\\system.diagnostics.eventlog.8.0.0.nupkg.sha512",
     "C:\\Users\\jonatan.oldenburg\\.nuget\\packages\\system.io.pipelines\\8.0.0\\system.io.pipelines.8.0.0.nupkg.sha512",
-    "C:\\Users\\jonatan.oldenburg\\.nuget\\packages\\system.memory\\4.6.0\\system.memory.4.6.0.nupkg.sha512",
     "C:\\Users\\jonatan.oldenburg\\.nuget\\packages\\system.net.serversentevents\\10.0.0-preview.3.25171.5\\system.net.serversentevents.10.0.0-preview.3.25171.5.nupkg.sha512",
-    "C:\\Users\\jonatan.oldenburg\\.nuget\\packages\\system.runtime.compilerservices.unsafe\\6.0.0\\system.runtime.compilerservices.unsafe.6.0.0.nupkg.sha512",
     "C:\\Users\\jonatan.oldenburg\\.nuget\\packages\\system.text.encodings.web\\8.0.0\\system.text.encodings.web.8.0.0.nupkg.sha512",
-    "C:\\Users\\jonatan.oldenburg\\.nuget\\packages\\system.text.json\\8.0.5\\system.text.json.8.0.5.nupkg.sha512",
-    "C:\\Users\\jonatan.oldenburg\\.nuget\\packages\\system.threading.channels\\8.0.0\\system.threading.channels.8.0.0.nupkg.sha512",
-    "C:\\Users\\jonatan.oldenburg\\.nuget\\packages\\system.threading.tasks.extensions\\4.6.0\\system.threading.tasks.extensions.4.6.0.nupkg.sha512"
+    "C:\\Users\\jonatan.oldenburg\\.nuget\\packages\\system.text.json\\8.0.0\\system.text.json.8.0.0.nupkg.sha512"
   ],
   "logs": []
 }

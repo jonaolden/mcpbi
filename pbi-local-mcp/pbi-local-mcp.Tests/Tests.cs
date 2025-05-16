@@ -116,7 +116,57 @@ namespace pbi_local_mcp.Tests
             var result = ExtractDataFromResponse(response);
             Assert.IsInstanceOfType(result, typeof(IEnumerable<Dictionary<string, object?>>));
             var rows = (IEnumerable<Dictionary<string, object?>>)result;
+}
+
+        [TestMethod]
+        public async Task GetMeasureDetailsTool_DoesNotThrow()
+        {
+            var args = _toolConfig["getMeasureDetails"];
+            string measureName = args.GetProperty("measureName").GetString()!;
+            var response = await Tools.GetMeasureDetails(measureName);
+            var result = ExtractDataFromResponse(response);
+            Assert.IsInstanceOfType(result, typeof(IEnumerable<Dictionary<string, object?>>));
+            var rows = (IEnumerable<Dictionary<string, object?>>)result;
+            Console.WriteLine($"[GetMeasureDetailsTool_DoesNotThrow] Result: {rows.Count()} rows for measure '{measureName}'.");
+        }
+
+        [TestMethod]
+        public async Task ListTablesTool_DoesNotThrow()
+        {
+            var args = _toolConfig["listTables"];
+            var response = await Tools.ListTables();
+            var result = ExtractDataFromResponse(response);
+            Assert.IsInstanceOfType(result, typeof(IEnumerable<Dictionary<string, object?>>));
+            var rows = (IEnumerable<Dictionary<string, object?>>)result;
+            Console.WriteLine($"[ListTablesTool_DoesNotThrow] Result: {rows.Count()} tables.");
+        }
+
+        [TestMethod]
+        public async Task GetTableColumnsTool_DoesNotThrow()
+        {
+            var args = _toolConfig["getTableColumns"];
+            string tableName = args.GetProperty("tableName").GetString()!;
+            var response = await Tools.GetTableColumns(tableName);
+            var result = ExtractDataFromResponse(response);
+            Assert.IsInstanceOfType(result, typeof(IEnumerable<Dictionary<string, object?>>));
+            var rows = (IEnumerable<Dictionary<string, object?>>)result;
+            Console.WriteLine($"[GetTableColumnsTool_DoesNotThrow] Result: {rows.Count()} columns for table '{tableName}'.");
+        }
+
+        [TestMethod]
+        public async Task GetTableRelationshipsTool_DoesNotThrow()
+        {
+            var args = _toolConfig["getTableRelationships"];
+            string tableName = args.GetProperty("tableName").GetString()!;
+            var response = await Tools.GetTableRelationships(tableName);
+            var result = ExtractDataFromResponse(response);
+            Assert.IsInstanceOfType(result, typeof(IEnumerable<Dictionary<string, object?>>));
+            var rows = (IEnumerable<Dictionary<string, object?>>)result;
+            Console.WriteLine($"[GetTableRelationshipsTool_DoesNotThrow] Result: {rows.Count()} relationships for table '{tableName}'.");
             Console.WriteLine($"[GetTableDetailsTool_DoesNotThrow] Result: {rows.Count()} rows for table '{tableName}'.");
+// Additional tool coverage tests
+// Additional tool coverage tests
+// Move these methods back inside the Tests class at the class level
         }
 
         private void AssertToolResultIsCollectionOrError(object result, string toolNameForMessage)
