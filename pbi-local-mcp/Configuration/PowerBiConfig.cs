@@ -7,7 +7,14 @@ namespace pbi_local_mcp.Configuration
     /// </summary>
     public class PowerBiConfig
     {
+        /// <summary>
+        /// Gets or sets the port number for connecting to the Power BI instance
+        /// </summary>
         public string Port { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Gets or sets the database ID (catalog name) to connect to
+        /// </summary>
         public string DbId { get; set; } = string.Empty;
 
         /// <summary>

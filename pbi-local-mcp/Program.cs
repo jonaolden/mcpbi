@@ -1,25 +1,14 @@
-// Program.cs
-using System;
+using System.Threading.Tasks;
 
-namespace pbi_local_mcp
+/// <summary>
+/// Entry point for the Power BI Model Context Protocol application
+/// </summary>
+public static partial class Program
 {
-    public class Program
-    {
-        public static async Task Main(string[] args)
-        {
-            // Entry point for the application.
-            // Handles CLI argument routing for main features.
-
-            if (args.Length > 0 &&
-                (args[0].Equals("discover-pbi", StringComparison.OrdinalIgnoreCase) ||
-                 args[0].Equals("InstanceDiscovery", StringComparison.OrdinalIgnoreCase)))
-            {
-                InstanceDiscovery.RunInteractive();
-                return;
-            }
-
-            // Default: start the MCP server
-            await Server.RunServerAsync(args);
-        }
-    }
+    /// <summary>
+    /// Main entry point for the application
+    /// </summary>
+    /// <param name="args">Command line arguments</param>
+    public static Task Main(string[] args) =>
+        Server.RunServerAsync(args);
 }

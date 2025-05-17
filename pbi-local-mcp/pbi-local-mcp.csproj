@@ -1,35 +1,48 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- ==================================================================== -->
+  <!--  Build settings (unchanged – keep whatever you already had here)      -->
+  <!-- ==================================================================== -->
   <PropertyGroup>
-    <!--  .NET 8 gives you C# 12, raw-string literals, better trimming, etc. -->
+    <!-- Sample defaults; replace with the exact values from your file -->
     <TargetFramework>net8.0</TargetFramework>
-
-    <!-- build + style flags -->
     <OutputType>Exe</OutputType>
+
     <RootNamespace>pbi_local_mcp</RootNamespace>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
   </PropertyGroup>
 
-  <ItemGroup>
-    <!-- ADOMD.NET client (x64 only – same DLL works for **Windows + Linux**) -->
+  <!-- ==================================================================== -->
+  <!--  NuGet dependencies                                                  -->
+  <!-- ==================================================================== -->
+  <ItemGroup Label="NuGetPackages">
+
+    <!-- Power BI / Analysis Services -->
     <PackageReference Include="Microsoft.AnalysisServices.AdomdClient" Version="19.96.1.0" />
+    <PackageReference Include="System.Management"                   Version="8.0.0" />
 
-    <!-- MCP protocol + STDIO host -->
-    <PackageReference Include="ModelContextProtocol"         Version="0.2.0-preview.1" />
-    <!-- ModelContextProtocol.Server not available, removing for build -->
+    <!-- MCP Protocol -->
+    <PackageReference Include="ModelContextProtocol"                Version="0.2.0-preview.1" />
 
-    <!-- Hosting abstractions come transitively with MCP.Server, but keeping this is harmless -->
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+    <!-- Infrastructure (Hosting & Logging) -->
+    <PackageReference Include="Microsoft.Extensions.Hosting"         Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.0" />
+
+    <!-- Observability -->
+    <PackageReference Include="OpenTelemetry"                                Version="1.7.0" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.7.0" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting"             Version="1.7.0" />
+
   </ItemGroup>
 
-  <!-- Ignore the tests folder when packing / compiling the main project -->
+  <!-- ==================================================================== -->
+  <!--  Exclude test sources from main build / package                      -->
+  <!-- ==================================================================== -->
   <ItemGroup>
-    <Compile Remove="pbi-local-mcp.Tests\**\*.cs" />
-    <EmbeddedResource Remove="pbi-local-mcp.Tests\**\*.cs" />
-    <None Remove="pbi-local-mcp.Tests\**\*.cs" />
+    <Compile          Remove="pbi-local-mcp.Tests\**\*.cs" />
+    <EmbeddedResource Remove="pbi-local-mcp.Tests\**\*"    />
+    <None             Remove="pbi-local-mcp.Tests\**\*"    />
   </ItemGroup>
 
 </Project>
