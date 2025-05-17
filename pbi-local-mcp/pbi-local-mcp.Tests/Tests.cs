@@ -1,5 +1,3 @@
-// Tests.cs 
-
 using System.Data;
 using System.Text.Json;
 using System.Collections.Generic;
@@ -7,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using pbi_local_mcp.Configuration;
 
 namespace pbi_local_mcp.Tests
 {
@@ -19,6 +18,7 @@ namespace pbi_local_mcp.Tests
     {
         private static string? _connStr;
         private static Dictionary<string, JsonElement> _toolConfig = new();
+        private Tools _tools;
 
         [TestInitialize]
         public void Setup()
@@ -51,6 +51,11 @@ namespace pbi_local_mcp.Tests
             _connStr = $"Provider=MSOLAP;Data Source=localhost:{port};Initial Catalog={dbId};Integrated Security=SSPI;";
             Console.WriteLine($"[Setup] Connection string for tests: {_connStr}");
 
+            // Initialize Tools instance
+            var config = new PowerBiConfig { Port = port, DbId = dbId };
+            var tabular = new TabularConnection(config);
+            _tools = new Tools(tabular);
+
             // Load tooltest.config.json
             string configPath = Path.Combine(dir, "pbi-local-mcp", "pbi-local-mcp.Tests", "tooltest.config.json");
             Assert.IsTrue(File.Exists(configPath), $"tooltest.config.json not found at {configPath}");
@@ -73,13 +78,11 @@ namespace pbi_local_mcp.Tests
         {
             var args = _toolConfig["listMeasures"];
             string tableName = args.TryGetProperty("tableName", out var t) ? t.GetString() ?? "" : "";
-            var response = await Tools.ListMeasures(tableName);
+            var response = await _tools.ListMeasures(tableName);
             var result = ExtractDataFromResponse(response);
             Assert.IsInstanceOfType(result, typeof(IEnumerable<Dictionary<string, object?>>));
             Console.WriteLine($"[ListMeasuresTool_DoesNotThrow] Result: {((IEnumerable<Dictionary<string, object?>>)result).Count()} rows.");
         }
-
-
 
         [TestMethod]
         public async Task PreviewDataTool_DoesNotThrow()
@@ -87,7 +90,7 @@ namespace pbi_local_mcp.Tests
             var args = _toolConfig["previewTableData"];
             string tableName = args.GetProperty("tableName").GetString()!;
             int topN = args.TryGetProperty("topN", out var n) ? n.GetInt32() : 10;
-            var response = await Tools.PreviewTableData(tableName, topN);
+            var response = await _tools.PreviewTableData(tableName, topN);
             var result = ExtractDataFromResponse(response);
             Assert.IsInstanceOfType(result, typeof(IEnumerable<Dictionary<string, object?>>));
             var rows = (IEnumerable<Dictionary<string, object?>>)result;
@@ -100,7 +103,7 @@ namespace pbi_local_mcp.Tests
             var args = _toolConfig["evaluateDAX"];
             string expr = args.GetProperty("expression").GetString()!;
             int topN = args.TryGetProperty("topN", out var n) ? n.GetInt32() : 10;
-            var response = await Tools.EvaluateDAX(expr, topN);
+            var response = await _tools.EvaluateDAX(expr, topN);
             var result = ExtractDataFromResponse(response);
             Assert.IsInstanceOfType(result, typeof(IEnumerable<Dictionary<string, object?>>));
             var rows = (IEnumerable<Dictionary<string, object?>>)result;
@@ -112,18 +115,19 @@ namespace pbi_local_mcp.Tests
         {
             var args = _toolConfig["getTableDetails"];
             string tableName = args.GetProperty("tableName").GetString()!;
-            var response = await Tools.GetTableDetails(tableName);
+            var response = await _tools.GetTableDetails(tableName);
             var result = ExtractDataFromResponse(response);
             Assert.IsInstanceOfType(result, typeof(IEnumerable<Dictionary<string, object?>>));
             var rows = (IEnumerable<Dictionary<string, object?>>)result;
-}
+            Console.WriteLine($"[GetTableDetailsTool_DoesNotThrow] Result: {rows.Count()} rows for table '{tableName}'.");
+        }
 
         [TestMethod]
         public async Task GetMeasureDetailsTool_DoesNotThrow()
         {
             var args = _toolConfig["getMeasureDetails"];
             string measureName = args.GetProperty("measureName").GetString()!;
-            var response = await Tools.GetMeasureDetails(measureName);
+            var response = await _tools.GetMeasureDetails(measureName);
             var result = ExtractDataFromResponse(response);
             Assert.IsInstanceOfType(result, typeof(IEnumerable<Dictionary<string, object?>>));
             var rows = (IEnumerable<Dictionary<string, object?>>)result;
@@ -134,7 +138,7 @@ namespace pbi_local_mcp.Tests
         public async Task ListTablesTool_DoesNotThrow()
         {
             var args = _toolConfig["listTables"];
-            var response = await Tools.ListTables();
+            var response = await _tools.ListTables();
             var result = ExtractDataFromResponse(response);
             Assert.IsInstanceOfType(result, typeof(IEnumerable<Dictionary<string, object?>>));
             var rows = (IEnumerable<Dictionary<string, object?>>)result;
@@ -146,7 +150,7 @@ namespace pbi_local_mcp.Tests
         {
             var args = _toolConfig["getTableColumns"];
             string tableName = args.GetProperty("tableName").GetString()!;
-            var response = await Tools.GetTableColumns(tableName);
+            var response = await _tools.GetTableColumns(tableName);
             var result = ExtractDataFromResponse(response);
             Assert.IsInstanceOfType(result, typeof(IEnumerable<Dictionary<string, object?>>));
             var rows = (IEnumerable<Dictionary<string, object?>>)result;
@@ -158,15 +162,11 @@ namespace pbi_local_mcp.Tests
         {
             var args = _toolConfig["getTableRelationships"];
             string tableName = args.GetProperty("tableName").GetString()!;
-            var response = await Tools.GetTableRelationships(tableName);
+            var response = await _tools.GetTableRelationships(tableName);
             var result = ExtractDataFromResponse(response);
             Assert.IsInstanceOfType(result, typeof(IEnumerable<Dictionary<string, object?>>));
             var rows = (IEnumerable<Dictionary<string, object?>>)result;
             Console.WriteLine($"[GetTableRelationshipsTool_DoesNotThrow] Result: {rows.Count()} relationships for table '{tableName}'.");
-            Console.WriteLine($"[GetTableDetailsTool_DoesNotThrow] Result: {rows.Count()} rows for table '{tableName}'.");
-// Additional tool coverage tests
-// Additional tool coverage tests
-// Move these methods back inside the Tests class at the class level
         }
 
         private void AssertToolResultIsCollectionOrError(object result, string toolNameForMessage)
@@ -197,7 +197,7 @@ namespace pbi_local_mcp.Tests
         /// </summary>
         /// <param name="response">The CallToolResponse from an MCP tool call</param>
         /// <returns>Collection of dictionaries representing the data, or null if error</returns>
-        private IEnumerable<Dictionary<string, object?>> ExtractDataFromResponse(pbi_local_mcp.Tools.CallToolResponse response)
+        private IEnumerable<Dictionary<string, object?>> ExtractDataFromResponse(Tools.CallToolResponse response)
         {
             Assert.IsNotNull(response, "CallToolResponse is null");
             Assert.IsNotNull(response.Content, "CallToolResponse Content is null");

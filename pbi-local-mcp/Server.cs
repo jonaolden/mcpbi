@@ -1,4 +1,3 @@
-// Program.cs 
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,16 +7,10 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text.Json;
-using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 using pbi_local_mcp;
+using pbi_local_mcp.Configuration;
+using pbi_local_mcp.Core;
 
 public static class Server
 {
@@ -28,12 +21,23 @@ public static class Server
 
         // MCP Server startup using ModelContextProtocol SDK
         // See: resources/documentation/mcp_csharp_sdk.md
-
         var builder = Host.CreateApplicationBuilder(args);
+        
+        // Configure logging
         builder.Logging.AddConsole(o => o.LogToStandardErrorThreshold = LogLevel.Trace);
 
-        // Register MCP server and tools from assembly
+        // Configure services
         builder.Services
+            // Add configuration
+            .Configure<PowerBiConfig>(config =>
+            {
+                config.Port = Environment.GetEnvironmentVariable("PBI_PORT") ?? "";
+                config.DbId = Environment.GetEnvironmentVariable("PBI_DB_ID") ?? "";
+            })
+            // Add services
+            .AddSingleton<ITabularConnection, TabularConnection>()
+            .AddSingleton<Tools>()
+            // Add MCP server
             .AddMcpServer()
             .WithStdioServerTransport()
             .WithToolsFromAssembly();

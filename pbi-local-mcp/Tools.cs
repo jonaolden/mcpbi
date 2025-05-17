@@ -1,4 +1,3 @@
-// Tools.cs
 namespace pbi_local_mcp;
 
 using System;
@@ -7,9 +6,21 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using System.Runtime.CompilerServices;
 using Microsoft.AnalysisServices.AdomdClient;
-public static class Tools
+using pbi_local_mcp.Configuration;
+using pbi_local_mcp.Core;
+
+/// <summary>
+/// Provides DAX query tools for the Power BI Model Context Protocol server.
+/// </summary>
+public class Tools
 {
-    private static readonly TabularConnection _tabular = new();
+    private readonly ITabularConnection _tabular;
+
+    public Tools(ITabularConnection tabular)
+    {
+        _tabular = tabular ?? throw new ArgumentNullException(nameof(tabular));
+    }
+
     // Minimal local CallToolResponse for compatibility
     public class CallToolResponse
     {
@@ -42,8 +53,8 @@ public static class Tools
          (ie.Message.Contains("syntax", StringComparison.OrdinalIgnoreCase) ||
           ie.Message.Contains("parser", StringComparison.OrdinalIgnoreCase)));
 
-    private static async Task<object> Safe(Func<Task<IEnumerable<Dictionary<string, object?>>>> op,
-                                           [CallerMemberName] string member = "")
+    private async Task<object> Safe(Func<Task<IEnumerable<Dictionary<string, object?>>>> op,
+                                  [CallerMemberName] string member = "")
     {
         try
         {
@@ -78,7 +89,7 @@ public static class Tools
 
     // ----------------- DAX requirements MCP tools -------------------------
 
-    public static async Task<CallToolResponse> ListMeasures(string? tableName = "")
+    public async Task<CallToolResponse> ListMeasures(string? tableName = "")
     {
         string filter = string.IsNullOrWhiteSpace(tableName)
             ? null
@@ -87,7 +98,7 @@ public static class Tools
         return Wrap(result);
     }
 
-    public static async Task<CallToolResponse> GetMeasureDetails(string measureName)
+    public async Task<CallToolResponse> GetMeasureDetails(string measureName)
     {
         string dax = $@"
 EVALUATE
@@ -98,13 +109,13 @@ RETURN ADDCOLUMNS(t,""Dependencies"",d)";
         return Wrap(result);
     }
 
-    public static async Task<CallToolResponse> ListTables()
+    public async Task<CallToolResponse> ListTables()
     {
         var result = await Safe(() => _tabular.ExecInfoAsync("INFO.VIEW.TABLES", null));
         return Wrap(result);
     }
 
-    public static async Task<CallToolResponse> GetTableDetails(string tableName)
+    public async Task<CallToolResponse> GetTableDetails(string tableName)
     {
         string dax = $@"
 EVALUATE
@@ -116,14 +127,14 @@ RETURN ADDCOLUMNS(t,""RelationshipCount"",r,""MeasureCount"",m)";
         return Wrap(result);
     }
 
-    public static async Task<CallToolResponse> GetTableColumns(string tableName)
+    public async Task<CallToolResponse> GetTableColumns(string tableName)
     {
         string filter = $"SEARCH(\"{tableName.Replace("\"", "\"\"")}\",[Table],1,0)>0";
         var result = await Safe(() => _tabular.ExecInfoAsync("INFO.VIEW.COLUMNS", filter));
         return Wrap(result);
     }
 
-    public static async Task<CallToolResponse> GetTableRelationships(string tableName)
+    public async Task<CallToolResponse> GetTableRelationships(string tableName)
     {
         string filterFrom = $"SEARCH(\"{tableName.Replace("\"", "\"\"")}\",[FromTable],1,0)>0";
         string filterTo = $"SEARCH(\"{tableName.Replace("\"", "\"\"")}\",[ToTable],1,0)>0";
@@ -132,7 +143,7 @@ RETURN ADDCOLUMNS(t,""RelationshipCount"",r,""MeasureCount"",m)";
         return Wrap(result);
     }
 
-    public static async Task<CallToolResponse> PreviewTableData(string tableName, int topN = 10)
+    public async Task<CallToolResponse> PreviewTableData(string tableName, int topN = 10)
     {
         int n = Math.Min(topN, 10);
         string dax = $"EVALUATE TOPN({n}, '{tableName.Replace("'", "''")}')";
@@ -140,7 +151,7 @@ RETURN ADDCOLUMNS(t,""RelationshipCount"",r,""MeasureCount"",m)";
         return Wrap(result);
     }
 
-    public static async Task<CallToolResponse> EvaluateDAX(string expression, int topN = 10)
+    public async Task<CallToolResponse> EvaluateDAX(string expression, int topN = 10)
     {
         string trimmed = expression.TrimStart();
         string dax;
