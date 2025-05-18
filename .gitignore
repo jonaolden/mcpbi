@@ -4,6 +4,22 @@ obj/
 [Bb]uild/
 [Ll]og/
 *.log
+**/*.log
+
+# User secrets and local env files
+secrets.json
+.env
+*.env
+
+# Test coverage
+coverage/
+coverage.*
+*.coverage
+
+# Database and backup files
+*.mdf
+*.ldf
+*.bak
 
 # VS/VSCode settings
 .vs/
@@ -40,8 +56,10 @@ Thumbs.db
 *.cache
 *.pdb
 
-# Ignore local MCP config
+# Ignore local configs and resources
 .roo/
-
-# Ignore resources subdir
-resources/
+.vscode/
+resources/development/
+.editorconfig
+/.roo
+.roo

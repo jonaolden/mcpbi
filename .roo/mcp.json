@@ -1,23 +1,29 @@
 {
   "mcpServers": {
-    "csharp-sdk Docs": {
+    "query-docs Docs": {
+      "type": "sse",
+      "url": "https://gitmcp.io/MicrosoftDocs/query-docs",
+      "alwaysAllow": [
+        "fetch_query_docs_documentation",
+        "search_query_docs_documentation",
+        "search_query_docs_code",
+        "fetch_generic_url_content"
+      ],
+      "disabled": true
+    },
+    "csharp-mcp-sdk Docs": {
+      "type": "sse",
       "url": "https://gitmcp.io/modelcontextprotocol/csharp-sdk",
       "alwaysAllow": [
-        "fetch_csharp_sdk_documentation",
-        "search_csharp_sdk_documentation",
+        "fetch_query_docs_documentation",
+        "search_query_docs_documentation",
+        "search_query_docs_code",
+        "fetch_generic_url_content",
         "search_csharp_sdk_code",
-        "fetch_generic_url_content"
-      ]
-    },
-    "Analysis-Services Docs": {
-      "type": "sse",
-      "url": "https://gitmcp.io/microsoft/Analysis-Services",
-      "alwaysAllow": [
-        "fetch_Analysis_Services_docs",
-        "search_Analysis_Services_docs",
-        "search_Analysis_Services_code",
-        "fetch_generic_url_content"
-      ]
+        "fetch_csharp_sdk_documentation",
+        "search_csharp_sdk_documentation"
+      ],
+      "disabled": false
     }
   }
 }

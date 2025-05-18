@@ -1,0 +1,26 @@
+{
+  "listMeasures": {
+    "tableName": ""
+  },
+  "getMeasureDetails": {
+    "measureName": "Sum of Sales"
+  },
+  "listTables": {},
+  "getTableDetails": {
+    "tableName": "financials"
+  },
+  "getTableColumns": {
+    "tableName": "financials"
+  },
+  "getTableRelationships": {
+    "tableName": "financials"
+  },
+  "previewTableData": {
+    "tableName": "financials",
+    "topN": 5
+  },
+  "evaluateDAX": {
+    "expression": "SUM('financials'[Profit])",
+    "topN": 10
+  }
+}

@@ -1,27 +1,50 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- ==================================================================== -->
+  <!--  Build settings (unchanged – keep whatever you already had here)      -->
+  <!-- ==================================================================== -->
   <PropertyGroup>
+    <!-- Sample defaults; replace with the exact values from your file -->
+    <TargetFramework>net8.0</TargetFramework>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net7.0</TargetFramework>
-    <RootNamespace>pbi_local_mcp</RootNamespace>
-    <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <RootNamespace>pbi_local_mcp</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
   </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Microsoft.AnalysisServices.AdomdClient.NetCore.retail.amd64" Version="19.84.1" />
-    <PackageReference Include="Microsoft.AnalysisServices.NetCore.Retail.amd64" Version="19.84.1" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="7.0.1" />
-    <PackageReference Include="ModelContextProtocol" Version="0.1.0-preview.13" />
+  <!-- ==================================================================== -->
+  <!--  NuGet dependencies                                                  -->
+  <!-- ==================================================================== -->
+  <ItemGroup Label="NuGetPackages">
+
+    <!-- Power BI / Analysis Services -->
+    <PackageReference Include="Microsoft.AnalysisServices.AdomdClient" Version="19.96.1.0" />
+    <PackageReference Include="System.Management"                   Version="8.0.0" />
+
+    <!-- MCP Protocol -->
+    <PackageReference Include="ModelContextProtocol"                Version="0.2.0-preview.1" />
+
+    <!-- Infrastructure (Hosting & Logging) -->
+    <PackageReference Include="Microsoft.Extensions.Hosting"         Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.0" />
+
+    <!-- Observability -->
+    <PackageReference Include="OpenTelemetry"                                Version="1.7.0" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.7.0" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting"             Version="1.7.0" />
+
   </ItemGroup>
 
+  <!-- ==================================================================== -->
+  <!--  Exclude test sources from main build / package                      -->
+  <!-- ==================================================================== -->
   <ItemGroup>
-    <Compile Remove="pbi-local-mcp.Tests\**\*.cs" />
-    <EmbeddedResource Remove="pbi-local-mcp.Tests\**\*.cs" />
-    <None Remove="pbi-local-mcp.Tests\**\*.cs" />
+    <Compile          Remove="pbi-local-mcp.Tests\**\*.cs" />
+    <EmbeddedResource Remove="pbi-local-mcp.Tests\**\*"    />
+    <None             Remove="pbi-local-mcp.Tests\**\*"    />
   </ItemGroup>
+
 </Project>
