@@ -15,10 +15,6 @@ public class DaxTools
 {
     private readonly ITabularConnection _tabular;
 
-    /// <summary>
-    /// Initializes a new instance of the Tools class
-    /// </summary>
-    /// <param name="tabular">The tabular connection to use for queries</param>
     public DaxTools(ITabularConnection tabular)
     {
         _tabular = tabular ?? throw new ArgumentNullException(nameof(tabular));
