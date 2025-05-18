@@ -13,7 +13,7 @@ public class Tests
 {
     private static string? _connStr;
     private static Dictionary<string, JsonElement> _toolConfig = new();
-    private DaxTools _tools = null!;
+    // No longer needed: private ITabularConnection _tabular = null!;
 
     /// <summary>
     /// Initializes test environment by loading configuration and setting up tool instances
@@ -56,7 +56,7 @@ public class Tests
         // Initialize DaxTools instance
         var config = new PowerBiConfig { Port = port, DbId = dbId };
         var tabular = new TabularConnection(config);
-        _tools = new DaxTools(tabular);
+        // _tabular = tabular; // No longer needed
 
         // Load tooltest.config.json
         string configPath = Path.Combine(dir, "pbi-local-mcp", "pbi-local-mcp.Tests",
@@ -93,7 +93,7 @@ public class Tests
             t.GetString() ?? "" : "";
         Console.WriteLine($"\n[ListMeasuresTool_DoesNotThrow] Listing measures for table: {tableName}");
 
-        var response = await _tools.ListMeasures(tableName);
+        var response = await DaxTools.ListMeasures(tableName);
         LogToolResponse(response);
 
         var result = ExtractDataFromResponse(response);
@@ -114,7 +114,7 @@ public class Tests
         Console.WriteLine(
             $"\n[PreviewDataTool_DoesNotThrow] Previewing {topN} rows from table: {tableName}");
 
-        var response = await _tools.PreviewTableData(tableName, topN);
+        var response = await DaxTools.PreviewTableData(tableName, topN);
         LogToolResponse(response);
 
         var result = ExtractDataFromResponse(response);
@@ -134,7 +134,7 @@ public class Tests
         int topN = args.TryGetProperty("topN", out var n) ? n.GetInt32() : 10;
         Console.WriteLine($"\n[EvaluateDAXTool_BasicUsage] Evaluating DAX expression: {expr}");
 
-        var response = await _tools.EvaluateDAX(expr, topN);
+        var response = await DaxTools.EvaluateDAX(expr, topN);
         LogToolResponse(response);
 
         var result = ExtractDataFromResponse(response);
@@ -154,7 +154,7 @@ public class Tests
         Console.WriteLine(
             $"\n[GetTableDetailsTool_DoesNotThrow] Getting details for table: {tableName}");
 
-        var response = await _tools.GetTableDetails(tableName);
+        var response = await DaxTools.GetTableDetails(tableName);
         LogToolResponse(response);
 
         var result = ExtractDataFromResponse(response);
@@ -175,7 +175,7 @@ public class Tests
         Console.WriteLine(
             $"\n[GetMeasureDetailsTool_DoesNotThrow] Getting details for measure: {measureName}");
 
-        var response = await _tools.GetMeasureDetails(measureName);
+        var response = await DaxTools.GetMeasureDetails(measureName);
         LogToolResponse(response);
 
         var result = ExtractDataFromResponse(response);
@@ -193,7 +193,7 @@ public class Tests
     {
         Console.WriteLine("\n[ListTablesTool_DoesNotThrow] Listing all tables");
 
-        var response = await _tools.ListTables();
+        var response = await DaxTools.ListTables();
         LogToolResponse(response);
 
         var result = ExtractDataFromResponse(response);
@@ -213,7 +213,7 @@ public class Tests
         Console.WriteLine(
             $"\n[GetTableColumnsTool_DoesNotThrow] Getting columns for table: {tableName}");
 
-        var response = await _tools.GetTableColumns(tableName);
+        var response = await DaxTools.GetTableColumns(tableName);
         LogToolResponse(response);
 
         var result = ExtractDataFromResponse(response);
@@ -233,7 +233,7 @@ public class Tests
         Console.WriteLine(
             $"\n[GetTableRelationshipsTool_DoesNotThrow] Getting relationships for table: {tableName}");
 
-        var response = await _tools.GetTableRelationships(tableName);
+        var response = await DaxTools.GetTableRelationships(tableName);
         LogToolResponse(response);
 
         var result = ExtractDataFromResponse(response);
@@ -243,34 +243,11 @@ public class Tests
             $"[GetTableRelationshipsTool_DoesNotThrow] Found {rows.Count()} relationships.");
     }
 
-    private void LogToolResponse(DaxTools.CallToolResponse response)
+    private void LogToolResponse(object response)
     {
         Console.WriteLine("\nResponse Content:");
-        foreach (var content in response.Content)
-        {
-            Console.WriteLine($"Type: {content.Type}");
-            Console.WriteLine("Data:");
-            if (content.Type == "application/json")
-            {
-                try
-                {
-                    var jsonObject = JsonSerializer.Deserialize<object>(content.Text);
-                    var formattedJson = JsonSerializer.Serialize(jsonObject,
-                        new JsonSerializerOptions { WriteIndented = true });
-                    Console.WriteLine(formattedJson);
-                }
-                catch (JsonException)
-                {
-                    Console.WriteLine("[Failed to parse as JSON]");
-                    Console.WriteLine(content.Text);
-                }
-            }
-            else
-            {
-                Console.WriteLine(content.Text);
-            }
-            Console.WriteLine();
-        }
+        // Print the response as JSON
+        Console.WriteLine(JsonSerializer.Serialize(response, new JsonSerializerOptions { WriteIndented = true }));
     }
 
     private void AssertToolResultIsCollectionOrError(object result, string toolNameForMessage)
@@ -305,32 +282,13 @@ public class Tests
     /// <param name="response">The CallToolResponse from an MCP tool call</param>
     /// <returns>Collection of dictionaries representing the data</returns>
     /// <exception cref="JsonException">Thrown when response cannot be deserialized as expected</exception>
-    private IEnumerable<Dictionary<string, object?>> ExtractDataFromResponse(
-        DaxTools.CallToolResponse response)
+    private IEnumerable<Dictionary<string, object?>> ExtractDataFromResponse(object response)
     {
-        Assert.IsNotNull(response, "CallToolResponse is null");
-        Assert.IsNotNull(response.Content, "CallToolResponse Content is null");
-        Assert.IsTrue(response.Content.Count > 0, "CallToolResponse Content is empty");
-
-        var content = response.Content.FirstOrDefault(c => c.Type == "application/json");
-        Assert.IsNotNull(content, "No JSON content found in response");
-        Assert.IsNotNull(content.Text, "JSON content is null");
-
-        var jsonText = content.Text;
-        try
+        Assert.IsNotNull(response, "Response is null");
+        if (response is IEnumerable<Dictionary<string, object?>> rows)
         {
-            var result = JsonSerializer.Deserialize<IEnumerable<Dictionary<string, object?>>>(
-                jsonText,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
-            Assert.IsNotNull(result, "Failed to deserialize JSON content");
-            return result;
+            return rows;
         }
-        catch (JsonException)
-        {
-            Console.WriteLine("[ExtractDataFromResponse] Failed to deserialize as array. Raw JSON:");
-            Console.WriteLine(jsonText);
-            throw;
-        }
+        throw new InvalidOperationException("Response is not a collection of dictionaries.");
     }
 }
