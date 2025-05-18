@@ -34,7 +34,7 @@ public class DaxTools
         /// </summary>
         public List<Content> Content { get; set; } = new();
     }
-    
+
     /// <summary>
     /// Content item in a tool response
     /// </summary>
@@ -56,7 +56,7 @@ public class DaxTools
         {
             Content = new List<Content>
             {
-                new Content 
+                new Content
                 {
                     Type = "application/dax",
                     Text = dax
@@ -117,10 +117,10 @@ public class DaxTools
     /// <returns>Response containing the list of measures</returns>
     public async Task<CallToolResponse> ListMeasures(string? tableName = "")
     {
-        string? filter = string.IsNullOrWhiteSpace(tableName) 
-            ? null 
+        string? filter = string.IsNullOrWhiteSpace(tableName)
+            ? null
             : $"SEARCH(\"{tableName.Replace("\"", "\"\"")}\",[Table],1,0)>0";
-            
+
         var dax = "EVALUATE INFO.VIEW.MEASURES()";
         if (!string.IsNullOrWhiteSpace(filter))
         {
