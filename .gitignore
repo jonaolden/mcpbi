@@ -4,6 +4,22 @@ obj/
 [Bb]uild/
 [Ll]og/
 *.log
+**/*.log
+
+# User secrets and local env files
+secrets.json
+.env
+*.env
+
+# Test coverage
+coverage/
+coverage.*
+*.coverage
+
+# Database and backup files
+*.mdf
+*.ldf
+*.bak
 
 # VS/VSCode settings
 .vs/
@@ -43,5 +59,5 @@ Thumbs.db
 # Ignore local configs and resources
 .roo/
 .vscode/
-resources/
+resources/development/
 .editorconfig
