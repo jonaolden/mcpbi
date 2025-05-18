@@ -1,5 +1,3 @@
-using System;
-
 namespace pbi_local_mcp.Configuration;
 
 /// <summary>

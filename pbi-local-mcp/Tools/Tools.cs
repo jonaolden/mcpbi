@@ -27,28 +27,28 @@ public class DaxTools
     /// <summary>
     /// Response object for tool calls
     /// </summary>
-    public class CallToolResponse
+    public sealed class CallToolResponse
     {
         /// <summary>
         /// Collection of content items in the response
         /// </summary>
-        public List<Content> Content { get; set; } = new();
+        public required List<Content> Content { get; init; } = new();
     }
 
     /// <summary>
     /// Content item in a tool response
     /// </summary>
-    public class Content
+    public sealed class Content
     {
         /// <summary>
         /// MIME type of the content
         /// </summary>
-        public string Type { get; set; } = "";
+        public required string Type { get; init; } = "";
 
         /// <summary>
         /// Actual content text
         /// </summary>
-        public string Text { get; set; } = "";
+        public required string Text { get; init; } = "";
     }
 
     private static CallToolResponse Wrap(string dax, object result) =>
@@ -76,8 +76,9 @@ public class DaxTools
          (ie.Message.Contains("syntax", StringComparison.OrdinalIgnoreCase) ||
           ie.Message.Contains("parser", StringComparison.OrdinalIgnoreCase)));
 
-    private async Task<object> Safe(Func<Task<IEnumerable<Dictionary<string, object?>>>> op,
-                                  [CallerMemberName] string member = "")
+    private async Task<object> Safe(
+        Func<Task<IEnumerable<Dictionary<string, object?>>>> op,
+        [CallerMemberName] string member = "")
     {
         try
         {
@@ -115,7 +116,7 @@ public class DaxTools
     /// </summary>
     /// <param name="tableName">Optional table name to filter measures</param>
     /// <returns>Response containing the list of measures</returns>
-    public async Task<CallToolResponse> ListMeasures(string? tableName = "")
+    public async Task<CallToolResponse> ListMeasures(string? tableName = null)
     {
         string? filter = string.IsNullOrWhiteSpace(tableName)
             ? null
@@ -141,9 +142,10 @@ public class DaxTools
         string dax = string.Join(
             Environment.NewLine,
             "EVALUATE",
-            $"VAR t = FILTER(INFO.VIEW.MEASURES(),[Name]=\"{measureName.Replace("\"", "\"\"")}\")",
-            $"VAR d = COUNTROWS(FILTER(INFO.DEPENDENCIES(),[OBJECT_TYPE]=\"Measure\"&&[OBJECT]=\"{measureName.Replace("\"", "\"\"")}\"))",
-            "RETURN ADDCOLUMNS(t,\"Dependencies\",d)");
+            $"VAR t = FILTER(INFO.VIEW.MEASURES(), [Name] = \"{measureName.Replace("\"", "\"\"")}\")",
+            $"VAR d = COUNTROWS(FILTER(INFO.DEPENDENCIES(), " +
+                $"[OBJECT_TYPE] = \"Measure\" && [OBJECT] = \"{measureName.Replace("\"", "\"\"")}\"))",
+            "RETURN ADDCOLUMNS(t, \"Dependencies\", d)");
 
         var result = await Safe(() => _tabular.ExecAsync(dax));
         return Wrap(dax, result);
@@ -170,10 +172,12 @@ public class DaxTools
         string dax = string.Join(
             Environment.NewLine,
             "EVALUATE",
-            $"VAR t = FILTER(INFO.VIEW.TABLES(),[Name]=\"{tableName.Replace("\"", "\"\"")}\")",
-            $"VAR r = COUNTROWS(FILTER(INFO.VIEW.RELATIONSHIPS(),[FromTable]=\"{tableName.Replace("\"", "\"\"")}\"||[ToTable]=\"{tableName.Replace("\"", "\"\"")}\"))",
-            $"VAR m = COUNTROWS(FILTER(INFO.VIEW.MEASURES(),[Table]=\"{tableName.Replace("\"", "\"\"")}\"))",
-            "RETURN ADDCOLUMNS(t,\"RelationshipCount\",r,\"MeasureCount\",m)");
+            $"VAR t = FILTER(INFO.VIEW.TABLES(), [Name] = \"{tableName.Replace("\"", "\"\"")}\")",
+            $"VAR r = COUNTROWS(FILTER(INFO.VIEW.RELATIONSHIPS(), " +
+                $"[FromTable] = \"{tableName.Replace("\"", "\"\"")}\" || " +
+                $"[ToTable] = \"{tableName.Replace("\"", "\"\"")}\"))",
+            $"VAR m = COUNTROWS(FILTER(INFO.VIEW.MEASURES(), [Table] = \"{tableName.Replace("\"", "\"\"")}\"))",
+            "RETURN ADDCOLUMNS(t, \"RelationshipCount\", r, \"MeasureCount\", m)");
 
         var result = await Safe(() => _tabular.ExecAsync(dax));
         return Wrap(dax, result);
@@ -233,7 +237,7 @@ public class DaxTools
 
         // If the caller already supplied a full DAX query (starts with EVALUATE),
         // run it unchanged; otherwise assume a scalar/expression and wrap it so
-        // that the engine always receives a *table* query.
+        // that the engine always receives a *table* query
         if (trimmed.StartsWith("EVALUATE", StringComparison.OrdinalIgnoreCase))
         {
             dax = trimmed;

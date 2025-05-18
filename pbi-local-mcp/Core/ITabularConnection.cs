@@ -1,7 +1,3 @@
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-
 namespace pbi_local_mcp.Core;
 
 /// <summary>
@@ -14,7 +10,8 @@ public interface ITabularConnection
     /// </summary>
     /// <param name="dax">The DAX query to execute</param>
     /// <returns>A collection of query results as dictionaries</returns>
-    Task<IEnumerable<Dictionary<string, object>>> ExecAsync(string dax);
+    Task<IEnumerable<Dictionary<string, object?>>> ExecAsync(
+        string dax);
 
     /// <summary>
     /// Executes a DAX query with cancellation support and returns the results
@@ -22,7 +19,9 @@ public interface ITabularConnection
     /// <param name="dax">The DAX query to execute</param>
     /// <param name="cancellationToken">Token to monitor for cancellation requests</param>
     /// <returns>A collection of query results as dictionaries</returns>
-    Task<IEnumerable<Dictionary<string, object>>> ExecAsync(string dax, CancellationToken cancellationToken);
+    Task<IEnumerable<Dictionary<string, object?>>> ExecAsync(
+        string dax,
+        CancellationToken cancellationToken);
 
     /// <summary>
     /// Executes a DAX info function with filter and returns the results
@@ -30,7 +29,9 @@ public interface ITabularConnection
     /// <param name="func">The name of the INFO function to execute</param>
     /// <param name="filterExpr">Filter expression to apply</param>
     /// <returns>A collection of query results as dictionaries</returns>
-    Task<IEnumerable<Dictionary<string, object>>> ExecInfoAsync(string func, string filterExpr);
+    Task<IEnumerable<Dictionary<string, object?>>> ExecInfoAsync(
+        string func,
+        string filterExpr);
 
     /// <summary>
     /// Executes a DAX info function with filter and cancellation support and returns the results
@@ -39,5 +40,8 @@ public interface ITabularConnection
     /// <param name="filterExpr">Filter expression to apply</param>
     /// <param name="cancellationToken">Token to monitor for cancellation requests</param>
     /// <returns>A collection of query results as dictionaries</returns>
-    Task<IEnumerable<Dictionary<string, object>>> ExecInfoAsync(string func, string filterExpr, CancellationToken cancellationToken);
+    Task<IEnumerable<Dictionary<string, object?>>> ExecInfoAsync(
+        string func,
+        string filterExpr,
+        CancellationToken cancellationToken);
 }

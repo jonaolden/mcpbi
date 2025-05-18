@@ -1,5 +1,3 @@
-using System.Threading.Tasks;
-
 /// <summary>
 /// Entry point for the Power BI Model Context Protocol application
 /// </summary>

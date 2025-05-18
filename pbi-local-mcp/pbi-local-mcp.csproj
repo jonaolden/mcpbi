@@ -7,6 +7,8 @@
     <!-- Sample defaults; replace with the exact values from your file -->
     <TargetFramework>net8.0</TargetFramework>
     <OutputType>Exe</OutputType>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
 
     <RootNamespace>pbi_local_mcp</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
