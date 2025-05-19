@@ -1,7 +1,6 @@
 # Tabular MCP
 
-MCP server allows communication between client and Power BI tabular models using 
-ADOMD.NET to execute pre-defined DAX queries, and custom EVALUATE queries.
+This MCP server enables communication between clients and Power BI tabular models via ADOMD.NET, supporting both predefined DAX queries and custom EVALUATE statements.
 
 ## Tools
 
