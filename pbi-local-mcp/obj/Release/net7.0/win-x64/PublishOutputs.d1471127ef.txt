@@ -1,3 +1,0 @@
-C:\dev\powerbi\tabular-mcp\pbi-local-mcp\bin\Release\net7.0\win-x64\publish\pbi-local-mcp.pdb
-C:\dev\powerbi\tabular-mcp\pbi-local-mcp\bin\Release\net7.0\win-x64\publish\msasxpress.dll
-C:\dev\powerbi\tabular-mcp\pbi-local-mcp\bin\Release\net7.0\win-x64\publish\pbi-local-mcp.exe
