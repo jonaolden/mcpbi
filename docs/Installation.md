@@ -16,7 +16,7 @@
    ```
    Follow prompts to select the instance and database. This writes `PBI_PORT` and `PBI_DB_ID` to `.env` in the project root.
 
-3. **Manual setup (if needed):**  
+ **OR: Manual setup (if you already know your port and db id):**  
    Create `pbi-local-mcp/.env` with:
    ```
    PBI_PORT=<your_pbi_instance_port>
