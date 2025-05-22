@@ -22,7 +22,7 @@ namespace pbi_local_mcp.Tests
         /// <summary>
         /// Initializes test environment by loading configuration and setting up tool instances
         /// </summary>
-        public Tests()
+        static Tests()
         {
             // Locate the solution root (6 levels up from the compiled test DLL)
             string dir = AppContext.BaseDirectory;

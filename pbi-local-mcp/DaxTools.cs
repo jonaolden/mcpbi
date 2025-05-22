@@ -89,8 +89,7 @@ public static class DaxTools
                 else
                 {
                     // Table name found but ID is not an int or is null - likely indicates an issue or no measures for a non-standard table.
-                    // Return empty or handle as an error. For now, returning empty if ID is invalid.
-                    return new List<Dictionary<string, object?>>();
+                    throw new Exception($"Invalid or non-integer Table ID for table '{tableName}'. Please check the table configuration.");
                 }
             }
             else
@@ -103,7 +102,7 @@ public static class DaxTools
         {
             dmv = "SELECT * FROM $SYSTEM.TMSCHEMA_MEASURES";
         }
-        
+
         var result = await tabular.ExecAsync(dmv, QueryType.DMV);
         return result;
     }
@@ -263,43 +262,7 @@ public static class DaxTools
         // If no definitions, fallback to EvaluateDAX logic for compatibility
         if (definitions == null || !definitions.Any())
         {
-            string queryToExecute;
-            if (query.StartsWith("EVALUATE", StringComparison.OrdinalIgnoreCase))
-            {
-                queryToExecute = query; // Already a full EVALUATE statement
-            }
-            else
-            {
-                // Determine if the core part of the query is a table expression
-                bool isCoreQueryTableExpr = false;
-                if (query.StartsWith("'") || // Table constructor or table name
-                    query.StartsWith("SELECTCOLUMNS", StringComparison.OrdinalIgnoreCase) ||
-                    query.StartsWith("ADDCOLUMNS", StringComparison.OrdinalIgnoreCase) ||
-                    query.StartsWith("SUMMARIZE", StringComparison.OrdinalIgnoreCase) ||
-                    query.StartsWith("FILTER", StringComparison.OrdinalIgnoreCase) ||
-                    query.StartsWith("VALUES", StringComparison.OrdinalIgnoreCase) ||
-                    query.StartsWith("ALL", StringComparison.OrdinalIgnoreCase))
-                {
-                    isCoreQueryTableExpr = true;
-                }
-
-                if (isCoreQueryTableExpr)
-                {
-                    if (topN > 0)
-                    {
-                        queryToExecute = $"EVALUATE TOPN({topN}, {query})";
-                    }
-                    else // topN is 0 or less, evaluate the whole table
-                    {
-                        queryToExecute = $"EVALUATE {query}";
-                    }
-                }
-                else // Scalar expression
-                {
-                    // For scalar expressions, always wrap in ROW to make it a valid table for EVALUATE.
-                    queryToExecute = $"EVALUATE ROW(\"Value\", {query})";
-                }
-            }
+            var queryToExecute = ConstructEvaluateStatement(query, topN);
             var result = await tabular.ExecAsync(queryToExecute, QueryType.DAX);
             return result;
         }
@@ -337,42 +300,40 @@ public static class DaxTools
         }
         else
         {
-            // Determine if the core part of the query is a table expression
-            bool isCoreQueryTableExpr = false;
-            if (query.StartsWith("'") || // Table constructor or table name
-                query.StartsWith("SELECTCOLUMNS", StringComparison.OrdinalIgnoreCase) ||
-                query.StartsWith("ADDCOLUMNS", StringComparison.OrdinalIgnoreCase) ||
-                query.StartsWith("SUMMARIZE", StringComparison.OrdinalIgnoreCase) ||
-                query.StartsWith("FILTER", StringComparison.OrdinalIgnoreCase) ||
-                query.StartsWith("VALUES", StringComparison.OrdinalIgnoreCase) ||
-                query.StartsWith("ALL", StringComparison.OrdinalIgnoreCase)
-               )
-            {
-                isCoreQueryTableExpr = true;
-            }
-
-            if (isCoreQueryTableExpr)
-            {
-                if (topN > 0)
-                {
-                    sb.AppendLine($"EVALUATE TOPN({topN}, {query})");
-                }
-                else // topN is 0 or less, evaluate the whole table
-                {
-                    sb.AppendLine($"EVALUATE {query}");
-                }
-            }
-            else // Scalar expression
-            {
-                // For scalar expressions, topN is not directly applicable for ROW.
-                // We always wrap it in ROW to make it a valid table expression for EVALUATE.
-                sb.AppendLine($"EVALUATE ROW(\"Value\", {query})");
-            }
+            var evaluateStatement = ConstructEvaluateStatement(query, topN);
+            sb.AppendLine(evaluateStatement);
         }
 
         var finalQuery = sb.ToString();
         var resultDef = await tabular.ExecAsync(finalQuery, QueryType.DAX);
         return resultDef;
+    }
+
+    /// <summary>
+    /// Constructs an EVALUATE statement based on the query and topN value.
+    /// </summary>
+    /// <param name="query">The core query expression.</param>
+    /// <param name="topN">Maximum number of rows to return (default: 10).</param>
+    /// <returns>The constructed EVALUATE statement.</returns>
+    private static string ConstructEvaluateStatement(string query, int topN)
+    {
+        query = query.Trim();
+        bool isCoreQueryTableExpr = query.StartsWith("'") || // Table constructor or table name
+                                    query.StartsWith("SELECTCOLUMNS", StringComparison.OrdinalIgnoreCase) ||
+                                    query.StartsWith("ADDCOLUMNS", StringComparison.OrdinalIgnoreCase) ||
+                                    query.StartsWith("SUMMARIZE", StringComparison.OrdinalIgnoreCase) ||
+                                    query.StartsWith("FILTER", StringComparison.OrdinalIgnoreCase) ||
+                                    query.StartsWith("VALUES", StringComparison.OrdinalIgnoreCase) ||
+                                    query.StartsWith("ALL", StringComparison.OrdinalIgnoreCase);
+
+        if (isCoreQueryTableExpr)
+        {
+            return topN > 0 ? $"EVALUATE TOPN({topN}, {query})" : $"EVALUATE {query}";
+        }
+        else
+        {
+            return $"EVALUATE ROW(\"Value\", {query})";
+        }
     }
 
     /// <summary>
