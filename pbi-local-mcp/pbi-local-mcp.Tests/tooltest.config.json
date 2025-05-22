@@ -1,6 +1,6 @@
 {
   "listMeasures": {
-    "tableName": ""
+    "tableName": "financials"
   },
   "getMeasureDetails": {
     "measureName": "Sum of Sales"
@@ -22,5 +22,45 @@
   "evaluateDAX": {
     "expression": "SUM('financials'[Profit])",
     "topN": 10
+  },
+  "runQueryNoDefinitions": {
+    "expression": "1+1",
+    "topN": 0
+  },
+  "runQueryWithVarDefinition": {
+    "expression": "_x",
+    "definitions": [
+      { "Type": "VAR", "Name": "_x", "Expression": "1+1" }
+    ],
+    "topN": 0
+  },
+  "runQueryWithMeasureDefinition": {
+    "expression": "EVALUATE ROW(\"Value\", [TestMeasure])",
+    "definitions": [
+      { "Type": "MEASURE", "Name": "TestMeasure", "TableName": "financials", "Expression": "SUM(financials[Profit])" }
+    ],
+    "topN": 1
+  },
+  "runQueryWithMultipleDefinitions": {
+    "expression": "EVALUATE ROW(\"Year\", _year, \"Profit\", [TotalProfit])",
+    "definitions": [
+      { "Type": "VAR", "Name": "_year", "Expression": "2023" },
+      { "Type": "MEASURE", "Name": "TotalProfit", "TableName": "financials", "Expression": "SUM(financials[Profit])" }
+    ],
+    "topN": 1
+  },
+  "runQueryDefinitionOrdering": {
+    "expression": "EVALUATE ROW(\"Test\", 1)",
+    "definitions": [
+      { "Type": "MEASURE", "Name": "M1", "TableName": "financials", "Expression": "1" },
+      { "Type": "VAR", "Name": "_v1", "Expression": "2023" },
+      { "Type": "TABLE", "Name": "T1", "Expression": "financials" },
+      { "Type": "COLUMN", "Name": "C1", "TableName": "financials", "Expression": "1" }
+    ],
+    "topN": 1
+  },
+  "runQueryBackwardCompatibility": {
+    "expression": "SUM(financials[Profit])",
+    "topN": 5
   }
 }
