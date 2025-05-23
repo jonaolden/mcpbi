@@ -19,10 +19,6 @@
     "tableName": "financials",
     "topN": 5
   },
-  "evaluateDAX": {
-    "expression": "SUM('financials'[Profit])",
-    "topN": 10
-  },
   "runQueryNoDefinitions": {
     "expression": "1+1",
     "topN": 0
@@ -42,9 +38,5 @@
   "runQueryDefinitionOrdering": {
     "expression": "DEFINE VAR _v1 = 2023 TABLE T1 = financials COLUMN financials[C1] = 1 MEASURE financials[M1] = 1 EVALUATE ROW(\"Test\", 1)",
     "topN": 1
-  },
-  "runQueryBackwardCompatibility": {
-    "expression": "SUM(financials[Profit])",
-    "topN": 5
   }
 }

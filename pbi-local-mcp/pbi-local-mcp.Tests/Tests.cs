@@ -129,22 +129,8 @@ namespace pbi_local_mcp.Tests
         /// <summary>
         /// Tests basic DAX evaluation functionality
         /// </summary>
-        [Fact]
-        public async Task EvaluateDAXTool_BasicUsage()
-        {
-            var args = _toolConfig["evaluateDAX"];
-            string expr = args.GetProperty("expression").GetString()!;
-            int topN = args.TryGetProperty("topN", out var n) ? n.GetInt32() : 10;
-            Console.WriteLine($"\n[EvaluateDAXTool_BasicUsage] Evaluating DAX expression: {expr}");
-
-            var response = await DaxTools.EvaluateDAX(expr, topN);
-            LogToolResponse(response);
-
-            var result = ExtractDataFromResponse(response);
-            Assert.IsAssignableFrom<IEnumerable<Dictionary<string, object?>>>(result);
-            var rows = (IEnumerable<Dictionary<string, object?>>)result;
-            Console.WriteLine($"[EvaluateDAXTool_BasicUsage] Retrieved {rows.Count()} rows.");
-        }
+        // EvaluateDAXTool_BasicUsage is removed as EvaluateDAX tool is removed.
+        // RunQuery_NoDefinitions_DoesNotThrow and RunQuery_BasicExpression_DoesNotThrow (added later if needed for simple expressions) cover this.
 
         /// <summary>
         /// Tests that the GetTableDetails tool functions without throwing exceptions
@@ -246,7 +232,7 @@ namespace pbi_local_mcp.Tests
                 $"[GetTableRelationshipsTool_DoesNotThrow] Found {rows.Count()} relationships.");
         }
 
-        private void LogToolResponse(object response)
+        internal static void LogToolResponse(object response)
         {
             Console.WriteLine("\nResponse Content:");
             // Print the response as JSON
@@ -284,7 +270,7 @@ namespace pbi_local_mcp.Tests
         /// <param name="response">The CallToolResponse from an MCP tool call</param>
         /// <returns>Collection of dictionaries representing the data</returns>
         /// <exception cref="JsonException">Thrown when response cannot be deserialized as expected</exception>
-        private IEnumerable<Dictionary<string, object?>> ExtractDataFromResponse(object response)
+        internal static IEnumerable<Dictionary<string, object?>> ExtractDataFromResponse(object response)
         {
             Assert.NotNull(response);
             if (response is IEnumerable<Dictionary<string, object?>> rows)
@@ -403,13 +389,11 @@ namespace pbi_local_mcp.Tests
             Console.WriteLine("\n[RunQuery_DefineWithoutEvaluate_ThrowsArgumentException] Testing DEFINE without EVALUATE");
             string invalidDax = "DEFINE MEASURE Sales[Total] = SUM(Sales[Amount])"; // Missing EVALUATE
 
-            var exception = await Assert.ThrowsAsync<Exception>(async () =>
+            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await DaxTools.RunQuery(invalidDax, 0));
-            Assert.NotNull(exception.InnerException);
-            Assert.IsType<ArgumentException>(exception.InnerException);
-            Assert.Contains("Complete DAX queries with DEFINE must include at least one EVALUATE statement.", exception.InnerException.Message);
-            // Also check the outer exception message for completeness, as it includes the original message.
-            Assert.Contains("Error executing DAX query: Complete DAX queries with DEFINE must include at least one EVALUATE statement.", exception.Message);
+            // The new validation produces a more general message if EVALUATE is missing.
+            // This is now directly an ArgumentException.
+            Assert.Contains("DAX query must contain at least one EVALUATE statement.", exception.Message);
             Console.WriteLine("[RunQuery_DefineWithoutEvaluate_ThrowsArgumentException] Correctly threw exception.");
         }
 
@@ -422,12 +406,9 @@ namespace pbi_local_mcp.Tests
             Console.WriteLine("\n[RunQuery_UnbalancedParentheses_ThrowsArgumentException] Testing unbalanced parentheses");
             string invalidDax = "DEFINE VAR X = (1 + 2 EVALUATE {X}"; // Unbalanced parentheses
 
-            var exception = await Assert.ThrowsAsync<Exception>(async () =>
+            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await DaxTools.RunQuery(invalidDax, 0));
-            Assert.NotNull(exception.InnerException);
-            Assert.IsType<ArgumentException>(exception.InnerException);
-            Assert.Contains("unbalanced parentheses", exception.InnerException.Message);
-            Assert.Contains("Error executing DAX query: DAX query has unbalanced parentheses", exception.Message);
+            Assert.Contains("unbalanced parentheses", exception.Message);
             Console.WriteLine("[RunQuery_UnbalancedParentheses_ThrowsArgumentException] Correctly threw exception.");
         }
 
@@ -440,12 +421,9 @@ namespace pbi_local_mcp.Tests
             Console.WriteLine("\n[RunQuery_UnbalancedBrackets_ThrowsArgumentException] Testing unbalanced brackets");
             string invalidDax = "DEFINE MEASURE Sales[Total = SUM(Sales[Amount]) EVALUATE {1}"; // Unbalanced brackets
 
-            var exception = await Assert.ThrowsAsync<Exception>(async () =>
+            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await DaxTools.RunQuery(invalidDax, 0));
-            Assert.NotNull(exception.InnerException);
-            Assert.IsType<ArgumentException>(exception.InnerException);
-            Assert.Contains("unbalanced brackets", exception.InnerException.Message);
-            Assert.Contains("Error executing DAX query: DAX query has unbalanced brackets", exception.Message);
+            Assert.Contains("unbalanced brackets", exception.Message);
             Console.WriteLine("[RunQuery_UnbalancedBrackets_ThrowsArgumentException] Correctly threw exception.");
         }
 
@@ -466,38 +444,150 @@ namespace pbi_local_mcp.Tests
             Console.WriteLine("[RunQuery_DefinitionOrderingTest_DoesNotThrow] Successfully executed query with mixed definition types");
         }
 
-        /// <summary>
-        /// Tests that RunQuery without definitions behaves identically to the older EvaluateDAX method for backward compatibility.
-        /// </summary>
         [Fact]
-        public async Task RunQuery_BackwardCompatibility_BehavesLikeEvaluateDAX()
+        public async Task RunQuery_BasicExpression_DoesNotThrow()
         {
-            Console.WriteLine("\n[RunQuery_BackwardCompatibility_BehavesLikeEvaluateDAX] Testing backward compatibility");
-            var args = DaxToolsRunQueryTests._toolConfig["runQueryBackwardCompatibility"];
-            string testExpression = args.GetProperty("expression").GetString()!;
-            int topN = args.GetProperty("topN").GetInt32();
+            // This test uses RunQuery for basic expressions.
+            // It uses the "runQueryNoDefinitions" config which should have a simple expression like "1+1".
+            var args = _toolConfig["runQueryNoDefinitions"];
+            string expr = args.GetProperty("expression").GetString()!;
+            // topN for simple expressions in RunQuery defaults to wrapping in ROW if not a table expr,
+            // or TOPN if it is a table expr. For "1+1", it becomes EVALUATE ROW("Value", 1+1).
+            int topN = args.TryGetProperty("topN", out var n) ? n.GetInt32() : 0;
+            Console.WriteLine($"\n[RunQuery_BasicExpression_DoesNotThrow] Running DAX expression: {expr}");
 
-            var runQueryResult = await DaxTools.RunQuery(testExpression, topN);
-            
-            // For comparison, we still call EvaluateDAX directly as the baseline
-            // Ensure the 'evaluateDAX' config entry exists and is valid
-            if (DaxToolsRunQueryTests._toolConfig.TryGetValue("evaluateDAX", out var evaluateDAXArgs))
-            {
-                string evaluateDAXExpression = evaluateDAXArgs.GetProperty("expression").GetString()!;
-                int evaluateDAXTopN = evaluateDAXArgs.GetProperty("topN").GetInt32();
-                var evaluateDAXResult = await DaxTools.EvaluateDAX(evaluateDAXExpression, evaluateDAXTopN);
-            
-                Assert.NotNull(runQueryResult);
-                Assert.NotNull(evaluateDAXResult);
-            
-                // Both should return the same type of result
-                Assert.IsType(evaluateDAXResult.GetType(), runQueryResult);
-                Console.WriteLine("[RunQuery_BackwardCompatibility_BehavesLikeEvaluateDAX] RunQuery without definitions behaves like EvaluateDAX");
-            }
-            else
-            {
-                Assert.Fail("evaluateDAX configuration missing in tooltest.config.json for backward compatibility test.");
-            }
+            var response = await DaxTools.RunQuery(expr, topN);
+            Tests.LogToolResponse(response);
+
+            var result = Tests.ExtractDataFromResponse(response);
+            Assert.IsAssignableFrom<IEnumerable<Dictionary<string, object?>>>(result);
+            var rows = (IEnumerable<Dictionary<string, object?>>)result;
+            Assert.Single(rows); // Expect 1 row for EVALUATE ROW("Value", 1+1)
+            Assert.Equal(2L, Convert.ToInt64(rows.First()["[Value]"])); // Value should be 2, column name is [Value]
+            Console.WriteLine($"[RunQuery_BasicExpression_DoesNotThrow] Retrieved {rows.Count()} rows, with value {rows.First()["[Value]"]}.");
         }
+
+        [Fact]
+        public async Task RunQuery_MultipleDefineBlocks_ThrowsArgumentException()
+        {
+            Console.WriteLine("\n[RunQuery_MultipleDefineBlocks_ThrowsArgumentException] Testing multiple DEFINE blocks");
+            string invalidDax = @"
+                DEFINE MEASURE Sales[Total] = SUM(Sales[Amount])
+                DEFINE VAR X = 1
+                EVALUATE {X}";
+
+            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
+                await DaxTools.RunQuery(invalidDax, 0));
+            Assert.Contains("Only one DEFINE block is allowed in a DAX query.", exception.Message);
+            Console.WriteLine("[RunQuery_MultipleDefineBlocks_ThrowsArgumentException] Correctly threw exception.");
+        }
+
+        [Fact]
+        public async Task RunQuery_DefineAfterEvaluate_ThrowsArgumentException()
+        {
+            Console.WriteLine("\n[RunQuery_DefineAfterEvaluate_ThrowsArgumentException] Testing DEFINE after EVALUATE");
+            string invalidDax = @"
+                EVALUATE {1}
+                DEFINE MEASURE Sales[Total] = SUM(Sales[Amount])";
+
+            // This specific error (DEFINE after EVALUATE) is caught by ValidateCompleteDAXQuery,
+            // which is wrapped by the try-catch in RunQuery that re-throws with "Error executing DAX query:".
+            // So, we still expect the outer Exception here, and check its InnerException.
+            // However, if the initial basic checks in RunQuery (like unbalanced quotes if they existed here)
+            // caught it first, it would be an ArgumentException directly.
+            // Let's assume for this structural error, it might still be wrapped.
+            // If tests show it's a direct ArgumentException, we'll adjust.
+            // For now, keeping the original structure for this specific test.
+            // UPDATE: Based on previous test failures, structural errors like this are still resulting in AdomdError.
+            // The goal is for OUR validation to catch it. If RunQuery's initial checks don't,
+            // and ValidateCompleteDAXQuery does, it should be an ArgumentException.
+            // Let's change to expect ArgumentException directly.
+            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
+                await DaxTools.RunQuery(invalidDax, 0));
+            Assert.Contains("DEFINE statement must come before any EVALUATE statement.", exception.Message);
+            Console.WriteLine("[RunQuery_DefineAfterEvaluate_ThrowsArgumentException] Correctly threw exception.");
+        }
+
+        [Fact]
+        public async Task RunQuery_EmptyDefineBlock_ThrowsArgumentException()
+        {
+            Console.WriteLine("\n[RunQuery_EmptyDefineBlock_ThrowsArgumentException] Testing empty DEFINE block");
+            string invalidDax = @"
+                DEFINE
+                EVALUATE {1}";
+
+            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
+                await DaxTools.RunQuery(invalidDax, 0));
+            // Adjusted to match the exact error message from DaxTools.cs for this specific case
+            Assert.Contains("DEFINE block must contain at least one definition (MEASURE, VAR, TABLE, or COLUMN).", exception.Message);
+            Console.WriteLine("[RunQuery_EmptyDefineBlock_ThrowsArgumentException] Correctly threw exception.");
+        }
+        
+        [Fact]
+        public async Task RunQuery_DefineBlockWithNoValidDefinition_ThrowsArgumentException()
+        {
+            Console.WriteLine("\n[RunQuery_DefineBlockWithNoValidDefinition_ThrowsArgumentException] Testing DEFINE block with no valid definition keyword");
+            string invalidDax = @"
+                DEFINE
+                  MyVar = 10  // Missing VAR keyword
+                EVALUATE {1}";
+
+            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
+                await DaxTools.RunQuery(invalidDax, 0));
+            Assert.Contains("DEFINE block must contain at least one valid definition (MEASURE, VAR, TABLE, or COLUMN).", exception.Message);
+            Console.WriteLine("[RunQuery_DefineBlockWithNoValidDefinition_ThrowsArgumentException] Correctly threw exception.");
+        }
+
+        [Fact]
+        public async Task RunQuery_UnbalancedSingleQuotes_ThrowsArgumentException()
+        {
+            Console.WriteLine("\n[RunQuery_UnbalancedSingleQuotes_ThrowsArgumentException] Testing unbalanced single quotes");
+            // Example: DEFINE TABLE 'My Incomplete Table = {1} EVALUATE 'My Incomplete Table
+            string invalidDax = "EVALUATE 'Sales[Amount]"; // Unbalanced single quote for 'Sales' identifier
+
+            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
+                await DaxTools.RunQuery(invalidDax, 0));
+            Assert.Contains("DAX query has unbalanced single quotes", exception.Message);
+            Console.WriteLine("[RunQuery_UnbalancedSingleQuotes_ThrowsArgumentException] Correctly threw exception.");
+        }
+
+        [Fact]
+        public async Task RunQuery_UnbalancedDoubleQuotes_ThrowsArgumentException()
+        {
+            Console.WriteLine("\n[RunQuery_UnbalancedDoubleQuotes_ThrowsArgumentException] Testing unbalanced double quotes");
+            string invalidDax = "EVALUATE ROW(\"Value\", \"Hello World)"; // Missing closing double quote
+
+            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
+                await DaxTools.RunQuery(invalidDax, 0));
+            Assert.Contains("DAX query has unbalanced double quotes", exception.Message);
+            Console.WriteLine("[RunQuery_UnbalancedDoubleQuotes_ThrowsArgumentException] Correctly threw exception.");
+        }
+        
+        [Fact]
+        public async Task RunQuery_QueryIsEmpty_ThrowsArgumentException()
+        {
+            Console.WriteLine("\n[RunQuery_QueryIsEmpty_ThrowsArgumentException] Testing empty query");
+            string invalidDax = "";
+
+            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
+                await DaxTools.RunQuery(invalidDax, 0));
+            Assert.Contains("Query cannot be empty.", exception.Message);
+            Console.WriteLine("[RunQuery_QueryIsEmpty_ThrowsArgumentException] Correctly threw exception.");
+        }
+
+        [Fact]
+        public async Task RunQuery_QueryIsWhitespace_ThrowsArgumentException()
+        {
+            Console.WriteLine("\n[RunQuery_QueryIsWhitespace_ThrowsArgumentException] Testing whitespace query");
+            string invalidDax = "   \n\t   ";
+
+            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
+                await DaxTools.RunQuery(invalidDax, 0));
+            Assert.Contains("Query cannot be empty.", exception.Message);
+            Console.WriteLine("[RunQuery_QueryIsWhitespace_ThrowsArgumentException] Correctly threw exception.");
+        }
+
+        // Removed RunQuery_BackwardCompatibility_BehavesLikeEvaluateDAX as EvaluateDAX tool is removed.
+        // RunQuery is now the sole method for DAX execution.
     }
 }
