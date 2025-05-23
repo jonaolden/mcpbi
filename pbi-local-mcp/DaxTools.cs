@@ -5,52 +5,6 @@ using ModelContextProtocol.Server;
 namespace pbi_local_mcp;
 
 /// <summary>
-/// Types of DEFINE entities for DAX queries.
-/// </summary>
-public enum DefinitionType
-{
-    /// <summary>
-    /// A measure definition (MEASURE)
-    /// </summary>
-    MEASURE,
-    /// <summary>
-    /// A variable definition (VAR)
-    /// </summary>
-    VAR,
-    /// <summary>
-    /// A table definition (TABLE)
-    /// </summary>
-    TABLE,
-    /// <summary>
-    /// A column definition (COLUMN)
-    /// </summary>
-    COLUMN
-}
-
-/// <summary>
-/// Represents a DEFINE entity for DAX queries.
-/// </summary>
-public class Definition
-{
-    /// <summary>
-    /// The type of the definition (MEASURE, VAR, TABLE, COLUMN)
-    /// </summary>
-    public DefinitionType Type { get; set; }
-    /// <summary>
-    /// The name of the definition
-    /// </summary>
-    public string Name { get; set; } = string.Empty;
-    /// <summary>
-    /// The table name (required for MEASURE and COLUMN types)
-    /// </summary>
-    public string? TableName { get; set; }
-    /// <summary>
-    /// The DAX expression for the definition
-    /// </summary>
-    public string Expression { get; set; } = string.Empty;
-}
-
-/// <summary>
 /// DAX Tools exposed as MCP server tools.
 /// </summary>
 [McpServerToolType]
@@ -235,78 +189,75 @@ public static class DaxTools
         return result;
     }
     /// <summary>
-    /// Execute a DAX query with optional DEFINE block definitions
+    /// Execute a DAX query. Supports complete DAX queries with DEFINE blocks or simple expressions.
     /// </summary>
-    /// <param name="dax">The DAX query expression to execute</param>
-    /// <param name="definitions">Optional collection of DEFINE block definitions</param>
-    /// <param name="topN">Maximum number of rows to return (default: 10)</param>
+    /// <param name="dax">The DAX query to execute. Can be a complete query with DEFINE block, an EVALUATE statement, or a simple expression.</param>
+    /// <param name="topN">Maximum number of rows to return for table expressions (default: 10). Ignored for complete queries.</param>
     /// <returns>Query execution result</returns>
-    [McpServerTool, Description("Execute a DAX query with optional DEFINE block definitions.")]
-    public static async Task<object> RunQuery(
-        string dax,
-        IEnumerable<Definition>? definitions = null,
-        int topN = 10)
+    /// <exception cref="ArgumentException">Thrown when query validation fails</exception>
+    /// <exception cref="Exception">Thrown when query execution fails</exception>
+    [McpServerTool, Description("Execute a DAX query. Supports complete DAX queries with DEFINE blocks, EVALUATE statements, or simple expressions.")]
+    public static async Task<object> RunQuery(string dax, int topN = 10)
     {
         var tabular = CreateConnection();
         string query = dax.Trim();
 
-        // Validate definitions if provided
-        if (definitions != null)
+        try
         {
-            foreach (var def in definitions)
+            // If it's a complete DAX query with DEFINE, execute as-is
+            if (query.StartsWith("DEFINE", StringComparison.OrdinalIgnoreCase))
             {
-                ValidateDefinition(def);
+                ValidateCompleteDAXQuery(query);
+                var result = await tabular.ExecAsync(query, QueryType.DAX);
+                return result;
             }
-        }
 
-        // If no definitions, fallback to EvaluateDAX logic for compatibility
-        if (definitions == null || !definitions.Any())
-        {
-            var queryToExecute = ConstructEvaluateStatement(query, topN);
-            var result = await tabular.ExecAsync(queryToExecute, QueryType.DAX);
-            return result;
-        }
+            // If it's already an EVALUATE statement, execute as-is
+            if (query.StartsWith("EVALUATE", StringComparison.OrdinalIgnoreCase))
+            {
+                var result = await tabular.ExecAsync(query, QueryType.DAX);
+                return result;
+            }
 
-        // Render DEFINE block
-        var sb = new System.Text.StringBuilder();
-        sb.AppendLine("DEFINE");
-
-        // Order: VAR > TABLE > COLUMN > MEASURE
-        foreach (var def in definitions.Where(d => d.Type == DefinitionType.VAR))
-        {
-            sb.AppendLine($"    VAR {def.Name} = {def.Expression}");
-        }
-        foreach (var def in definitions.Where(d => d.Type == DefinitionType.TABLE))
-        {
-            sb.AppendLine($"    TABLE {def.Name} = {def.Expression}");
-        }
-        foreach (var def in definitions.Where(d => d.Type == DefinitionType.COLUMN))
-        {
-            if (string.IsNullOrWhiteSpace(def.TableName))
-                throw new ArgumentException("TableName is required for COLUMN definitions.");
-            sb.AppendLine($"    COLUMN {def.TableName}[{def.Name}] = {def.Expression}");
-        }
-        foreach (var def in definitions.Where(d => d.Type == DefinitionType.MEASURE))
-        {
-            if (string.IsNullOrWhiteSpace(def.TableName))
-                throw new ArgumentException("TableName is required for MEASURE definitions.");
-            sb.AppendLine($"    MEASURE {def.TableName}[{def.Name}] = {def.Expression}");
-        }
-
-        // Append EVALUATE statement(s)
-        if (query.StartsWith("EVALUATE", StringComparison.OrdinalIgnoreCase))
-        {
-            sb.AppendLine(query); // User provided full EVALUATE statement
-        }
-        else
-        {
+            // Otherwise, wrap in appropriate EVALUATE statement
             var evaluateStatement = ConstructEvaluateStatement(query, topN);
-            sb.AppendLine(evaluateStatement);
+            var result2 = await tabular.ExecAsync(evaluateStatement, QueryType.DAX);
+            return result2;
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Error executing DAX query: {ex.Message}\n\nQuery:\n{query}", ex);
+        }
+    }
+
+    /// <summary>
+    /// Validates a complete DAX query with DEFINE block according to DAX specification
+    /// </summary>
+    /// <param name="query">The complete DAX query to validate</param>
+    /// <exception cref="ArgumentException">Thrown when validation fails</exception>
+    private static void ValidateCompleteDAXQuery(string query)
+    {
+        // Must contain at least one EVALUATE statement (per DAX specification)
+        if (!query.Contains("EVALUATE", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException("Complete DAX queries with DEFINE must include at least one EVALUATE statement.");
         }
 
-        var finalQuery = sb.ToString();
-        var resultDef = await tabular.ExecAsync(finalQuery, QueryType.DAX);
-        return resultDef;
+        // Basic parentheses balance check
+        var openParens = query.Count(c => c == '(');
+        var closeParens = query.Count(c => c == ')');
+        if (openParens != closeParens)
+        {
+            throw new ArgumentException($"DAX query has unbalanced parentheses: {openParens} open, {closeParens} close.");
+        }
+
+        // Basic bracket balance check for table/column references
+        var openBrackets = query.Count(c => c == '[');
+        var closeBrackets = query.Count(c => c == ']');
+        if (openBrackets != closeBrackets)
+        {
+            throw new ArgumentException($"DAX query has unbalanced brackets: {openBrackets} open, {closeBrackets} close.");
+        }
     }
 
     /// <summary>
@@ -336,35 +287,4 @@ public static class DaxTools
         }
     }
 
-    /// <summary>
-    /// Validates a definition according to DAX naming rules and requirements.
-    /// </summary>
-    /// <param name="definition">The definition to validate</param>
-    /// <exception cref="ArgumentException">Thrown when validation fails</exception>
-    private static void ValidateDefinition(Definition definition)
-    {
-        // Validate name is not null/empty
-        if (string.IsNullOrWhiteSpace(definition.Name))
-            throw new ArgumentException("Definition name cannot be null or empty.");
-
-        // Validate expression is not null/empty
-        if (string.IsNullOrWhiteSpace(definition.Expression))
-            throw new ArgumentException($"Expression for definition '{definition.Name}' cannot be null or empty.");
-
-        // Validate TableName is provided for MEASURE and COLUMN types
-        if ((definition.Type == DefinitionType.MEASURE || definition.Type == DefinitionType.COLUMN) &&
-            string.IsNullOrWhiteSpace(definition.TableName))
-        {
-            throw new ArgumentException($"TableName is required for {definition.Type} definitions. Definition: '{definition.Name}'");
-        }
-
-        // Basic DAX naming validation - names cannot start with numbers
-        if (char.IsDigit(definition.Name[0]))
-            throw new ArgumentException($"Definition name '{definition.Name}' cannot start with a digit.");
-
-        // Names cannot contain certain special characters
-        var invalidChars = new char[] { ' ', '.', '[', ']', '(', ')', '{', '}', '\t', '\n', '\r' };
-        if (definition.Name.IndexOfAny(invalidChars) >= 0)
-            throw new ArgumentException($"Definition name '{definition.Name}' contains invalid characters. Names cannot contain spaces, dots, brackets, or special characters.");
-    }
 }

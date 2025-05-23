@@ -28,35 +28,19 @@
     "topN": 0
   },
   "runQueryWithVarDefinition": {
-    "expression": "_x",
-    "definitions": [
-      { "Type": "VAR", "Name": "_x", "Expression": "1+1" }
-    ],
+    "expression": "DEFINE VAR _x = 1+1 EVALUATE ROW(\"Value\", _x)",
     "topN": 0
   },
   "runQueryWithMeasureDefinition": {
-    "expression": "EVALUATE ROW(\"Value\", [TestMeasure])",
-    "definitions": [
-      { "Type": "MEASURE", "Name": "TestMeasure", "TableName": "financials", "Expression": "SUM(financials[Profit])" }
-    ],
+    "expression": "DEFINE MEASURE financials[TestMeasure] = SUM(financials[Profit]) EVALUATE ROW(\"Value\", [TestMeasure])",
     "topN": 1
   },
   "runQueryWithMultipleDefinitions": {
-    "expression": "EVALUATE ROW(\"Year\", _year, \"Profit\", [TotalProfit])",
-    "definitions": [
-      { "Type": "VAR", "Name": "_year", "Expression": "2023" },
-      { "Type": "MEASURE", "Name": "TotalProfit", "TableName": "financials", "Expression": "SUM(financials[Profit])" }
-    ],
+    "expression": "DEFINE VAR _year = 2023 MEASURE financials[TotalProfit] = SUM(financials[Profit]) EVALUATE ROW(\"Year\", _year, \"Profit\", [TotalProfit])",
     "topN": 1
   },
   "runQueryDefinitionOrdering": {
-    "expression": "EVALUATE ROW(\"Test\", 1)",
-    "definitions": [
-      { "Type": "MEASURE", "Name": "M1", "TableName": "financials", "Expression": "1" },
-      { "Type": "VAR", "Name": "_v1", "Expression": "2023" },
-      { "Type": "TABLE", "Name": "T1", "Expression": "financials" },
-      { "Type": "COLUMN", "Name": "C1", "TableName": "financials", "Expression": "1" }
-    ],
+    "expression": "DEFINE VAR _v1 = 2023 TABLE T1 = financials COLUMN financials[C1] = 1 MEASURE financials[M1] = 1 EVALUATE ROW(\"Test\", 1)",
     "topN": 1
   },
   "runQueryBackwardCompatibility": {

@@ -330,30 +330,6 @@ namespace pbi_local_mcp.Tests
             Console.WriteLine($"[DaxToolsRunQueryTests Setup] Loaded tooltest.config.json with {_toolConfig.Count} tool configs.");
         }
 
-        private static Definition[]? GetDefinitions(JsonElement args)
-        {
-            if (args.TryGetProperty("definitions", out var defsElement) && defsElement.ValueKind == JsonValueKind.Array)
-            {
-                var definitions = new List<Definition>();
-                foreach (var defElement in defsElement.EnumerateArray())
-                {
-                    var def = new Definition
-                    {
-                        Type = Enum.Parse<DefinitionType>(defElement.GetProperty("Type").GetString()!, true),
-                        Name = defElement.GetProperty("Name").GetString()!,
-                        Expression = defElement.GetProperty("Expression").GetString()!
-                    };
-                    if (defElement.TryGetProperty("TableName", out var tableNameElement) && tableNameElement.ValueKind == JsonValueKind.String)
-                    {
-                        def.TableName = tableNameElement.GetString();
-                    }
-                    definitions.Add(def);
-                }
-                return definitions.ToArray();
-            }
-            return null;
-        }
-
         /// <summary>
         /// Tests that RunQuery executes a simple DAX expression without any definitions.
         /// </summary>
@@ -365,7 +341,7 @@ namespace pbi_local_mcp.Tests
             string expression = args.GetProperty("expression").GetString()!;
             int topN = args.GetProperty("topN").GetInt32();
 
-            var result = await DaxTools.RunQuery(expression, null, topN);
+            var result = await DaxTools.RunQuery(expression, topN);
             Assert.NotNull(result);
             Console.WriteLine("[RunQuery_NoDefinitions_DoesNotThrow] Successfully executed query without definitions");
         }
@@ -380,9 +356,8 @@ namespace pbi_local_mcp.Tests
             var args = DaxToolsRunQueryTests._toolConfig["runQueryWithVarDefinition"];
             string expression = args.GetProperty("expression").GetString()!;
             int topN = args.GetProperty("topN").GetInt32();
-            var definitions = DaxToolsRunQueryTests.GetDefinitions(args);
-
-            var result = await DaxTools.RunQuery(expression, definitions, topN);
+            // Assuming 'expression' from config now contains the full DAX query including any DEFINE block.
+            var result = await DaxTools.RunQuery(expression, topN);
             Assert.NotNull(result);
             Console.WriteLine("[RunQuery_WithVarDefinition_DoesNotThrow] Successfully executed query with VAR definition");
         }
@@ -397,9 +372,8 @@ namespace pbi_local_mcp.Tests
             var args = DaxToolsRunQueryTests._toolConfig["runQueryWithMeasureDefinition"];
             string expression = args.GetProperty("expression").GetString()!;
             int topN = args.GetProperty("topN").GetInt32();
-            var definitions = DaxToolsRunQueryTests.GetDefinitions(args);
-
-            var result = await DaxTools.RunQuery(expression, definitions, topN);
+            // Assuming 'expression' from config now contains the full DAX query including any DEFINE block.
+            var result = await DaxTools.RunQuery(expression, topN);
             Assert.NotNull(result);
             Console.WriteLine("[RunQuery_WithMeasureDefinition_DoesNotThrow] Successfully executed query with MEASURE definition");
         }
@@ -414,137 +388,69 @@ namespace pbi_local_mcp.Tests
             var args = DaxToolsRunQueryTests._toolConfig["runQueryWithMultipleDefinitions"];
             string expression = args.GetProperty("expression").GetString()!;
             int topN = args.GetProperty("topN").GetInt32();
-            var definitions = DaxToolsRunQueryTests.GetDefinitions(args);
-            
-            var result = await DaxTools.RunQuery(expression, definitions, topN);
+            // Assuming 'expression' from config now contains the full DAX query including any DEFINE block.
+            var result = await DaxTools.RunQuery(expression, topN);
             Assert.NotNull(result);
             Console.WriteLine("[RunQuery_WithMultipleDefinitions_DoesNotThrow] Successfully executed query with multiple definitions");
         }
 
         /// <summary>
-        /// Tests that RunQuery throws an ArgumentException when a definition name is invalid (e.g., starts with a digit).
+        /// Tests that RunQuery throws an ArgumentException when a DEFINE query is missing an EVALUATE statement.
         /// </summary>
         [Fact]
-        public void RunQuery_InvalidDefinitionName_ThrowsException()
+        public async Task RunQuery_DefineWithoutEvaluate_ThrowsArgumentException()
         {
-            Console.WriteLine("\n[RunQuery_InvalidDefinitionName_ThrowsException] Testing validation of invalid definition names");
-            var definition = new Definition
-            {
-                Type = DefinitionType.VAR,
-                Name = "1_invalid", // Names cannot start with numbers
-                Expression = "1+1"
-            };
+            Console.WriteLine("\n[RunQuery_DefineWithoutEvaluate_ThrowsArgumentException] Testing DEFINE without EVALUATE");
+            string invalidDax = "DEFINE MEASURE Sales[Total] = SUM(Sales[Amount])"; // Missing EVALUATE
 
-            var exception = Assert.ThrowsAsync<ArgumentException>(async () =>
-                await DaxTools.RunQuery("_x", new[] { definition }, 0));
-            Assert.Contains("cannot start with a digit", exception.Result.Message);
-            Console.WriteLine("[RunQuery_InvalidDefinitionName_ThrowsException] Correctly threw exception for invalid name");
+            var exception = await Assert.ThrowsAsync<Exception>(async () =>
+                await DaxTools.RunQuery(invalidDax, 0));
+            Assert.NotNull(exception.InnerException);
+            Assert.IsType<ArgumentException>(exception.InnerException);
+            Assert.Contains("Complete DAX queries with DEFINE must include at least one EVALUATE statement.", exception.InnerException.Message);
+            // Also check the outer exception message for completeness, as it includes the original message.
+            Assert.Contains("Error executing DAX query: Complete DAX queries with DEFINE must include at least one EVALUATE statement.", exception.Message);
+            Console.WriteLine("[RunQuery_DefineWithoutEvaluate_ThrowsArgumentException] Correctly threw exception.");
         }
 
         /// <summary>
-        /// Tests that RunQuery throws an ArgumentException when a MEASURE definition is missing a TableName.
+        /// Tests that RunQuery throws an ArgumentException for unbalanced parentheses.
         /// </summary>
         [Fact]
-        public void RunQuery_MeasureWithoutTableName_ThrowsException()
+        public async Task RunQuery_UnbalancedParentheses_ThrowsArgumentException()
         {
-            Console.WriteLine("\n[RunQuery_MeasureWithoutTableName_ThrowsException] Testing validation of MEASURE without TableName");
-            var definition = new Definition
-            {
-                Type = DefinitionType.MEASURE,
-                Name = "TestMeasure",
-                // TableName is missing
-                Expression = "SUM(Sales[Amount])"
-            };
+            Console.WriteLine("\n[RunQuery_UnbalancedParentheses_ThrowsArgumentException] Testing unbalanced parentheses");
+            string invalidDax = "DEFINE VAR X = (1 + 2 EVALUATE {X}"; // Unbalanced parentheses
 
-            var exception = Assert.ThrowsAsync<ArgumentException>(async () =>
-                await DaxTools.RunQuery("EVALUATE ROW(\"Value\", [TestMeasure])", new[] { definition }, 0));
-            Assert.Contains("TableName is required for MEASURE definitions", exception.Result.Message);
-            Console.WriteLine("[RunQuery_MeasureWithoutTableName_ThrowsException] Correctly threw exception for missing TableName");
+            var exception = await Assert.ThrowsAsync<Exception>(async () =>
+                await DaxTools.RunQuery(invalidDax, 0));
+            Assert.NotNull(exception.InnerException);
+            Assert.IsType<ArgumentException>(exception.InnerException);
+            Assert.Contains("unbalanced parentheses", exception.InnerException.Message);
+            Assert.Contains("Error executing DAX query: DAX query has unbalanced parentheses", exception.Message);
+            Console.WriteLine("[RunQuery_UnbalancedParentheses_ThrowsArgumentException] Correctly threw exception.");
         }
 
         /// <summary>
-        /// Tests that RunQuery throws an ArgumentException when a COLUMN definition is missing a TableName.
+        /// Tests that RunQuery throws an ArgumentException for unbalanced brackets.
         /// </summary>
         [Fact]
-        public void RunQuery_ColumnWithoutTableName_ThrowsException()
+        public async Task RunQuery_UnbalancedBrackets_ThrowsArgumentException()
         {
-            Console.WriteLine("\n[RunQuery_ColumnWithoutTableName_ThrowsException] Testing validation of COLUMN without TableName");
-            var definition = new Definition
-            {
-                Type = DefinitionType.COLUMN,
-                Name = "TestColumn",
-                // TableName is missing
-                Expression = "1"
-            };
+            Console.WriteLine("\n[RunQuery_UnbalancedBrackets_ThrowsArgumentException] Testing unbalanced brackets");
+            string invalidDax = "DEFINE MEASURE Sales[Total = SUM(Sales[Amount]) EVALUATE {1}"; // Unbalanced brackets
 
-            var exception = Assert.ThrowsAsync<ArgumentException>(async () =>
-                await DaxTools.RunQuery("EVALUATE financials", new[] { definition }, 0));
-            Assert.Contains("TableName is required for COLUMN definitions", exception.Result.Message);
-            Console.WriteLine("[RunQuery_ColumnWithoutTableName_ThrowsException] Correctly threw exception for missing TableName");
+            var exception = await Assert.ThrowsAsync<Exception>(async () =>
+                await DaxTools.RunQuery(invalidDax, 0));
+            Assert.NotNull(exception.InnerException);
+            Assert.IsType<ArgumentException>(exception.InnerException);
+            Assert.Contains("unbalanced brackets", exception.InnerException.Message);
+            Assert.Contains("Error executing DAX query: DAX query has unbalanced brackets", exception.Message);
+            Console.WriteLine("[RunQuery_UnbalancedBrackets_ThrowsArgumentException] Correctly threw exception.");
         }
 
         /// <summary>
-        /// Tests that RunQuery throws an ArgumentException when a definition name is empty.
-        /// </summary>
-        [Fact]
-        public void RunQuery_EmptyDefinitionName_ThrowsException()
-        {
-            Console.WriteLine("\n[RunQuery_EmptyDefinitionName_ThrowsException] Testing validation of empty definition name");
-            var definition = new Definition
-            {
-                Type = DefinitionType.VAR,
-                Name = "", // Empty name
-                Expression = "1+1"
-            };
-
-            var exception = Assert.ThrowsAsync<ArgumentException>(async () =>
-                await DaxTools.RunQuery("_x", new[] { definition }, 0));
-            Assert.Contains("Definition name cannot be null or empty", exception.Result.Message);
-            Console.WriteLine("[RunQuery_EmptyDefinitionName_ThrowsException] Correctly threw exception for empty name");
-        }
-
-        /// <summary>
-        /// Tests that RunQuery throws an ArgumentException when a definition expression is empty.
-        /// </summary>
-        [Fact]
-        public void RunQuery_EmptyExpression_ThrowsException()
-        {
-            Console.WriteLine("\n[RunQuery_EmptyExpression_ThrowsException] Testing validation of empty expression");
-            var definition = new Definition
-            {
-                Type = DefinitionType.VAR,
-                Name = "_x",
-                Expression = "" // Empty expression
-            };
-
-            var exception = Assert.ThrowsAsync<ArgumentException>(async () =>
-                await DaxTools.RunQuery("_x", new[] { definition }, 0));
-            Assert.Contains("Expression for definition '_x' cannot be null or empty", exception.Result.Message);
-            Console.WriteLine("[RunQuery_EmptyExpression_ThrowsException] Correctly threw exception for empty expression");
-        }
-
-        /// <summary>
-        /// Tests that RunQuery throws an ArgumentException when a definition name contains invalid characters.
-        /// </summary>
-        [Fact]
-        public void RunQuery_InvalidCharactersInName_ThrowsException()
-        {
-            Console.WriteLine("\n[RunQuery_InvalidCharactersInName_ThrowsException] Testing validation of invalid characters in name");
-            var definition = new Definition
-            {
-                Type = DefinitionType.VAR,
-                Name = "test variable", // Contains space
-                Expression = "1+1"
-            };
-
-            var exception = Assert.ThrowsAsync<ArgumentException>(async () =>
-                await DaxTools.RunQuery("_x", new[] { definition }, 0));
-            Assert.Contains("contains invalid characters", exception.Result.Message);
-            Console.WriteLine("[RunQuery_InvalidCharactersInName_ThrowsException] Correctly threw exception for invalid characters");
-        }
-
-        /// <summary>
-        /// Tests that RunQuery correctly orders definitions (VAR > TABLE > COLUMN > MEASURE) and executes without throwing.
+        /// Tests that RunQuery correctly executes a query with a DEFINE block and executes without throwing.
         /// </summary>
         [Fact]
         public async Task RunQuery_DefinitionOrderingTest_DoesNotThrow()
@@ -553,10 +459,9 @@ namespace pbi_local_mcp.Tests
             var args = DaxToolsRunQueryTests._toolConfig["runQueryDefinitionOrdering"];
             string expression = args.GetProperty("expression").GetString()!;
             int topN = args.GetProperty("topN").GetInt32();
-            var definitions = DaxToolsRunQueryTests.GetDefinitions(args);
-
-            // This test primarily verifies that the ordering logic doesn't throw and processes definitions correctly
-            var result = await DaxTools.RunQuery(expression, definitions, topN);
+            // Assuming 'expression' from config now contains the full DAX query including any DEFINE block.
+            // This test now primarily verifies that a query with a DEFINE block can be processed.
+            var result = await DaxTools.RunQuery(expression, topN);
             Assert.NotNull(result);
             Console.WriteLine("[RunQuery_DefinitionOrderingTest_DoesNotThrow] Successfully executed query with mixed definition types");
         }
@@ -572,7 +477,7 @@ namespace pbi_local_mcp.Tests
             string testExpression = args.GetProperty("expression").GetString()!;
             int topN = args.GetProperty("topN").GetInt32();
 
-            var runQueryResult = await DaxTools.RunQuery(testExpression, null, topN);
+            var runQueryResult = await DaxTools.RunQuery(testExpression, topN);
             
             // For comparison, we still call EvaluateDAX directly as the baseline
             // Ensure the 'evaluateDAX' config entry exists and is valid
