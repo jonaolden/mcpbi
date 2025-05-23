@@ -10,8 +10,9 @@ This server allows any MCP-enabled LLM Client to communicate with your tabular m
 
 It connects to a local running instance of Tabular models using the [AdomdConnection in ADOMD.NET](https://learn.microsoft.com/en-us/analysis-services/adomd/multidimensional-models-adomd-net-client/connections-in-adomd-net?view=asallproducts-allversions). 
 
-Using this connection, the server then allows clients to execute [DAX-queries](https://www.sqlbi.com/articles/execute-dax-queries-through-ole-db-and-adomd-net/) to retrieve model metadata (using [DAX INFO functions](https://learn.microsoft.com/en-us/dax/info-functions-dax)) through pre-defined and well documented tools for high accuracy, as well as custom EVALUATE queries for debugging and development.
-This MCP server enables communication between clients and Power BI tabular models via ADOMD.NET, supporting both predefined DAX queries and custom EVALUATE statements.
+Using this connection, the server then allows clients to execute [DAX-queries](https://www.sqlbi.com/articles/execute-dax-queries-through-ole-db-and-adomd-net/) to retrieve model metadata (using [DAX INFO functions](https://learn.microsoft.com/en-us/dax/info-functions-dax)) through pre-defined and well documented tools for high accuracy, as well as custom DAX queries for debugging and development.
+
+This MCP server enables communication between clients and Power BI tabular models via ADOMD.NET, supporting both predefined metadata queries and flexible DAX queries with full DEFINE block capabilities for advanced analysis.
 
 ## Tools
 
@@ -29,14 +30,14 @@ Get columns for a specific table by name
 Get relationships for a specific table by name
 ### PreviewTableData
 Preview data from a table (top N rows)
-### EvaluateDAX
-Evaluate a DAX expression, optionally limiting to top N rows
+### RunQuery
+Execute a DAX query. Supports complete DAX queries with DEFINE blocks, EVALUATE statements, or simple expressions
 
 ## How to install
 See [`docs/Installation.md`](docs/Installation.md) for requirements and installation instructions.
 
 ## Testing
-See ['resources/testing.md']
+See [`resources/testing.md`](resources/testing.md)
 
-## Lincense 
-MIT License or whatever 
+## License
+MIT

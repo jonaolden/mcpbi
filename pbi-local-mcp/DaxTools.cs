@@ -145,49 +145,6 @@ public static class DaxTools
         return result;
     }
 
-    [McpServerTool, Description("Evaluate a DAX expression, optionally limiting to top N rows.")]
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
-    public static async Task<object> EvaluateDAX(string dax, int topN = 10)
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
-    {
-        var tabular = CreateConnection();
-        string query = dax.Trim();
-        bool isTableExpr = false;
-
-        if (query.StartsWith("EVALUATE", StringComparison.OrdinalIgnoreCase))
-        {
-            isTableExpr = false;
-        }
-        else if (query.StartsWith("'") || query.StartsWith("SELECTCOLUMNS", StringComparison.OrdinalIgnoreCase) ||
-                 query.StartsWith("ADDCOLUMNS", StringComparison.OrdinalIgnoreCase) ||
-                 query.StartsWith("SUMMARIZE", StringComparison.OrdinalIgnoreCase) ||
-                 query.StartsWith("FILTER", StringComparison.OrdinalIgnoreCase) ||
-                 query.StartsWith("VALUES", StringComparison.OrdinalIgnoreCase) ||
-                 query.StartsWith("ALL", StringComparison.OrdinalIgnoreCase))
-        {
-            isTableExpr = true;
-        }
-        else
-        {
-            isTableExpr = false;
-        }
-
-        if (topN > 0 && isTableExpr)
-        {
-            query = $"EVALUATE TOPN({topN}, {query})";
-        }
-        else if (topN > 0 && !query.StartsWith("EVALUATE", StringComparison.OrdinalIgnoreCase) && !isTableExpr)
-        {
-            query = $"EVALUATE ROW(\"Value\", {query})";
-        }
-        else if (!query.StartsWith("EVALUATE", StringComparison.OrdinalIgnoreCase) && isTableExpr)
-        {
-            query = $"EVALUATE {query}";
-        }
-
-        var result = await tabular.ExecAsync(query, QueryType.DAX);
-        return result;
-    }
     /// <summary>
     /// Execute a DAX query. Supports complete DAX queries with DEFINE blocks or simple expressions.
     /// </summary>

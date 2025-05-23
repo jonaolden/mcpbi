@@ -33,7 +33,7 @@ Find: For discovery operations
 
 Query: For querying operations
 - QueryTableData (instead of PreviewTableData)
-- QueryDAX (instead of EvaluateDAX)
+- RunQuery (implemented as replacement for EvaluateDAX)
 
 
 # Improvements 
