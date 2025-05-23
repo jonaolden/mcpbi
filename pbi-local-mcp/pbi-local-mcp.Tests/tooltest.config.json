@@ -1,6 +1,6 @@
 {
   "listMeasures": {
-    "tableName": ""
+    "tableName": "financials"
   },
   "getMeasureDetails": {
     "measureName": "Sum of Sales"
@@ -19,8 +19,24 @@
     "tableName": "financials",
     "topN": 5
   },
-  "evaluateDAX": {
-    "expression": "SUM('financials'[Profit])",
-    "topN": 10
+  "runQueryNoDefinitions": {
+    "expression": "1+1",
+    "topN": 0
+  },
+  "runQueryWithVarDefinition": {
+    "expression": "DEFINE VAR _x = 1+1 EVALUATE ROW(\"Value\", _x)",
+    "topN": 0
+  },
+  "runQueryWithMeasureDefinition": {
+    "expression": "DEFINE MEASURE financials[TestMeasure] = SUM(financials[Profit]) EVALUATE ROW(\"Value\", [TestMeasure])",
+    "topN": 1
+  },
+  "runQueryWithMultipleDefinitions": {
+    "expression": "DEFINE VAR _year = 2023 MEASURE financials[TotalProfit] = SUM(financials[Profit]) EVALUATE ROW(\"Year\", _year, \"Profit\", [TotalProfit])",
+    "topN": 1
+  },
+  "runQueryDefinitionOrdering": {
+    "expression": "DEFINE VAR _v1 = 2023 TABLE T1 = financials COLUMN financials[C1] = 1 MEASURE financials[M1] = 1 EVALUATE ROW(\"Test\", 1)",
+    "topN": 1
   }
 }

@@ -63,3 +63,4 @@ resources/development/
 .editorconfig
 /.roo
 .roo
+docs/RunQuery-Design.md
