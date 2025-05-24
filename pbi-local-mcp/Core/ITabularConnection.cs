@@ -6,21 +6,25 @@ namespace pbi_local_mcp.Core;
 public interface ITabularConnection
 {
     /// <summary>
-    /// Executes a DAX query and returns the results
+    /// Executes a query (DAX or DMV) and returns the results.
     /// </summary>
-    /// <param name="dax">The DAX query to execute</param>
-    /// <returns>A collection of query results as dictionaries</returns>
+    /// <param name="query">The query to execute.</param>
+    /// <param name="queryType">The type of query (DAX or DMV).</param>
+    /// <returns>A collection of query results as dictionaries.</returns>
     Task<IEnumerable<Dictionary<string, object?>>> ExecAsync(
-        string dax);
+        string query,
+        QueryType queryType = QueryType.DAX); // Added QueryType, default to DAX
 
     /// <summary>
-    /// Executes a DAX query with cancellation support and returns the results
+    /// Executes a query (DAX or DMV) with cancellation support and returns the results.
     /// </summary>
-    /// <param name="dax">The DAX query to execute</param>
-    /// <param name="cancellationToken">Token to monitor for cancellation requests</param>
-    /// <returns>A collection of query results as dictionaries</returns>
+    /// <param name="query">The query to execute.</param>
+    /// <param name="queryType">The type of query (DAX or DMV).</param>
+    /// <param name="cancellationToken">Token to monitor for cancellation requests.</param>
+    /// <returns>A collection of query results as dictionaries.</returns>
     Task<IEnumerable<Dictionary<string, object?>>> ExecAsync(
-        string dax,
+        string query,
+        QueryType queryType, // Added QueryType
         CancellationToken cancellationToken);
 
     /// <summary>
