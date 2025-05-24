@@ -138,7 +138,11 @@ public class TabularConnection : ITabularConnection, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error executing {QueryType} query: {Query}", queryType, query);
-            throw;
+            if (ex is AdomdException adomdEx)
+            {
+                throw new DaxQueryExecutionException(adomdEx, query, queryType);
+            }
+            throw new DaxQueryExecutionException(ex.Message, ex, query, queryType);
         }
     }
 
@@ -182,7 +186,11 @@ public class TabularConnection : ITabularConnection, IDisposable
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogError(ex, "Error executing {QueryType} query: {Query}", queryType, query);
-            throw;
+            if (ex is AdomdException adomdEx)
+            {
+                throw new DaxQueryExecutionException(adomdEx, query, queryType);
+            }
+            throw new DaxQueryExecutionException(ex.Message, ex, query, queryType);
         }
     }
 

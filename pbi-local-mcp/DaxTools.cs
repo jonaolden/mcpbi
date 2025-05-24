@@ -207,8 +207,13 @@ public class DaxTools // Changed from static class
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error executing DAX query: {Query}", query); // Use injected _logger
-            throw new Exception($"Error executing DAX query: {ex.Message}\n\nQuery:\n{query}", ex);
+            _logger.LogError(ex, "Error executing DAX query: {OriginalQuery} (Processed: {ProcessedQuery})", originalDax, query);
+            if (ex is DaxQueryExecutionException) // Check if it's already our custom exception
+            {
+                throw; // Re-throw it directly to preserve type and properties
+            }
+            // For other exceptions, wrap them as before, or consider a more specific DaxTools-level exception
+            throw new Exception($"Error executing DAX query: {ex.Message}\n\nOriginal Query:\n{originalDax}", ex);
         }
     }
 

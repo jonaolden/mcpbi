@@ -585,5 +585,34 @@ namespace pbi_local_mcp.Tests
             Assert.Contains("Query cannot be empty.", exception.Message);
             Console.WriteLine("[RunQuery_QueryIsWhitespace_ThrowsArgumentException] Correctly threw exception.");
         }
+
+        [Fact]
+        public async Task RunQuery_InvalidDaxSemanticError_ThrowsDaxQueryExecutionException()
+        {
+            Console.WriteLine("\n[RunQuery_InvalidDaxSemanticError_ThrowsDaxQueryExecutionException] Testing semantically incorrect DAX query");
+            // This query is syntactically fine for the pre-checks but will fail on the server
+            // if 'NonExistentTable' or '[NonExistentColumn]' do not exist.
+            string invalidDaxQuery = "EVALUATE { NonExistentTable[NonExistentColumn] }";
+            QueryType expectedQueryType = QueryType.DAX;
+
+            // Ensure PBI_PORT and PBI_DB_ID are set for this test to connect to a live instance
+            Assert.True(!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("PBI_PORT")), "PBI_PORT environment variable not set. This test requires a live PBI instance.");
+            Assert.True(!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("PBI_DB_ID")), "PBI_DB_ID environment variable not set. This test requires a live PBI instance.");
+
+            var exception = await Assert.ThrowsAsync<DaxQueryExecutionException>(async () =>
+                await _daxTools.RunQuery(invalidDaxQuery, 0));
+
+            Assert.NotNull(exception);
+            Assert.Equal(invalidDaxQuery, exception.Query);
+            Assert.Equal(expectedQueryType, exception.QueryType);
+            Assert.NotNull(exception.InnerException);
+            Assert.IsAssignableFrom<Microsoft.AnalysisServices.AdomdClient.AdomdException>(exception.InnerException);
+            Assert.NotEmpty(exception.InnerException.Message); // Server should provide a message
+
+            Console.WriteLine($"[RunQuery_InvalidDaxSemanticError_ThrowsDaxQueryExecutionException] Correctly threw DaxQueryExecutionException with message: {exception.Message}");
+            Console.WriteLine($"  Query: {exception.Query}");
+            Console.WriteLine($"  QueryType: {exception.QueryType}");
+            Console.WriteLine($"  InnerException Message: {exception.InnerException.Message}");
+        }
     }
 }
