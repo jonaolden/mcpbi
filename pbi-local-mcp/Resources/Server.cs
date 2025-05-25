@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 using pbi_local_mcp.Configuration;
 using pbi_local_mcp.Core;
@@ -35,10 +36,10 @@ public class ServerConfigurator
 
         var builder = Host.CreateApplicationBuilder(args);
 
-        // Configure logging first
+        // Configure logging first - separate MCP and debug logging
         builder.Logging.AddConsole(options =>
         {
-            options.LogToStandardErrorThreshold = LogLevel.Trace;
+            options.LogToStandardErrorThreshold = LogLevel.Warning; // Only errors to stderr
         });
         builder.Logging.SetMinimumLevel(LogLevel.Debug);
 
@@ -52,7 +53,13 @@ public class ServerConfigurator
                 config.DbId = Environment.GetEnvironmentVariable("PBI_DB_ID") ?? "";
                 _logger.LogInformation("PowerBI Config - Port: {Port}, DbId: {DbId}", config.Port, config.DbId);
             })
-            .AddSingleton<ITabularConnection, TabularConnection>();
+            .AddSingleton<ITabularConnection>(serviceProvider =>
+            {
+                var config = serviceProvider.GetRequiredService<IOptions<PowerBiConfig>>().Value;
+                var logger = serviceProvider.GetRequiredService<ILogger<TabularConnection>>();
+                return new TabularConnection(config, logger);
+            })
+            .AddSingleton<DaxTools>();
 
         _logger.LogInformation("Core services registered.");
 

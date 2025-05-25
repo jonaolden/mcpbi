@@ -4,6 +4,7 @@ using pbi_local_mcp.Configuration;
 using Microsoft.AnalysisServices.AdomdClient;
 using System.Data;
 using Microsoft.Extensions.Logging.Abstractions;
+using ModelContextProtocol;
 
 namespace pbi_local_mcp;
 
@@ -96,27 +97,18 @@ public class TabularConnection : ITabularConnection, IDisposable
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _connection = connection ?? throw new ArgumentNullException(nameof(connection));
         _connectionString = connection.ConnectionString;
-    }    /// <inheritdoc/>
-         /// <summary>
-         /// Executes a DAX query and returns the results
-         /// </summary>
-         /// <param name="dax">The DAX query to execute</param>
-         /// <returns>A collection of query results as dictionaries</returns>
-         /// <exception cref="ArgumentNullException">Thrown when the DAX query is null</exception>
-         /// <exception cref="InvalidOperationException">Thrown when the connection is not available</exception>
-         /// <exception cref="Exception">Propagates any exceptions from the query execution</exception>
-    // Overload for interface compatibility
-    public virtual async Task<IEnumerable<Dictionary<string, object?>>> ExecAsync(string query)
-    {
-        return await ExecAsync(query, QueryType.DAX);
     }
 
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+    /// <inheritdoc/>
     public virtual async Task<IEnumerable<Dictionary<string, object?>>> ExecAsync(string query, QueryType queryType = QueryType.DAX)
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     {
         if (string.IsNullOrEmpty(query))
             throw new ArgumentNullException(nameof(query), "Query cannot be null or empty");
+
+        // queryType parameter is available here if specific logic is needed,
+        // but AdomdClient typically uses CommandType.Text for both DAX and DMVs.
+        // The distinction might be more for logging or higher-level logic if any.
+        _logger.LogDebug("Executing query ({QueryType}): {Query}", queryType, query);
 
         await EnsureConnectionOpenAsync();
 
@@ -124,7 +116,7 @@ public class TabularConnection : ITabularConnection, IDisposable
         {
             using var cmd = _connection.CreateCommand();
             cmd.CommandText = query;
-            cmd.CommandType = CommandType.Text;
+            cmd.CommandType = CommandType.Text; // Standard for both DAX and DMVs via AdomdClient
             cmd.CommandTimeout = DefaultCommandTimeout;
 
             var results = new List<Dictionary<string, object?>>();
@@ -146,26 +138,26 @@ public class TabularConnection : ITabularConnection, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error executing query: {Query}", query);
-            throw;
+            _logger.LogError(ex, "Error executing {QueryType} query: {Query}", queryType, query);
+            
+            // Create enhanced error message with query details for better MCP protocol compatibility
+            var enhancedMessage = CreateEnhancedErrorMessage(ex, query, queryType);
+            
+            if (ex is AdomdException adomdEx)
+            {
+                throw new McpException(enhancedMessage, adomdEx);
+            }
+            throw new McpException(enhancedMessage, ex);
         }
     }
 
     /// <inheritdoc/>
-    /// <summary>
-    /// Executes a DAX query with cancellation support and returns the results
-    /// </summary>
-    /// <param name="dax">The DAX query to execute</param>
-    /// <param name="cancellationToken">Token to monitor for cancellation requests</param>
-    /// <returns>A collection of query results as dictionaries</returns>
-    /// <exception cref="ArgumentNullException">Thrown when the DAX query is null</exception>
-    /// <exception cref="InvalidOperationException">Thrown when the connection is not available</exception>
-    /// <exception cref="OperationCanceledException">Thrown when the operation is canceled</exception>
-    /// <exception cref="Exception">Propagates any exceptions from the query execution</exception>
-    public virtual async Task<IEnumerable<Dictionary<string, object?>>> ExecAsync(string dax, CancellationToken cancellationToken)
+    public virtual async Task<IEnumerable<Dictionary<string, object?>>> ExecAsync(string query, QueryType queryType, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrEmpty(dax))
-            throw new ArgumentNullException(nameof(dax), "DAX query cannot be null or empty");
+        if (string.IsNullOrEmpty(query))
+            throw new ArgumentNullException(nameof(query), "Query cannot be null or empty");
+
+        _logger.LogDebug("Executing query ({QueryType}) with cancellation: {Query}", queryType, query);
 
         cancellationToken.ThrowIfCancellationRequested();
         await EnsureConnectionOpenAsync(cancellationToken);
@@ -173,7 +165,7 @@ public class TabularConnection : ITabularConnection, IDisposable
         try
         {
             using var cmd = _connection.CreateCommand();
-            cmd.CommandText = dax;
+            cmd.CommandText = query;
             cmd.CommandType = CommandType.Text;
             cmd.CommandTimeout = DefaultCommandTimeout;
 
@@ -198,24 +190,25 @@ public class TabularConnection : ITabularConnection, IDisposable
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _logger.LogError(ex, "Error executing DAX query: {Query}", dax);
-            throw;
+            _logger.LogError(ex, "Error executing {QueryType} query: {Query}", queryType, query);
+            
+            // Create enhanced error message with query details for better MCP protocol compatibility
+            var enhancedMessage = CreateEnhancedErrorMessage(ex, query, queryType);
+            
+            if (ex is AdomdException adomdEx)
+            {
+                throw new McpException(enhancedMessage, adomdEx);
+            }
+            throw new McpException(enhancedMessage, ex);
         }
-    }    /// <inheritdoc/>
-         /// <summary>
-         /// Executes a DAX info function with a filter and returns the results
-         /// </summary>
-         /// <param name="func">The name of the INFO function to execute</param>
-         /// <param name="filterExpr">Filter expression to apply</param>
-         /// <returns>A collection of query results as dictionaries</returns>
-         /// <exception cref="ArgumentNullException">Thrown when func is null</exception>
-         /// <exception cref="ArgumentException">Thrown when func contains invalid characters</exception>
+    }
+
+    /// <inheritdoc/>
     public virtual async Task<IEnumerable<Dictionary<string, object?>>> ExecInfoAsync(string func, string filterExpr)
     {
         if (string.IsNullOrEmpty(func))
             throw new ArgumentNullException(nameof(func), "Function name cannot be null or empty");
 
-        // Sanitize input to prevent injection
         if (func.Contains(";") || func.Contains("--") || func.Contains("/*") || func.Contains("*/"))
             throw new ArgumentException("Function name contains invalid characters", nameof(func));
 
@@ -226,32 +219,20 @@ public class TabularConnection : ITabularConnection, IDisposable
         }
         else
         {
-            // Basic sanitization for the filter expression
-            if (filterExpr.Contains(";") && filterExpr.Contains("--"))
+            if (filterExpr.Contains(";") && filterExpr.Contains("--")) // Basic sanitization
                 throw new ArgumentException("Filter expression contains invalid characters", nameof(filterExpr));
-
             query = $"SELECT * FROM ${func} WHERE {filterExpr}";
         }
-
-        return await ExecAsync(query);
+        // ExecInfoAsync implies a DMV query
+        return await ExecAsync(query, QueryType.DMV);
     }
 
-    /// <summary>
-    /// Executes a DAX info function with a filter and returns the results with cancellation support
-    /// </summary>
-    /// <param name="func">The name of the INFO function to execute</param>
-    /// <param name="filterExpr">Filter expression to apply</param>
-    /// <param name="cancellationToken">Token to monitor for cancellation requests</param>
-    /// <returns>A collection of query results as dictionaries</returns>
-    /// <exception cref="ArgumentNullException">Thrown when func is null</exception>
-    /// <exception cref="ArgumentException">Thrown when func contains invalid characters</exception>
-    /// <exception cref="OperationCanceledException">Thrown when the operation is canceled</exception>
+    /// <inheritdoc/>
     public virtual async Task<IEnumerable<Dictionary<string, object?>>> ExecInfoAsync(string func, string filterExpr, CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(func))
             throw new ArgumentNullException(nameof(func), "Function name cannot be null or empty");
 
-        // Sanitize input to prevent injection
         if (func.Contains(";") || func.Contains("--") || func.Contains("/*") || func.Contains("*/"))
             throw new ArgumentException("Function name contains invalid characters", nameof(func));
 
@@ -262,19 +243,19 @@ public class TabularConnection : ITabularConnection, IDisposable
         }
         else
         {
-            // Basic sanitization for the filter expression
-            if (filterExpr.Contains(";") && filterExpr.Contains("--"))
+            if (filterExpr.Contains(";") && filterExpr.Contains("--")) // Basic sanitization
                 throw new ArgumentException("Filter expression contains invalid characters", nameof(filterExpr));
-
             query = $"SELECT * FROM ${func} WHERE {filterExpr}";
         }
+        // ExecInfoAsync implies a DMV query
+        return await ExecAsync(query, QueryType.DMV, cancellationToken);
+    }
 
-        return await ExecAsync(query, cancellationToken);
-    }    /// <summary>
-         /// Ensures that the connection is open, opening it if necessary
-         /// </summary>
-         /// <returns>A task representing the asynchronous operation</returns>
-         /// <exception cref="InvalidOperationException">Thrown when the connection cannot be opened</exception>
+    /// <summary>
+    /// Ensures that the connection is open, opening it if necessary
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation</returns>
+    /// <exception cref="InvalidOperationException">Thrown when the connection cannot be opened</exception>
     private async Task EnsureConnectionOpenAsync()
     {
         if (_disposed)
@@ -284,7 +265,6 @@ public class TabularConnection : ITabularConnection, IDisposable
         {
             if (_connection.State != ConnectionState.Open)
             {
-                // Create a new connection if needed for better connection pooling
                 await Task.Run(() => _connection.Open());
             }
 
@@ -317,7 +297,6 @@ public class TabularConnection : ITabularConnection, IDisposable
         {
             if (_connection.State != ConnectionState.Open)
             {
-                // Create a new connection if needed for better connection pooling
                 await Task.Run(() => _connection.Open(), cancellationToken);
             }
 
@@ -378,5 +357,18 @@ public class TabularConnection : ITabularConnection, IDisposable
     {
         Dispose(false);
     }
+    /// <summary>
+    /// Creates an enhanced error message that includes query details for better error reporting through MCP protocol
+    /// </summary>
+    /// <param name="originalException">The original exception that occurred</param>
+    /// <param name="query">The query that caused the exception</param>
+    /// <param name="queryType">The type of query (DAX or DMV)</param>
+    /// <returns>Enhanced error message with query context</returns>
+    private static string CreateEnhancedErrorMessage(Exception originalException, string query, QueryType queryType)
+    {
+        var queryTypeStr = queryType == QueryType.DAX ? "DAX" : "DMV";
+        var truncatedQuery = query.Length > 200 ? query.Substring(0, 200) + "..." : query;
+        
+        return $"{queryTypeStr} Query Error: {originalException.Message}\n\nQuery Type: {queryTypeStr}\nQuery: {truncatedQuery}";
+    }
 }
-
