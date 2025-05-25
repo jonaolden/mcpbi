@@ -19,4 +19,4 @@ The plan recommends adopting a consistent **Verb-Noun** pattern for tool names:
 - **List**: ListMeasures, ListTables, ListTableColumns, ListTableRelationships
 - **Analyze**: AnalyzeQueryPerformance, AnalyzeMeasureDependencies, AnalyzeModelHealth
 - **Find**: FindUnusedObjects
-- **Query**: QueryTableData, QueryDAX
+- **Query**: QueryDAX
