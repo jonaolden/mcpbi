@@ -1,5 +1,7 @@
+// File: DaxTools.cs
 using System.ComponentModel;
 using Microsoft.Extensions.Logging; // Added for ILogger
+using ModelContextProtocol;
 using ModelContextProtocol.Server;
 using pbi_local_mcp.Core; // Added for ITabularConnection
 
@@ -208,12 +210,18 @@ public class DaxTools // Changed from static class
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error executing DAX query: {OriginalQuery} (Processed: {ProcessedQuery})", originalDax, query);
-            if (ex is DaxQueryExecutionException) // Check if it's already our custom exception
+            
+            // The TabularConnection now throws standard exceptions with enhanced messages
+            // We should preserve those enhanced messages and just add any additional context if needed
+            if (ex.Message.Contains("DAX Query Error:") || ex.Message.Contains("DMV Query Error:"))
             {
-                throw; // Re-throw it directly to preserve type and properties
+                // The exception already has enhanced error information from TabularConnection
+                // Just re-throw it to preserve the detailed message
+                throw;
             }
-            // For other exceptions, wrap them as before, or consider a more specific DaxTools-level exception
-            throw new Exception($"Error executing DAX query: {ex.Message}\n\nOriginal Query:\n{originalDax}", ex);
+            
+            // For other exceptions (like validation errors), add DAX context
+            throw new McpException($"Error executing DAX query: {ex.Message}\n\nOriginal Query:\n{originalDax}", ex);
         }
     }
 
