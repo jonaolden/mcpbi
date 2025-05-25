@@ -5,15 +5,44 @@ namespace pbi_local_mcp.Configuration;
 /// </summary>
 public class PowerBiConfig
 {
+    private string _port = string.Empty;
+    private string _dbId = string.Empty;
+    
     /// <summary>
     /// Gets or sets the port number for connecting to the Power BI instance
     /// </summary>
-    public string Port { get; set; } = string.Empty;
+    public string Port
+    {
+        get => _port;
+        set
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                throw new ArgumentException("Port cannot be null or empty");
+                
+            if (!int.TryParse(value, out var port) || port < 1 || port > 65535)
+                throw new ArgumentException($"Invalid port number: {value}. Must be between 1 and 65535.");
+                
+            _port = value;
+        }
+    }
 
     /// <summary>
     /// Gets or sets the database ID (catalog name) to connect to
     /// </summary>
-    public string DbId { get; set; } = string.Empty;
+    public string DbId
+    {
+        get => _dbId;
+        set
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                throw new ArgumentException("Database ID cannot be null or empty");
+                
+            if (value.Length > 100) // Reasonable limit
+                throw new ArgumentException("Database ID too long");
+                
+            _dbId = value;
+        }
+    }
 
     /// <summary>
     /// Validates the configuration settings

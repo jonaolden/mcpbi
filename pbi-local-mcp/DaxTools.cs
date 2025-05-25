@@ -31,7 +31,8 @@ public class DaxTools // Changed from static class
 
     [McpServerTool, Description("List all measures in the model, optionally filtered by table name.")]
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
-    public async Task<object> ListMeasures(string? tableName = null) // Removed static
+    public async Task<object> ListMeasures(
+        [Description("Optional table name to filter measures. If null, returns all measures.")] string? tableName = null) // Removed static
 #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     {
         // var tabular = CreateConnection(); // Replaced
@@ -39,7 +40,11 @@ public class DaxTools // Changed from static class
 
         if (!string.IsNullOrEmpty(tableName))
         {
-            var tableIdQuery = $"SELECT [ID] FROM $SYSTEM.TMSCHEMA_TABLES WHERE [NAME] = '{tableName}'";
+            if (!DaxSecurityUtils.IsValidIdentifier(tableName))
+                throw new ArgumentException("Invalid table name format", nameof(tableName));
+            
+            var escapedTableName = DaxSecurityUtils.EscapeDaxIdentifier(tableName);
+            var tableIdQuery = $"SELECT [ID] FROM $SYSTEM.TMSCHEMA_TABLES WHERE [NAME] = {escapedTableName}";
             var tableIdResult = await _tabularConnection.ExecAsync(tableIdQuery, QueryType.DMV); // Use injected _tabularConnection
 
             if (tableIdResult is IEnumerable<Dictionary<string, object?>> rows && rows.Any())
@@ -70,11 +75,16 @@ public class DaxTools // Changed from static class
 
     [McpServerTool, Description("Get details for a specific measure by name.")]
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
-    public async Task<object> GetMeasureDetails(string measureName) // Removed static
+    public async Task<object> GetMeasureDetails(
+        [Description("Name of the measure to get details for")] string measureName) // Removed static
 #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     {
+        if (!DaxSecurityUtils.IsValidIdentifier(measureName))
+            throw new ArgumentException("Invalid measure name format", nameof(measureName));
+        
         // var tabular = CreateConnection(); // Replaced
-        var dmv = $"SELECT * FROM $SYSTEM.TMSCHEMA_MEASURES WHERE [NAME] = '{measureName}'";
+        var escapedMeasureName = DaxSecurityUtils.EscapeDaxIdentifier(measureName);
+        var dmv = $"SELECT * FROM $SYSTEM.TMSCHEMA_MEASURES WHERE [NAME] = {escapedMeasureName}";
         var result = await _tabularConnection.ExecAsync(dmv, QueryType.DMV); // Use injected _tabularConnection
         return result;
     }
@@ -92,22 +102,32 @@ public class DaxTools // Changed from static class
 
     [McpServerTool, Description("Get details for a specific table by name.")]
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
-    public async Task<object> GetTableDetails(string tableName) // Removed static
+    public async Task<object> GetTableDetails(
+        [Description("Name of the table to get details for")] string tableName) // Removed static
 #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     {
+        if (!DaxSecurityUtils.IsValidIdentifier(tableName))
+            throw new ArgumentException("Invalid table name format", nameof(tableName));
+        
         // var tabular = CreateConnection(); // Replaced
-        var dmv = $"SELECT * FROM $SYSTEM.TMSCHEMA_TABLES WHERE [NAME] = '{tableName}'";
+        var escapedTableName = DaxSecurityUtils.EscapeDaxIdentifier(tableName);
+        var dmv = $"SELECT * FROM $SYSTEM.TMSCHEMA_TABLES WHERE [NAME] = {escapedTableName}";
         var result = await _tabularConnection.ExecAsync(dmv, QueryType.DMV); // Use injected _tabularConnection
         return result;
     }
 
     [McpServerTool, Description("Get columns for a specific table by name.")]
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
-    public async Task<object> GetTableColumns(string tableName) // Removed static
+    public async Task<object> GetTableColumns(
+        [Description("Name of the table to get columns for")] string tableName) // Removed static
 #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     {
+        if (!DaxSecurityUtils.IsValidIdentifier(tableName))
+            throw new ArgumentException("Invalid table name format", nameof(tableName));
+        
         // var tabular = CreateConnection(); // Replaced
-        var tableIdQuery = $"SELECT [ID] FROM $SYSTEM.TMSCHEMA_TABLES WHERE [NAME] = '{tableName}'";
+        var escapedTableName = DaxSecurityUtils.EscapeDaxIdentifier(tableName);
+        var tableIdQuery = $"SELECT [ID] FROM $SYSTEM.TMSCHEMA_TABLES WHERE [NAME] = {escapedTableName}";
         var tableIdResult = await _tabularConnection.ExecAsync(tableIdQuery, QueryType.DMV); // Use injected _tabularConnection
         var tableId = tableIdResult is IEnumerable<Dictionary<string, object?>> rows && rows.Any()
             ? rows.First()["ID"]?.ToString()
@@ -123,11 +143,16 @@ public class DaxTools // Changed from static class
 
     [McpServerTool, Description("Get relationships for a specific table by name.")]
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
-    public async Task<object> GetTableRelationships(string tableName) // Removed static
+    public async Task<object> GetTableRelationships(
+        [Description("Name of the table to get relationships for")] string tableName) // Removed static
 #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     {
+        if (!DaxSecurityUtils.IsValidIdentifier(tableName))
+            throw new ArgumentException("Invalid table name format", nameof(tableName));
+        
         // var tabular = CreateConnection(); // Replaced
-        var tableIdQuery = $"SELECT [ID] FROM $SYSTEM.TMSCHEMA_TABLES WHERE [NAME] = '{tableName}'";
+        var escapedTableName = DaxSecurityUtils.EscapeDaxIdentifier(tableName);
+        var tableIdQuery = $"SELECT [ID] FROM $SYSTEM.TMSCHEMA_TABLES WHERE [NAME] = {escapedTableName}";
         var tableIdResult = await _tabularConnection.ExecAsync(tableIdQuery, QueryType.DMV); // Use injected _tabularConnection
         var tableId = tableIdResult is IEnumerable<Dictionary<string, object?>> rows && rows.Any()
             ? rows.First()["ID"]?.ToString()
@@ -143,11 +168,17 @@ public class DaxTools // Changed from static class
 
     [McpServerTool, Description("Preview data from a table (top N rows).")]
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
-    public async Task<object> PreviewTableData(string tableName, int topN = 10) // Removed static
+    public async Task<object> PreviewTableData(
+        [Description("Name of the table to preview data for")] string tableName,
+        [Description("Maximum number of rows to return (default: 10)")] int topN = 10) // Removed static
 #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     {
+        if (!DaxSecurityUtils.IsValidIdentifier(tableName))
+            throw new ArgumentException("Invalid table name format", nameof(tableName));
+        
         // var tabular = CreateConnection(); // Replaced
-        var dax = $"EVALUATE TOPN({topN}, '{tableName}')";
+        var escapedTableName = DaxSecurityUtils.EscapeDaxIdentifier(tableName);
+        var dax = $"EVALUATE TOPN({topN}, {escapedTableName})";
         var result = await _tabularConnection.ExecAsync(dax); // Use injected _tabularConnection
         return result;
     }
@@ -161,7 +192,9 @@ public class DaxTools // Changed from static class
     /// <exception cref="ArgumentException">Thrown when query validation fails</exception>
     /// <exception cref="Exception">Thrown when query execution fails</exception>
     [McpServerTool, Description("Execute a DAX query. Supports complete DAX queries with DEFINE blocks, EVALUATE statements, or simple expressions.")]
-    public async Task<object> RunQuery(string dax, int topN = 10) // Removed static
+    public async Task<object> RunQuery(
+        [Description("The DAX query to execute. Can be a complete query with DEFINE block, an EVALUATE statement, or a simple expression.")] string dax,
+        [Description("Maximum number of rows to return for table expressions (default: 10). Ignored for complete queries.")] int topN = 10) // Removed static
     {
         // var tabular = CreateConnection(); // Replaced
         string originalDax = dax; 

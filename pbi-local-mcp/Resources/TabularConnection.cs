@@ -120,9 +120,9 @@ public class TabularConnection : ITabularConnection, IDisposable
             cmd.CommandTimeout = DefaultCommandTimeout;
 
             var results = new List<Dictionary<string, object?>>();
-            using var reader = await Task.Run(() => cmd.ExecuteReader());
+            using var reader = await Task.Run(() => cmd.ExecuteReader()).ConfigureAwait(false);
 
-            while (await Task.Run(() => reader.Read()))
+            while (await Task.Run(() => reader.Read()).ConfigureAwait(false))
             {
                 var row = new Dictionary<string, object?>();
                 for (int i = 0; i < reader.FieldCount; i++)
@@ -171,9 +171,9 @@ public class TabularConnection : ITabularConnection, IDisposable
 
             var results = new List<Dictionary<string, object?>>();
 
-            using var reader = await Task.Run(() => cmd.ExecuteReader(), cancellationToken);
+            using var reader = await Task.Run(() => cmd.ExecuteReader(), cancellationToken).ConfigureAwait(false);
 
-            while (await Task.Run(() => reader.Read(), cancellationToken))
+            while (await Task.Run(() => reader.Read(), cancellationToken).ConfigureAwait(false))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var row = new Dictionary<string, object?>();
@@ -219,8 +219,7 @@ public class TabularConnection : ITabularConnection, IDisposable
         }
         else
         {
-            if (filterExpr.Contains(";") && filterExpr.Contains("--")) // Basic sanitization
-                throw new ArgumentException("Filter expression contains invalid characters", nameof(filterExpr));
+            FilterExpressionValidator.ValidateFilterExpression(filterExpr);
             query = $"SELECT * FROM ${func} WHERE {filterExpr}";
         }
         // ExecInfoAsync implies a DMV query
@@ -243,8 +242,7 @@ public class TabularConnection : ITabularConnection, IDisposable
         }
         else
         {
-            if (filterExpr.Contains(";") && filterExpr.Contains("--")) // Basic sanitization
-                throw new ArgumentException("Filter expression contains invalid characters", nameof(filterExpr));
+            FilterExpressionValidator.ValidateFilterExpression(filterExpr);
             query = $"SELECT * FROM ${func} WHERE {filterExpr}";
         }
         // ExecInfoAsync implies a DMV query
@@ -265,7 +263,7 @@ public class TabularConnection : ITabularConnection, IDisposable
         {
             if (_connection.State != ConnectionState.Open)
             {
-                await Task.Run(() => _connection.Open());
+                await Task.Run(() => _connection.Open()).ConfigureAwait(false);
             }
 
             if (_connection.State != ConnectionState.Open)
@@ -297,7 +295,7 @@ public class TabularConnection : ITabularConnection, IDisposable
         {
             if (_connection.State != ConnectionState.Open)
             {
-                await Task.Run(() => _connection.Open(), cancellationToken);
+                await Task.Run(() => _connection.Open(), cancellationToken).ConfigureAwait(false);
             }
 
             if (_connection.State != ConnectionState.Open)
