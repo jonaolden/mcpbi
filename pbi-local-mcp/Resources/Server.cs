@@ -51,7 +51,9 @@ public class ServerConfigurator
             {
                 config.Port = Environment.GetEnvironmentVariable("PBI_PORT") ?? "";
                 config.DbId = Environment.GetEnvironmentVariable("PBI_DB_ID") ?? "";
-                _logger.LogInformation("PowerBI Config - Port: {Port}, DbId: {DbId}", config.Port, config.DbId);
+                _logger.LogInformation("PowerBI Config - Port: {Port}, DbId: {DbId}",
+                    config.Port,
+                    string.IsNullOrEmpty(config.DbId) ? "[Not Set]" : "[Configured]");
             })
             .AddSingleton<ITabularConnection>(serviceProvider =>
             {
