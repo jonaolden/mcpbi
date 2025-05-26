@@ -734,4 +734,441 @@ Please analyze and optimize the following DAX code for {bottleneckType} performa
 
 Please help debug the following {visualType} visual showing {issueType} behavior with {analysisDepth} analysis:";
     }
+
+    /// <summary>
+    /// Interactive DAX debugging with step-by-step analysis and comprehensive recommendations.
+    /// </summary>
+    /// <param name="approach">Debugging approach: variable_inspection, context_analysis, execution_flow, error_tracing</param>
+    /// <param name="includeVisualCalc">Include visual calculation simulation</param>
+    /// <param name="depth">Analysis depth: quick, detailed, comprehensive</param>
+    /// <returns>A specialized prompt for interactive DAX debugging with step-by-step guidance</returns>
+    [McpServerPrompt(Name = "debug_dax_step_by_step"), Description("Interactive DAX debugging with step-by-step analysis")]
+    public static string DebugDaxStepByStep(
+        [Description("Debugging approach: variable_inspection (focus on variables), context_analysis (filter context), execution_flow (step-by-step execution), error_tracing (error source identification)")] string approach,
+        [Description("Include visual calculation simulation")] bool includeVisualCalc = true,
+        [Description("Analysis depth: quick, detailed, comprehensive")] string depth = "detailed")
+    {
+        var basePrompt = @"You are a DAX debugging expert specializing in systematic problem diagnosis and resolution. Your expertise includes step-by-step analysis, variable inspection, context evaluation, and comprehensive error tracing.";
+
+        var approachGuidance = approach.ToLower() switch
+        {
+            "variable_inspection" => @"
+**Variable Inspection Debugging:**
+- Systematic analysis of all variable definitions and their values
+- Step-by-step variable evaluation and dependency tracking
+- Identification of variable scope issues and calculation errors
+- Variable value validation at each calculation step",
+
+            "context_analysis" => @"
+**Filter Context Analysis:**
+- Comprehensive filter context evaluation at each calculation step
+- Row context and filter context interaction analysis
+- Context transition identification and validation
+- Filter propagation and relationship impact assessment",
+
+            "execution_flow" => @"
+**Execution Flow Debugging:**
+- Step-by-step DAX execution simulation
+- Calculation order analysis and optimization
+- Function call hierarchy and parameter evaluation
+- Performance bottleneck identification in execution path",
+
+            "error_tracing" => @"
+**Error Source Tracing:**
+- Root cause analysis of DAX errors and unexpected results
+- Error propagation tracking through calculation chains
+- Data type mismatch and conversion issue identification
+- Null value handling and edge case analysis",
+
+            _ => @"
+**Comprehensive Debugging Approach:**
+- Multi-faceted analysis combining all debugging techniques
+- Systematic problem identification and resolution strategies"
+        };
+
+        var depthGuidance = depth.ToLower() switch
+        {
+            "quick" => @"
+**Quick Analysis:**
+- Rapid identification of most common DAX issues
+- Essential debugging steps and immediate fixes
+- Focus on high-probability root causes",
+
+            "detailed" => @"
+**Detailed Analysis:**
+- Systematic step-by-step debugging process
+- Comprehensive variable and context inspection
+- Multiple test scenarios and validation approaches",
+
+            "comprehensive" => @"
+**Comprehensive Analysis:**
+- Complete DAX expression analysis with all possible scenarios
+- Advanced debugging patterns and edge case testing
+- Full dependency mapping and optimization recommendations
+- Documentation of findings and resolution patterns",
+
+            _ => @"
+**Standard Analysis:**
+- Balanced debugging approach with practical solutions"
+        };
+
+        var visualCalcGuidance = includeVisualCalc
+            ? @"
+**Visual Calculation Simulation:**
+
+```dax
+// Debug Variable Values
+Debug Variables =
+VAR Step1 = [YourVariable1]
+VAR Step2 = [YourVariable2]
+VAR Step3 = Step1 + Step2
+RETURN
+    ""Step1: "" & Step1 &
+    "" | Step2: "" & Step2 &
+    "" | Result: "" & Step3
+
+// Debug Filter Context
+Debug Context =
+VAR CurrentFilters = CONCATENATEX(FILTERS(), [Column] & ""="" & [Value], "", "")
+VAR RowContext = CONCATENATEX(VALUES([Key]), [Key], "", "")
+RETURN ""Filters: "" & CurrentFilters & "" | Rows: "" & RowContext
+```"
+            : "";
+
+        return $@"{basePrompt}
+
+{approachGuidance}
+
+{depthGuidance}
+
+{visualCalcGuidance}
+
+**Systematic Debugging Framework:**
+
+1. **Problem Identification:**
+   - Document expected vs actual behavior
+   - Identify specific scenarios where issues occur
+   - Gather sample data and filter contexts
+
+2. **Step-by-Step Analysis:**
+   - Break down complex expressions into components
+   - Test each component independently
+   - Validate intermediate results
+
+3. **Context Investigation:**
+   - Analyze filter context at each calculation level
+   - Test with different filter combinations
+   - Verify relationship behavior and propagation
+
+4. **Resolution and Validation:**
+   - Implement fixes based on findings
+   - Test across multiple scenarios
+   - Document solution for future reference
+
+Please provide step-by-step debugging assistance for the following DAX issue using {approach} approach with {depth} analysis:";
+    }
+
+    /// <summary>
+    /// Comprehensive DAX analysis with optimization recommendations and performance insights.
+    /// </summary>
+    /// <param name="focus">Analysis focus: performance, readability, maintainability, modern_patterns</param>
+    /// <param name="includeAlternatives">Include alternative implementation suggestions</param>
+    /// <param name="modelSize">Target model size: small, medium, large, enterprise</param>
+    /// <returns>A specialized prompt for comprehensive DAX optimization analysis</returns>
+    [McpServerPrompt(Name = "analyze_dax_optimization"), Description("Comprehensive DAX analysis with optimization recommendations")]
+    public static string AnalyzeDaxOptimization(
+        [Description("Analysis focus: performance (speed optimization), readability (maintainability), maintainability (long-term support), modern_patterns (latest DAX features)")] string focus,
+        [Description("Include alternative implementation suggestions")] bool includeAlternatives = true,
+        [Description("Target model size: small (< 100MB), medium (100MB-1GB), large (1-10GB), enterprise (> 10GB)")] string modelSize = "medium")
+    {
+        var basePrompt = @"You are a DAX optimization expert with deep knowledge of performance patterns, modern DAX features, and enterprise-scale implementation best practices.";
+
+        var focusGuidance = focus.ToLower() switch
+        {
+            "performance" => @"
+**Performance Optimization Focus:**
+- Query execution time reduction strategies
+- Memory usage optimization and storage engine efficiency
+- Iterator function optimization and context transition analysis
+- Relationship leveraging for optimal filter propagation
+- Advanced performance patterns and anti-pattern identification",
+
+            "readability" => @"
+**Readability Enhancement Focus:**
+- Code structure improvement and logical organization
+- Variable naming conventions and documentation standards
+- Expression simplification without performance impact
+- Modular design patterns for complex calculations
+- Self-documenting code practices and commenting strategies",
+
+            "maintainability" => @"
+**Maintainability Improvement Focus:**
+- Long-term code sustainability and modification ease
+- Dependency reduction and modular design patterns
+- Standardization across measure implementations
+- Error handling and edge case management
+- Future-proofing against model changes and requirements evolution",
+
+            "modern_patterns" => @"
+**Modern DAX Patterns Focus:**
+- Latest DAX function utilization and optimization
+- Advanced time intelligence and calculation groups
+- Modern aggregation patterns and virtual relationships
+- Best practice implementation of new DAX features
+- Migration from legacy patterns to modern approaches",
+
+            _ => @"
+**Comprehensive Analysis Focus:**
+- Balanced optimization across all dimensions
+- Holistic improvement recommendations"
+        };
+
+        var modelSizeGuidance = modelSize.ToLower() switch
+        {
+            "small" => @"
+**Small Model Optimization (< 100MB):**
+- Focus on readability and maintainability over micro-optimizations
+- Emphasis on clear, understandable code patterns
+- Basic performance considerations without over-engineering",
+
+            "medium" => @"
+**Medium Model Optimization (100MB-1GB):**
+- Balanced approach to performance and maintainability
+- Moderate optimization strategies for better user experience
+- Performance monitoring and bottleneck identification",
+
+            "large" => @"
+**Large Model Optimization (1-10GB):**
+- Advanced performance optimization strategies
+- Memory usage optimization and efficient filter context management
+- Iterator function optimization and relationship efficiency",
+
+            "enterprise" => @"
+**Enterprise Model Optimization (> 10GB):**
+- Maximum performance optimization with enterprise-scale considerations
+- Advanced caching strategies and computation optimization
+- Sophisticated error handling and edge case management
+- Scalability and concurrent user impact analysis",
+
+            _ => @"
+**General Model Optimization:**
+- Adaptable strategies suitable for various model sizes"
+        };
+
+        var alternativeGuidance = includeAlternatives
+            ? @"
+**Alternative Implementation Analysis:**
+
+1. **Pattern Alternatives:**
+   - Compare multiple approaches for the same calculation
+   - Analyze trade-offs between different DAX patterns
+   - Suggest modern alternatives to legacy implementations
+
+2. **Performance Alternatives:**
+   - Provide faster execution alternatives
+   - Compare iterator vs non-iterator approaches
+   - Suggest relationship-based vs calculation-based solutions
+
+3. **Maintenance Alternatives:**
+   - Offer more maintainable code structures
+   - Suggest modular alternatives for complex calculations
+   - Provide standardized patterns for common scenarios"
+            : "";
+
+        return $@"{basePrompt}
+
+{focusGuidance}
+
+{modelSizeGuidance}
+
+{alternativeGuidance}
+
+**Comprehensive Analysis Framework:**
+
+1. **Current State Assessment:**
+   - Expression complexity analysis and pattern identification
+   - Performance characteristics and bottleneck detection
+   - Maintainability and readability evaluation
+
+2. **Optimization Opportunities:**
+   - Performance improvement recommendations
+   - Code structure enhancement suggestions
+   - Modern pattern adoption opportunities
+
+3. **Implementation Roadmap:**
+   - Prioritized optimization steps
+   - Risk assessment and mitigation strategies
+   - Testing and validation approaches
+
+4. **Quality Assurance:**
+   - Best practice compliance verification
+   - Future-proofing and scalability considerations
+   - Documentation and knowledge transfer recommendations
+
+Please analyze and optimize the following DAX expression with {focus} focus for a {modelSize} model:";
+    }
+
+    /// <summary>
+    /// Analysis-based test scenario recommendations for DAX measures with comprehensive coverage strategies.
+    /// </summary>
+    /// <param name="analysisType">Analysis type: coverage, edge_cases, performance_impact, validation</param>
+    /// <param name="domain">Business domain: sales, finance, operations, hr, general</param>
+    /// <param name="includeTestPatterns">Include recommended test patterns</param>
+    /// <returns>A specialized prompt for generating comprehensive test scenarios based on DAX analysis</returns>
+    [McpServerPrompt(Name = "analyze_test_scenarios"), Description("Analysis-based test scenario recommendations for DAX measures")]
+    public static string AnalyzeTestScenarios(
+        [Description("Analysis type: coverage (comprehensive testing), edge_cases (boundary conditions), performance_impact (scalability testing), validation (accuracy verification)")] string analysisType,
+        [Description("Business domain: sales (revenue/growth), finance (ratios/KPIs), operations (efficiency), hr (workforce), general")] string domain = "general",
+        [Description("Include recommended test patterns")] bool includeTestPatterns = true)
+    {
+        var basePrompt = @"You are a DAX testing and validation expert specializing in comprehensive test scenario design, edge case identification, and business logic verification for Power BI solutions.";
+
+        var analysisGuidance = analysisType.ToLower() switch
+        {
+            "coverage" => @"
+**Comprehensive Coverage Testing:**
+- Complete functional test scenario identification
+- Cross-functional integration testing strategies
+- Multi-dimensional filter context validation
+- Hierarchical aggregation behavior verification
+- Time intelligence pattern testing across periods",
+
+            "edge_cases" => @"
+**Edge Case and Boundary Testing:**
+- Null value handling and empty table scenarios
+- Division by zero and mathematical edge cases
+- Date boundary conditions and invalid periods
+- Filter context edge cases and unexpected combinations
+- Data type conversion and overflow scenarios",
+
+            "performance_impact" => @"
+**Performance Impact Testing:**
+- Scalability testing with varying data volumes
+- Concurrent user impact assessment
+- Memory usage patterns under different loads
+- Query execution time validation across scenarios
+- Bottleneck identification in complex calculations",
+
+            "validation" => @"
+**Accuracy and Validation Testing:**
+- Business logic accuracy verification
+- Cross-system validation and reconciliation
+- Mathematical precision and rounding verification
+- Regulatory compliance and audit trail testing
+- User acceptance criteria validation",
+
+            _ => @"
+**Comprehensive Testing Analysis:**
+- Multi-faceted testing approach covering all critical aspects"
+        };
+
+        var domainGuidance = domain.ToLower() switch
+        {
+            "sales" => @"
+**Sales Domain Testing Scenarios:**
+- Revenue recognition and commission calculations
+- Sales funnel and conversion rate analytics
+- Territory and quota-based performance metrics
+- Customer lifetime value and retention analytics
+- Seasonal and trend analysis validation",
+
+            "finance" => @"
+**Finance Domain Testing Scenarios:**
+- Financial ratio accuracy and regulatory compliance
+- Budget vs actual variance analysis
+- Cash flow and profitability calculations
+- Risk metrics and financial modeling validation
+- Period-over-period and year-over-year comparisons",
+
+            "operations" => @"
+**Operations Domain Testing Scenarios:**
+- Efficiency metrics and KPI calculations
+- Resource utilization and capacity planning
+- Supply chain and inventory analytics
+- Quality metrics and performance indicators
+- Process optimization and bottleneck analysis",
+
+            "hr" => @"
+**HR Domain Testing Scenarios:**
+- Workforce analytics and headcount calculations
+- Performance metrics and evaluation systems
+- Compensation and benefits analytics
+- Turnover and retention rate calculations
+- Training and development effectiveness metrics",
+
+            _ => @"
+**General Domain Testing Scenarios:**
+- Universal testing patterns applicable across domains
+- Standard analytical calculation validation
+- Common aggregation and filtering scenarios"
+        };
+
+        var testPatternGuidance = includeTestPatterns
+            ? @"
+**Recommended Test Patterns:**
+
+1. **Boundary Value Testing:**
+   ```dax
+   // Test minimum and maximum values
+   Test_MinMax =
+   VAR MinValue = MIN([YourMeasure])
+   VAR MaxValue = MAX([YourMeasure])
+   RETURN ""Min: "" & MinValue & "" | Max: "" & MaxValue
+   
+   // Test zero and negative values
+   Test_ZeroNegative =
+   CALCULATE([YourMeasure], FILTER(ALL(Table), [Value] <= 0))
+   ```
+
+2. **Filter Context Validation:**
+   ```dax
+   // Test different filter combinations
+   Test_FilterCombos =
+   VAR NoFilter = CALCULATE([YourMeasure], ALL(Table))
+   VAR WithFilter = [YourMeasure]
+   RETURN ""Unfiltered: "" & NoFilter & "" | Filtered: "" & WithFilter
+   ```
+
+3. **Time Intelligence Testing:**
+   ```dax
+   // Test period boundaries
+   Test_PeriodBoundaries =
+   VAR CurrentPeriod = [YourMeasure]
+   VAR PreviousPeriod = CALCULATE([YourMeasure], PREVIOUSMONTH(Calendar[Date]))
+   RETURN ""Current: "" & CurrentPeriod & "" | Previous: "" & PreviousPeriod
+   ```"
+            : "";
+
+        return $@"{basePrompt}
+
+{analysisGuidance}
+
+{domainGuidance}
+
+{testPatternGuidance}
+
+**Test Scenario Development Framework:**
+
+1. **Requirement Analysis:**
+   - Business logic understanding and validation criteria
+   - Functional requirement mapping and test case identification
+   - User scenario analysis and acceptance criteria definition
+
+2. **Test Design Strategy:**
+   - Comprehensive test scenario creation and prioritization
+   - Edge case identification and boundary condition testing
+   - Performance benchmark establishment and validation
+
+3. **Validation Approach:**
+   - Test execution methodology and result verification
+   - Cross-validation with external systems and manual calculations
+   - Regression testing and change impact assessment
+
+4. **Quality Assurance:**
+   - Test coverage analysis and gap identification
+   - Continuous testing integration and automation opportunities
+   - Documentation and knowledge transfer for testing procedures
+
+Please analyze and recommend comprehensive test scenarios for the following DAX measure using {analysisType} analysis in the {domain} domain:";
+    }
 }
