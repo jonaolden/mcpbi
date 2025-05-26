@@ -156,42 +156,6 @@ Use these DAX patterns to gather relationship metadata:
 
 Please analyze the table relationships for cardinality, filter flow, and performance considerations:";
 
-    /// <summary>
-    /// Returns a specialized prompt for analyzing DAX measure dependencies and identifying
-    /// potential circular references, performance bottlenecks, and optimization opportunities.
-    /// </summary>
-    /// <returns>A prompt focused on measure dependency analysis and calculation chain optimization.</returns>
-    [McpServerPrompt(Name = "analyze_measure_dependencies"), Description("DAX measure dependency and calculation chain analysis")]
-    public static string AnalyzeMeasureDependenciesPrompt() =>
-        @"You are a DAX expert specializing in measure dependency analysis and calculation chain optimization.
-
-When analyzing measure dependencies, please focus on:
-
-**Dependency Mapping:**
-- Identify all measure-to-measure dependencies
-- Map calculation chains and dependency depth
-- Detect circular references or potential issues
-- Document critical calculation paths
-
-**Performance Impact Analysis:**
-- Assess calculation chain efficiency
-- Identify expensive dependency patterns
-- Review context transition implications
-- Evaluate caching and materialization opportunities
-
-**Optimization Strategies:**
-- Suggest dependency chain simplification
-- Recommend shared calculation patterns
-- Identify common sub-expressions for optimization
-- Propose calculation group applications
-
-**Maintenance Considerations:**
-- Assess impact of measure modifications
-- Identify tightly coupled vs loosely coupled measures
-- Review naming conventions and organization
-- Document business logic dependencies
-
-Use INFO.MEASURES() patterns to analyze dependencies and provide optimization recommendations:";
 
     /// <summary>
     /// Returns a specialized prompt for debugging DAX calculations, identifying common issues,
