@@ -29,7 +29,7 @@ public class DaxTools // Changed from static class
 
     // Removed private static TabularConnection CreateConnection()
 
-    [McpServerTool, Description("List all measures in the model, optionally filtered by table name.")]
+    [McpServerTool, Description("List all measures in the model with essential information (name, table, data type, visibility), optionally filtered by table name. Use GetMeasureDetails for full DAX expressions.")]
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
     public async Task<object> ListMeasures(
         [Description("Optional table name to filter measures. If null, returns all measures.")] string? tableName = null) // Removed static
@@ -52,7 +52,7 @@ public class DaxTools // Changed from static class
                 var tableIdObj = rows.First()["ID"];
                 if (tableIdObj != null && int.TryParse(tableIdObj.ToString(), out int actualTableId))
                 {
-                    dmv = $"SELECT * FROM $SYSTEM.TMSCHEMA_MEASURES WHERE [TableID] = {actualTableId}";
+                    dmv = $"SELECT m.[Name] as MeasureName, m.[TableID], t.[Name] as TableName, m.[DataType], m.[IsHidden] FROM $SYSTEM.TMSCHEMA_MEASURES m LEFT JOIN $SYSTEM.TMSCHEMA_TABLES t ON m.[TableID] = t.[ID] WHERE m.[TableID] = {actualTableId}";
                 }
                 else
                 {
@@ -66,7 +66,7 @@ public class DaxTools // Changed from static class
         }
         else
         {
-            dmv = "SELECT * FROM $SYSTEM.TMSCHEMA_MEASURES";
+            dmv = "SELECT m.[Name] as MeasureName, m.[TableID], t.[Name] as TableName, m.[DataType], m.[IsHidden] FROM $SYSTEM.TMSCHEMA_MEASURES m LEFT JOIN $SYSTEM.TMSCHEMA_TABLES t ON m.[TableID] = t.[ID]";
         }
 
         var result = await _tabularConnection.ExecAsync(dmv, QueryType.DMV); // Use injected _tabularConnection
@@ -545,5 +545,342 @@ public class DaxTools // Changed from static class
         {
             return $"EVALUATE ROW(\"Value\", {query})";
         }
+    }
+
+    // New Tools Implementation - Based on Additional Tools Recommendations
+
+
+    [McpServerTool, Description("Validate DAX syntax and identify potential issues with enhanced error analysis.")]
+    public async Task<object> ValidateDaxSyntax(
+        [Description("DAX expression to validate")] string daxExpression,
+        [Description("Include performance and best practice recommendations")] bool includeRecommendations = true)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(daxExpression))
+                throw new ArgumentException("DAX expression cannot be empty", nameof(daxExpression));
+
+            // Basic syntax validation
+            var syntaxErrors = new List<string>();
+            var warnings = new List<string>();
+            var recommendations = new List<string>();
+
+            // Check balanced delimiters
+            CheckBalancedDelimiters(daxExpression, '(', ')', "parentheses", syntaxErrors);
+            CheckBalancedDelimiters(daxExpression, '[', ']', "brackets", syntaxErrors);
+            CheckBalancedQuotes(daxExpression, syntaxErrors);
+
+            // Check for common DAX patterns and issues
+            AnalyzeDaxPatterns(daxExpression, warnings, recommendations, includeRecommendations);
+
+            // Try to execute a simple validation query
+            bool executionValid = false;
+            string executionError = "";
+            
+            try
+            {
+                var testQuery = $"EVALUATE ROW(\"ValidationTest\", {daxExpression})";
+                await _tabularConnection.ExecAsync(testQuery, QueryType.DAX);
+                executionValid = true;
+            }
+            catch (Exception ex)
+            {
+                executionError = ex.Message;
+                syntaxErrors.Add($"Execution validation failed: {ex.Message}");
+            }
+
+            // Calculate complexity metrics
+            var complexityMetrics = CalculateDaxComplexity(daxExpression);
+
+            return new
+            {
+                Expression = daxExpression.Trim(),
+                IsValid = !syntaxErrors.Any() && executionValid,
+                SyntaxErrors = syntaxErrors,
+                Warnings = warnings,
+                Recommendations = includeRecommendations ? recommendations : new List<string>(),
+                ComplexityMetrics = complexityMetrics,
+                ValidationDetails = new
+                {
+                    ExecutionValid = executionValid,
+                    ExecutionError = executionError,
+                    AnalyzedAt = DateTime.UtcNow,
+                    ExpressionLength = daxExpression.Length
+                }
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error validating DAX syntax for expression: {Expression}", daxExpression);
+            throw;
+        }
+    }
+
+    [McpServerTool, Description("Analyze query performance characteristics and identify potential bottlenecks.")]
+    public async Task<object> AnalyzeQueryPerformance(
+        [Description("DAX query to analyze")] string daxQuery,
+        [Description("Include complexity metrics and optimization suggestions")] bool includeOptimizations = true)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(daxQuery))
+                throw new ArgumentException("DAX query cannot be empty", nameof(daxQuery));
+
+            var startTime = DateTime.UtcNow;
+            object? queryResult = null;
+            string executionError = "";
+            bool executionSuccessful = false;
+            TimeSpan executionTime = TimeSpan.Zero;
+
+            // Execute the query and measure performance
+            try
+            {
+                var executionStart = DateTime.UtcNow;
+                queryResult = await _tabularConnection.ExecAsync(daxQuery, QueryType.DAX);
+                executionTime = DateTime.UtcNow - executionStart;
+                executionSuccessful = true;
+            }
+            catch (Exception ex)
+            {
+                executionError = ex.Message;
+                executionTime = DateTime.UtcNow - startTime;
+            }
+
+            // Analyze query structure and complexity
+            var complexityAnalysis = AnalyzeQueryStructure(daxQuery);
+            var performanceMetrics = CalculatePerformanceMetrics(daxQuery, executionTime, executionSuccessful);
+            
+            var optimizationSuggestions = new List<string>();
+            if (includeOptimizations)
+            {
+                optimizationSuggestions = GenerateOptimizationSuggestions(daxQuery, complexityAnalysis, performanceMetrics);
+            }
+
+            // Count result rows if successful
+            int resultRowCount = 0;
+            if (executionSuccessful && queryResult is IEnumerable<Dictionary<string, object?>> rows)
+            {
+                resultRowCount = rows.Count();
+            }
+
+            return new
+            {
+                Query = daxQuery.Trim(),
+                ExecutionSuccessful = executionSuccessful,
+                ExecutionTime = new
+                {
+                    TotalMilliseconds = executionTime.TotalMilliseconds,
+                    TotalSeconds = executionTime.TotalSeconds,
+                    DisplayTime = $"{executionTime.TotalMilliseconds:F2} ms"
+                },
+                ExecutionError = executionError,
+                ResultRowCount = resultRowCount,
+                PerformanceMetrics = performanceMetrics,
+                ComplexityAnalysis = complexityAnalysis,
+                OptimizationSuggestions = includeOptimizations ? optimizationSuggestions : new List<string>(),
+                AnalysisDetails = new
+                {
+                    AnalyzedAt = DateTime.UtcNow,
+                    QueryLength = daxQuery.Length,
+                    HasTimeIntelligence = daxQuery.Contains("CALCULATE", StringComparison.OrdinalIgnoreCase) ||
+                                        daxQuery.Contains("FILTER", StringComparison.OrdinalIgnoreCase),
+                    HasAggregations = daxQuery.Contains("SUM", StringComparison.OrdinalIgnoreCase) ||
+                                    daxQuery.Contains("COUNT", StringComparison.OrdinalIgnoreCase) ||
+                                    daxQuery.Contains("AVERAGE", StringComparison.OrdinalIgnoreCase)
+                }
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error analyzing query performance for query: {Query}", daxQuery);
+            throw;
+        }
+    }
+
+    // Helper methods for analysis tools
+
+    private static void AnalyzeDaxPatterns(string expression, List<string> warnings, List<string> recommendations, bool includeRecommendations)
+    {
+        if (string.IsNullOrEmpty(expression))
+            return;
+
+        // Check for common anti-patterns
+        if (expression.Contains("SUMX", StringComparison.OrdinalIgnoreCase) && expression.Contains("FILTER", StringComparison.OrdinalIgnoreCase))
+        {
+            warnings.Add("SUMX with FILTER detected - consider using CALCULATE for better performance");
+        }
+
+        if (System.Text.RegularExpressions.Regex.IsMatch(expression, @"CALCULATE\s*\(\s*CALCULATE", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+        {
+            warnings.Add("Nested CALCULATE functions detected - this may cause unexpected results");
+        }
+
+        var calculateCount = System.Text.RegularExpressions.Regex.Matches(expression, @"\bCALCULATE\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Count;
+        if (calculateCount > 3)
+        {
+            warnings.Add($"High number of CALCULATE functions ({calculateCount}) - consider simplifying the expression");
+        }
+
+        if (includeRecommendations)
+        {
+            if (expression.Contains("SUM", StringComparison.OrdinalIgnoreCase) && !expression.Contains("CALCULATE", StringComparison.OrdinalIgnoreCase))
+            {
+                recommendations.Add("Consider using CALCULATE with filters instead of basic aggregation for more flexibility");
+            }
+
+            if (expression.Length > 500)
+            {
+                recommendations.Add("Long expression detected - consider breaking into multiple measures for better maintainability");
+            }
+
+            if (!expression.Contains("FORMAT", StringComparison.OrdinalIgnoreCase) &&
+                (expression.Contains("/", StringComparison.OrdinalIgnoreCase) || expression.Contains("DIVIDE", StringComparison.OrdinalIgnoreCase)))
+            {
+                recommendations.Add("Consider using FORMAT function for better number presentation in reports");
+            }
+        }
+    }
+
+    private static object CalculateDaxComplexity(string expression)
+    {
+        if (string.IsNullOrEmpty(expression))
+            return new { ComplexityScore = 0, Level = "None" };
+
+        var functionCount = System.Text.RegularExpressions.Regex.Matches(expression, @"\b[A-Z]+\s*\(", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Count;
+        var nestedLevels = CountMaxNestingLevel(expression);
+        var filterCount = System.Text.RegularExpressions.Regex.Matches(expression, @"\bFILTER\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Count;
+        var calculateCount = System.Text.RegularExpressions.Regex.Matches(expression, @"\bCALCULATE\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Count;
+
+        var complexityScore = (functionCount * 2) + (nestedLevels * 3) + (filterCount * 4) + (calculateCount * 2);
+        
+        string level = complexityScore switch
+        {
+            <= 5 => "Low",
+            <= 15 => "Medium",
+            <= 30 => "High",
+            _ => "Very High"
+        };
+
+        return new
+        {
+            ComplexityScore = complexityScore,
+            Level = level,
+            FunctionCount = functionCount,
+            MaxNestingLevel = nestedLevels,
+            FilterCount = filterCount,
+            CalculateCount = calculateCount,
+            ExpressionLength = expression.Length
+        };
+    }
+
+    private static int CountMaxNestingLevel(string expression)
+    {
+        int maxLevel = 0;
+        int currentLevel = 0;
+        bool inString = false;
+
+        foreach (char c in expression)
+        {
+            if (c == '"' && !inString)
+                inString = true;
+            else if (c == '"' && inString)
+                inString = false;
+            else if (!inString)
+            {
+                if (c == '(')
+                {
+                    currentLevel++;
+                    maxLevel = Math.Max(maxLevel, currentLevel);
+                }
+                else if (c == ')')
+                {
+                    currentLevel--;
+                }
+            }
+        }
+
+        return maxLevel;
+    }
+
+    private static object AnalyzeQueryStructure(string query)
+    {
+        if (string.IsNullOrEmpty(query))
+            return new { };
+
+        var hasDefine = query.Contains("DEFINE", StringComparison.OrdinalIgnoreCase);
+        var hasEvaluate = query.Contains("EVALUATE", StringComparison.OrdinalIgnoreCase);
+        var measureCount = System.Text.RegularExpressions.Regex.Matches(query, @"\bMEASURE\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Count;
+        var tableCount = System.Text.RegularExpressions.Regex.Matches(query, @"\bTABLE\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Count;
+
+        return new
+        {
+            HasDefineBlock = hasDefine,
+            HasEvaluateStatement = hasEvaluate,
+            MeasureDefinitions = measureCount,
+            TableDefinitions = tableCount,
+            QueryType = hasDefine ? "Complex Query" : hasEvaluate ? "Table Query" : "Expression",
+            EstimatedComplexity = (measureCount * 2) + (tableCount * 3) + (hasDefine ? 5 : 0)
+        };
+    }
+
+    private static object CalculatePerformanceMetrics(string query, TimeSpan executionTime, bool successful)
+    {
+        var queryLength = query.Length;
+        var functionCount = System.Text.RegularExpressions.Regex.Matches(query, @"\b[A-Z]+\s*\(", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Count;
+
+        string performanceRating = "Unknown";
+        if (successful)
+        {
+            performanceRating = executionTime.TotalMilliseconds switch
+            {
+                < 100 => "Excellent",
+                < 500 => "Good",
+                < 2000 => "Moderate",
+                < 5000 => "Slow",
+                _ => "Very Slow"
+            };
+        }
+
+        return new
+        {
+            PerformanceRating = performanceRating,
+            ExecutionTimeMs = executionTime.TotalMilliseconds,
+            QueryComplexityFactor = (queryLength / 100.0) + (functionCount * 0.5),
+            FunctionDensity = queryLength > 0 ? (double)functionCount / queryLength * 100 : 0,
+            Successful = successful
+        };
+    }
+
+    private static List<string> GenerateOptimizationSuggestions(string query, object complexityAnalysis, object performanceMetrics)
+    {
+        var suggestions = new List<string>();
+
+        if (query.Contains("SUMX", StringComparison.OrdinalIgnoreCase) && query.Contains("FILTER", StringComparison.OrdinalIgnoreCase))
+        {
+            suggestions.Add("Replace SUMX(FILTER(...)) with CALCULATE(SUM(...), Filter) for better performance");
+        }
+
+        if (System.Text.RegularExpressions.Regex.Matches(query, @"\bCALCULATE\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Count > 2)
+        {
+            suggestions.Add("Consider consolidating multiple CALCULATE functions to reduce complexity");
+        }
+
+        if (query.Contains("ALL(", StringComparison.OrdinalIgnoreCase) && !query.Contains("CALCULATE", StringComparison.OrdinalIgnoreCase))
+        {
+            suggestions.Add("Using ALL() without CALCULATE may not provide expected results - consider wrapping in CALCULATE");
+        }
+
+        if (query.Length > 1000)
+        {
+            suggestions.Add("Consider breaking down this large query into smaller, more manageable parts");
+        }
+
+        var iteratorFunctions = System.Text.RegularExpressions.Regex.Matches(query, @"\b(SUMX|AVERAGEX|COUNTX|MAXX|MINX)\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Count;
+        if (iteratorFunctions > 2)
+        {
+            suggestions.Add("Multiple iterator functions detected - ensure they are necessary and consider alternatives");
+        }
+
+        return suggestions;
     }
 }
