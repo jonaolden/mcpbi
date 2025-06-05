@@ -148,6 +148,17 @@ When analyzing table relationships, please evaluate:
 - Role-playing dimension handling (multiple relationships)
 - Security table integration patterns
 
+**Available MCP Tools for Analysis:**
+Leverage these tools to gather comprehensive model metadata:
+- ListTables: Get overview of all tables in the model
+- ListMeasures: Get essential measure information (name, table, data type, visibility) - optimized for overview
+- GetMeasureDetails: Get complete measure details including full DAX expressions for specific measures
+- GetTableDetails: Get detailed information for specific tables
+- GetTableColumns: Get column information for specific tables
+- GetTableRelationships: Get relationship details for specific tables
+- PreviewTableData: Sample data from tables for analysis
+- RunQuery: Execute custom DAX queries for advanced analysis
+
 **INFO Function Queries for Analysis:**
 Use these DAX patterns to gather relationship metadata:
 - INFO.RELATIONSHIPS() for comprehensive relationship details

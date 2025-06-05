@@ -161,6 +161,19 @@ public class ComplexPromptType
 
 {alternativesGuidance}
 
+**Available MCP Tools for Analysis:**
+Leverage these tools for comprehensive model analysis:
+- ListTables: Get overview of all tables in the model
+- ListMeasures: Get essential measure information (name, table, data type, visibility) - optimized for browsing
+- GetMeasureDetails: Get complete measure details including full DAX expressions for specific measures
+- GetTableDetails: Get detailed information for specific tables
+- GetTableColumns: Get column information for specific tables
+- GetTableRelationships: Get relationship details for specific tables
+- PreviewTableData: Sample data from tables for context
+- RunQuery: Execute custom DAX queries for testing and validation
+- ValidateDaxSyntax: Validate DAX syntax with performance recommendations
+- AnalyzeQueryPerformance: Analyze query performance and optimization opportunities
+
 **INFO Function Integration:**
 Utilize these DAX patterns for comprehensive analysis:
 - INFO.RELATIONSHIPS() for relationship validation
@@ -173,23 +186,23 @@ Please perform a {depth} analysis focused on {focus} aspects of the following DA
 
     /// <summary>
     /// Returns a comprehensive prompt template for designing DAX measures with specified complexity
-    /// and comprehensive business and technical considerations.
+    /// and technical considerations focused on PowerBI model understanding and best practices.
     /// </summary>
-    /// <param name="complexity">The desired measure complexity: 'simple', 'moderate', 'complex', or 'enterprise'</param>
-    /// <param name="businessContext">The business context: 'sales', 'finance', 'operations', 'hr', or 'general'</param>
+    /// <param name="complexity">The desired measure complexity: 'simple', 'moderate', 'complex', or 'advanced'</param>
+    /// <param name="calculationType">The calculation focus: 'aggregation', 'time_intelligence', 'ranking', 'statistical', or 'general'</param>
     /// <param name="timeIntelligence">Whether to include time intelligence patterns in the measure design</param>
     /// <param name="includeErrorHandling">Whether to include comprehensive error handling patterns</param>
     /// <param name="optimizeFor">Optimization priority: 'performance', 'readability', 'flexibility', or 'balanced'</param>
     /// <returns>A specialized prompt for DAX measure design with specified parameters and expert guidance</returns>
-    [McpServerPrompt(Name = "design_measure_with_params"), Description("Advanced DAX measure design with comprehensive parameters")]
+    [McpServerPrompt(Name = "design_measure_with_params"), Description("Advanced DAX measure design focused on technical patterns and PowerBI best practices")]
     public static string DesignMeasureWithParams(
-        [Description("Measure complexity: simple (basic aggregations), moderate (with filters/conditions), complex (advanced calculations), enterprise (full business logic)")] string complexity,
-        [Description("Business context: sales (revenue/growth), finance (ratios/KPIs), operations (efficiency), hr (workforce), general")] string businessContext = "general",
+        [Description("Measure complexity: simple (basic aggregations), moderate (with filters/conditions), complex (advanced calculations), advanced (sophisticated logic)")] string complexity,
+        [Description("Calculation type: aggregation (sums/counts), time_intelligence (periods/growth), ranking (topN/percentiles), statistical (averages/distributions), general")] string calculationType = "general",
         [Description("Include time intelligence patterns (YTD, MTD, previous periods)")] bool timeIntelligence = false,
         [Description("Include comprehensive error handling and edge case management")] bool includeErrorHandling = true,
         [Description("Optimization priority: performance (speed focus), readability (maintainability), flexibility (parameterizable), balanced")] string optimizeFor = "balanced")
     {
-        var basePrompt = "You are a PowerBI measure design expert with extensive knowledge of DAX patterns, business intelligence requirements, and enterprise tabular model architecture.";
+        var basePrompt = "You are a PowerBI measure design expert with extensive knowledge of DAX patterns, tabular model architecture, and performance optimization techniques.";
 
         var complexityGuidance = complexity.ToLower() switch
         {
@@ -204,72 +217,72 @@ Please perform a {depth} analysis focused on {focus} aspects of the following DA
 **Moderate Measure Design:**
 - Implement multi-level calculations with variables
 - Use advanced filter patterns (KEEPFILTERS, REMOVEFILTERS)
-- Include conditional aggregations and business rules
+- Include conditional aggregations and filtering logic
 - Design for multiple filter contexts and scenarios",
 
             "complex" => @"
 **Complex Measure Design:**
-- Implement sophisticated business logic with multiple calculation paths
+- Implement sophisticated calculation logic with multiple paths
 - Use advanced DAX patterns (iterators, ranking, statistical functions)
 - Handle complex filter contexts and context transitions
 - Design calculation chains and measure dependencies",
 
-            "enterprise" => @"
-**Enterprise Measure Design:**
-- Implement comprehensive business logic with full validation
-- Design for scalability and performance at enterprise scale
+            "advanced" => @"
+**Advanced Measure Design:**
+- Implement sophisticated logic with comprehensive validation
+- Design for scalability and performance optimization
 - Include advanced security and governance considerations
 - Implement calculation groups and advanced modeling patterns
-- Design for multi-model and cross-model scenarios",
+- Design for reusability and maintainability",
 
             _ => @"
 **Standard Measure Design:**
 - Balanced approach with moderate complexity
-- Include essential business logic and validation"
+- Include essential logic and validation patterns"
         };
 
-        var businessContextGuidance = businessContext.ToLower() switch
+        var calculationTypeGuidance = calculationType.ToLower() switch
         {
-            "sales" => @"
-**Sales-Focused Patterns:**
-- Revenue calculations and growth metrics
-- Customer acquisition and retention measures
-- Sales funnel and conversion analytics
-- Territory and quota performance tracking
-- Product performance and profitability analysis",
+            "aggregation" => @"
+**Aggregation-Focused Patterns:**
+- SUM, COUNT, AVERAGE optimizations
+- Distinct count operations and performance considerations
+- Conditional aggregations with CALCULATE
+- Aggregation table utilization strategies
+- Memory-efficient aggregation patterns",
 
-            "finance" => @"
-**Finance-Focused Patterns:**
-- Financial ratios and KPI calculations
-- Budget vs actual variance analysis
-- Cash flow and liquidity measures
-- Profitability and margin analysis
-- Cost allocation and center reporting",
+            "time_intelligence" => @"
+**Time Intelligence Patterns:**
+- YTD, QTD, MTD calculations using native functions
+- Period-over-period comparisons and growth rates
+- Rolling averages and moving calculations
+- Fiscal year and custom calendar handling
+- Time-based filtering and context behavior",
 
-            "operations" => @"
-**Operations-Focused Patterns:**
-- Efficiency and productivity metrics
-- Quality and performance indicators
-- Resource utilization and capacity planning
-- Process optimization measurements
-- Supply chain and inventory analytics",
+            "ranking" => @"
+**Ranking and Statistical Patterns:**
+- RANKX implementations for various scenarios
+- TOPN and filtering for top/bottom analysis
+- Percentile and quartile calculations
+- Distribution analysis and statistical measures
+- Performance optimization for ranking operations",
 
-            "hr" => @"
-**HR-Focused Patterns:**
-- Workforce analytics and headcount tracking
-- Performance and engagement metrics
-- Compensation and benefits analysis
-- Training and development measurements
-- Diversity and inclusion reporting",
+            "statistical" => @"
+**Statistical Analysis Patterns:**
+- Advanced statistical functions (MEDIAN, PERCENTILE)
+- Distribution analysis and variance calculations
+- Correlation and regression analysis patterns
+- Data quality assessment measures
+- Statistical significance testing approaches",
 
             _ => @"
-**General Business Patterns:**
-- Standard KPI and metric calculations
-- Cross-functional business intelligence
-- Generic performance measurement patterns"
+**General Calculation Patterns:**
+- Versatile measure design principles
+- Common DAX patterns and best practices
+- Flexible calculation frameworks"
         };
 
-        var timeIntelligenceGuidance = timeIntelligence 
+        var timeIntelligenceGuidance = timeIntelligence
             ? @"
 **Time Intelligence Integration:**
 - Implement YTD, QTD, MTD calculations using TOTALYTD, TOTALQTD, TOTALMTD
@@ -283,7 +296,7 @@ Please perform a {depth} analysis focused on {focus} aspects of the following DA
 - Design for current period calculations
 - Consider basic date filtering scenarios";
 
-        var errorHandlingGuidance = includeErrorHandling 
+        var errorHandlingGuidance = includeErrorHandling
             ? @"
 **Comprehensive Error Handling:**
 - Implement BLANK() handling with ISBLANK and COALESCE
@@ -323,14 +336,14 @@ Please perform a {depth} analysis focused on {focus} aspects of the following DA
             _ => @"
 **Balanced Optimization:**
 - Balance performance, readability, and flexibility
-- Implement industry best practices and proven patterns"
+- Implement DAX best practices and proven patterns"
         };
 
         return $@"{basePrompt}
 
 {complexityGuidance}
 
-{businessContextGuidance}
+{calculationTypeGuidance}
 
 {timeIntelligenceGuidance}
 
@@ -346,13 +359,20 @@ Please perform a {depth} analysis focused on {focus} aspects of the following DA
 - Advanced filtering with KEEPFILTERS and CROSSFILTER
 - Calculation groups for time intelligence and formatting
 
+**Model Integration Considerations:**
+- Relationship leveraging for optimal performance
+- Storage mode compatibility (Import/DirectQuery/Composite)
+- Security context and RLS implications
+- Cross-table filtering behavior
+- Aggregation table utilization opportunities
+
 **Validation and Testing:**
 - Include test scenarios for edge cases and boundary conditions
 - Provide sample filter contexts for validation
 - Suggest performance testing approaches
 - Include data quality validation patterns
 
-Please help design a {complexity} DAX measure for {businessContext} context{(timeIntelligence ? " with time intelligence patterns" : "")}, optimized for {optimizeFor}:";
+Please help design a {complexity} DAX measure focused on {calculationType} calculations{(timeIntelligence ? " with time intelligence patterns" : "")}, optimized for {optimizeFor}:";
     }
 
     /// <summary>
@@ -1009,29 +1029,30 @@ Please analyze and optimize the following DAX expression with {focus} focus for 
     }
 
     /// <summary>
-    /// Analysis-based test scenario recommendations for DAX measures with comprehensive coverage strategies.
+    /// Analysis-based test scenario recommendations for DAX measures with comprehensive coverage strategies
+    /// focused on technical validation and PowerBI model behavior.
     /// </summary>
     /// <param name="analysisType">Analysis type: coverage, edge_cases, performance_impact, validation</param>
-    /// <param name="domain">Business domain: sales, finance, operations, hr, general</param>
+    /// <param name="measureType">Measure type: aggregation, time_intelligence, ranking, statistical, general</param>
     /// <param name="includeTestPatterns">Include recommended test patterns</param>
     /// <returns>A specialized prompt for generating comprehensive test scenarios based on DAX analysis</returns>
-    [McpServerPrompt(Name = "analyze_test_scenarios"), Description("Analysis-based test scenario recommendations for DAX measures")]
+    [McpServerPrompt(Name = "analyze_test_scenarios"), Description("Technical test scenario recommendations for DAX measures and PowerBI model validation")]
     public static string AnalyzeTestScenarios(
         [Description("Analysis type: coverage (comprehensive testing), edge_cases (boundary conditions), performance_impact (scalability testing), validation (accuracy verification)")] string analysisType,
-        [Description("Business domain: sales (revenue/growth), finance (ratios/KPIs), operations (efficiency), hr (workforce), general")] string domain = "general",
+        [Description("Measure type: aggregation (sums/counts), time_intelligence (periods/growth), ranking (topN/percentiles), statistical (averages/distributions), general")] string measureType = "general",
         [Description("Include recommended test patterns")] bool includeTestPatterns = true)
     {
-        var basePrompt = @"You are a DAX testing and validation expert specializing in comprehensive test scenario design, edge case identification, and business logic verification for Power BI solutions.";
+        var basePrompt = @"You are a DAX testing and validation expert specializing in comprehensive test scenario design, edge case identification, and technical validation for PowerBI solutions.";
 
         var analysisGuidance = analysisType.ToLower() switch
         {
             "coverage" => @"
 **Comprehensive Coverage Testing:**
 - Complete functional test scenario identification
-- Cross-functional integration testing strategies
+- Cross-table integration testing strategies
 - Multi-dimensional filter context validation
 - Hierarchical aggregation behavior verification
-- Time intelligence pattern testing across periods",
+- Relationship propagation testing across the model",
 
             "edge_cases" => @"
 **Edge Case and Boundary Testing:**
@@ -1044,62 +1065,62 @@ Please analyze and optimize the following DAX expression with {focus} focus for 
             "performance_impact" => @"
 **Performance Impact Testing:**
 - Scalability testing with varying data volumes
-- Concurrent user impact assessment
 - Memory usage patterns under different loads
 - Query execution time validation across scenarios
-- Bottleneck identification in complex calculations",
+- Bottleneck identification in complex calculations
+- Storage engine vs calculation engine optimization",
 
             "validation" => @"
 **Accuracy and Validation Testing:**
-- Business logic accuracy verification
-- Cross-system validation and reconciliation
-- Mathematical precision and rounding verification
-- Regulatory compliance and audit trail testing
-- User acceptance criteria validation",
+- Mathematical precision and calculation accuracy
+- Cross-validation with expected results
+- Data consistency and integrity verification
+- Context transition behavior validation
+- Measure dependency chain testing",
 
             _ => @"
 **Comprehensive Testing Analysis:**
-- Multi-faceted testing approach covering all critical aspects"
+- Multi-faceted testing approach covering all critical technical aspects"
         };
 
-        var domainGuidance = domain.ToLower() switch
+        var measureTypeGuidance = measureType.ToLower() switch
         {
-            "sales" => @"
-**Sales Domain Testing Scenarios:**
-- Revenue recognition and commission calculations
-- Sales funnel and conversion rate analytics
-- Territory and quota-based performance metrics
-- Customer lifetime value and retention analytics
-- Seasonal and trend analysis validation",
+            "aggregation" => @"
+**Aggregation Measure Testing:**
+- Sum, count, and average calculation validation
+- Distinct count accuracy and performance testing
+- Conditional aggregation behavior verification
+- Filter context impact on aggregation results
+- Empty and partial dataset handling",
 
-            "finance" => @"
-**Finance Domain Testing Scenarios:**
-- Financial ratio accuracy and regulatory compliance
-- Budget vs actual variance analysis
-- Cash flow and profitability calculations
-- Risk metrics and financial modeling validation
-- Period-over-period and year-over-year comparisons",
+            "time_intelligence" => @"
+**Time Intelligence Testing:**
+- YTD, QTD, MTD calculation accuracy
+- Period-over-period comparison validation
+- Fiscal year boundary condition testing
+- Date table relationship dependency verification
+- Time-based filter context behavior",
 
-            "operations" => @"
-**Operations Domain Testing Scenarios:**
-- Efficiency metrics and KPI calculations
-- Resource utilization and capacity planning
-- Supply chain and inventory analytics
-- Quality metrics and performance indicators
-- Process optimization and bottleneck analysis",
+            "ranking" => @"
+**Ranking Measure Testing:**
+- RANKX function accuracy across different contexts
+- TOPN filtering behavior and edge cases
+- Tie-breaking logic validation
+- Performance with large datasets
+- Hierarchy-level ranking consistency",
 
-            "hr" => @"
-**HR Domain Testing Scenarios:**
-- Workforce analytics and headcount calculations
-- Performance metrics and evaluation systems
-- Compensation and benefits analytics
-- Turnover and retention rate calculations
-- Training and development effectiveness metrics",
+            "statistical" => @"
+**Statistical Measure Testing:**
+- Median, percentile calculation accuracy
+- Distribution analysis validation
+- Statistical significance testing
+- Outlier handling and data quality impact
+- Sample size and confidence interval testing",
 
             _ => @"
-**General Domain Testing Scenarios:**
-- Universal testing patterns applicable across domains
-- Standard analytical calculation validation
+**General Measure Testing:**
+- Universal testing patterns for any measure type
+- Standard calculation validation approaches
 - Common aggregation and filtering scenarios"
         };
 
@@ -1129,13 +1150,22 @@ Please analyze and optimize the following DAX expression with {focus} focus for 
    RETURN ""Unfiltered: "" & NoFilter & "" | Filtered: "" & WithFilter
    ```
 
-3. **Time Intelligence Testing:**
+3. **Context Transition Testing:**
    ```dax
-   // Test period boundaries
-   Test_PeriodBoundaries =
-   VAR CurrentPeriod = [YourMeasure]
-   VAR PreviousPeriod = CALCULATE([YourMeasure], PREVIOUSMONTH(Calendar[Date]))
-   RETURN ""Current: "" & CurrentPeriod & "" | Previous: "" & PreviousPeriod
+   // Test context behavior
+   Test_Context =
+   VAR RowContext = HASONEVALUE([Column])
+   VAR FilterContext = COUNTROWS(VALUES([Column]))
+   RETURN ""HasOneValue: "" & RowContext & "" | ValueCount: "" & FilterContext
+   ```
+
+4. **Relationship Testing:**
+   ```dax
+   // Test cross-table filtering
+   Test_Relationships =
+   VAR DirectValue = [YourMeasure]
+   VAR CrossFilterValue = CALCULATE([YourMeasure], ALL([RelatedTable]))
+   RETURN ""Direct: "" & DirectValue & "" | CrossFilter: "" & CrossFilterValue
    ```"
             : "";
 
@@ -1143,32 +1173,42 @@ Please analyze and optimize the following DAX expression with {focus} focus for 
 
 {analysisGuidance}
 
-{domainGuidance}
+{measureTypeGuidance}
 
 {testPatternGuidance}
 
-**Test Scenario Development Framework:**
+**Technical Test Framework:**
 
-1. **Requirement Analysis:**
-   - Business logic understanding and validation criteria
-   - Functional requirement mapping and test case identification
-   - User scenario analysis and acceptance criteria definition
+1. **Model Structure Analysis:**
+   - Table relationship dependency mapping
+   - Filter propagation path verification
+   - Security context and RLS impact testing
+   - Data lineage and source validation
 
-2. **Test Design Strategy:**
-   - Comprehensive test scenario creation and prioritization
-   - Edge case identification and boundary condition testing
-   - Performance benchmark establishment and validation
+2. **Performance Validation:**
+   - Query execution plan analysis
+   - Memory usage optimization testing
+   - Concurrent user impact assessment
+   - Scalability threshold identification
 
-3. **Validation Approach:**
-   - Test execution methodology and result verification
-   - Cross-validation with external systems and manual calculations
-   - Regression testing and change impact assessment
+3. **Data Quality Testing:**
+   - Missing value handling verification
+   - Data type consistency validation
+   - Referential integrity checking
+   - Calculation accuracy across data ranges
 
-4. **Quality Assurance:**
-   - Test coverage analysis and gap identification
-   - Continuous testing integration and automation opportunities
-   - Documentation and knowledge transfer for testing procedures
+4. **Context Behavior Testing:**
+   - Filter context transition validation
+   - Visual context aggregation testing
+   - Hierarchy drilling behavior verification
+   - Cross-filtering impact assessment
 
-Please analyze and recommend comprehensive test scenarios for the following DAX measure using {analysisType} analysis in the {domain} domain:";
+5. **Regression Testing:**
+   - Model change impact analysis
+   - Measure dependency chain validation
+   - Performance regression identification
+   - Calculation result consistency verification
+
+Please analyze and recommend comprehensive test scenarios for the following DAX measure using {analysisType} analysis for {measureType} measures:";
     }
 }

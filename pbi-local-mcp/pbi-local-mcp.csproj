@@ -30,6 +30,9 @@
     <!-- Infrastructure (Hosting & Logging) -->
     <PackageReference Include="Microsoft.Extensions.Hosting"         Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.0" />
+    
+    <!-- Command Line Parsing -->
+    <PackageReference Include="System.CommandLine"                   Version="2.0.0-beta4.22272.1" />
 
     <!-- Observability -->
     <PackageReference Include="OpenTelemetry"                                Version="1.7.0" />

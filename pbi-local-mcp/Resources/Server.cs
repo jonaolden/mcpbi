@@ -2,9 +2,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.CommandLine;
 
 using pbi_local_mcp.Configuration;
 using pbi_local_mcp.Core;
+using Microsoft.AnalysisServices.AdomdClient;
 
 namespace pbi_local_mcp.Resources;
 
@@ -32,7 +34,17 @@ public class ServerConfigurator
     public async Task RunAsync(string[] args)
     {
         _logger.LogInformation("Configuring MCP server...");
+        
+        // Parse command-line arguments first
+        await ProcessCommandLineArgumentsAsync(args);
+        
+        // Load .env file as fallback
         LoadEnvFile(".env");
+
+        // Add diagnostic logging to confirm environment variable values
+        _logger.LogInformation("DIAGNOSTIC - After .env load: PBI_PORT={Port}, PBI_DB_ID={DbId}",
+            Environment.GetEnvironmentVariable("PBI_PORT"),
+            Environment.GetEnvironmentVariable("PBI_DB_ID"));
 
         var builder = Host.CreateApplicationBuilder(args);
 
@@ -111,5 +123,83 @@ public class ServerConfigurator
                 Environment.SetEnvironmentVariable(parts[0].Trim(), parts[1].Trim());
             }
         }
+    }
+
+    /// <summary>
+    /// Processes command-line arguments and sets environment variables accordingly
+    /// </summary>
+    /// <param name="args">Command line arguments</param>
+    /// <returns>A task representing the asynchronous operation</returns>
+    private async Task ProcessCommandLineArgumentsAsync(string[] args)
+    {
+        var portOption = new Option<string?>(
+            name: "--port",
+            description: "PowerBI port number to connect to");
+
+        var rootCommand = new RootCommand("PowerBI Tabular MCP Server")
+        {
+            portOption
+        };
+
+        var parseResult = rootCommand.Parse(args);
+        var portValue = parseResult.GetValueForOption(portOption);
+
+        if (!string.IsNullOrWhiteSpace(portValue))
+        {
+            _logger.LogInformation("Port argument provided: {Port}", portValue);
+
+            // Validate port number
+            if (!int.TryParse(portValue, out var port) || port < 1 || port > 65535)
+            {
+                throw new ArgumentException($"Invalid port number: {portValue}. Must be between 1 and 65535.");
+            }
+
+            // Auto-discover database for the given port
+            var databaseId = await DiscoverDatabaseForPortAsync(port);
+            if (string.IsNullOrEmpty(databaseId))
+            {
+                throw new InvalidOperationException($"No accessible databases found on port {port}");
+            }
+
+            // Set environment variables (these will override .env file values)
+            Environment.SetEnvironmentVariable("PBI_PORT", portValue);
+            Environment.SetEnvironmentVariable("PBI_DB_ID", databaseId);
+
+            _logger.LogInformation("Auto-discovered database {DatabaseId} on port {Port}", databaseId, port);
+        }
+    }
+
+    /// <summary>
+    /// Discovers the first available database on the specified port
+    /// </summary>
+    /// <param name="port">The port to check for databases</param>
+    /// <returns>The ID of the first database found, or null if none found</returns>
+    private async Task<string?> DiscoverDatabaseForPortAsync(int port)
+    {
+        try
+        {
+            var connectionString = $"Data Source=localhost:{port}";
+            using var conn = new AdomdConnection(connectionString);
+            await Task.Run(() => conn.Open()).ConfigureAwait(false);
+
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT * FROM $SYSTEM.DBSCHEMA_CATALOGS";
+
+            using var reader = await Task.Run(() => cmd.ExecuteReader()).ConfigureAwait(false);
+            if (await Task.Run(() => reader.Read()).ConfigureAwait(false))
+            {
+                var databaseId = reader["CATALOG_NAME"]?.ToString();
+                if (!string.IsNullOrEmpty(databaseId))
+                {
+                    return databaseId;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to discover databases on port {Port}", port);
+        }
+
+        return null;
     }
 }

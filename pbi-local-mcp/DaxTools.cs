@@ -29,7 +29,7 @@ public class DaxTools // Changed from static class
 
     // Removed private static TabularConnection CreateConnection()
 
-    [McpServerTool, Description("List all measures in the model, optionally filtered by table name.")]
+    [McpServerTool, Description("List all measures in the model with essential information (name, table, data type, visibility), optionally filtered by table name. Use GetMeasureDetails for full DAX expressions.")]
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
     public async Task<object> ListMeasures(
         [Description("Optional table name to filter measures. If null, returns all measures.")] string? tableName = null) // Removed static
@@ -52,7 +52,7 @@ public class DaxTools // Changed from static class
                 var tableIdObj = rows.First()["ID"];
                 if (tableIdObj != null && int.TryParse(tableIdObj.ToString(), out int actualTableId))
                 {
-                    dmv = $"SELECT * FROM $SYSTEM.TMSCHEMA_MEASURES WHERE [TableID] = {actualTableId}";
+                    dmv = $"SELECT m.[Name] as MeasureName, m.[TableID], t.[Name] as TableName, m.[DataType], m.[IsHidden] FROM $SYSTEM.TMSCHEMA_MEASURES m LEFT JOIN $SYSTEM.TMSCHEMA_TABLES t ON m.[TableID] = t.[ID] WHERE m.[TableID] = {actualTableId}";
                 }
                 else
                 {
@@ -66,7 +66,7 @@ public class DaxTools // Changed from static class
         }
         else
         {
-            dmv = "SELECT * FROM $SYSTEM.TMSCHEMA_MEASURES";
+            dmv = "SELECT m.[Name] as MeasureName, m.[TableID], t.[Name] as TableName, m.[DataType], m.[IsHidden] FROM $SYSTEM.TMSCHEMA_MEASURES m LEFT JOIN $SYSTEM.TMSCHEMA_TABLES t ON m.[TableID] = t.[ID]";
         }
 
         var result = await _tabularConnection.ExecAsync(dmv, QueryType.DMV); // Use injected _tabularConnection
