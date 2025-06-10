@@ -35,14 +35,14 @@ public class ServerConfigurator
     {
         _logger.LogInformation("Configuring MCP server...");
         
-        // Parse command-line arguments first
-        await ProcessCommandLineArgumentsAsync(args);
-        
-        // Load .env file as fallback
+        // Load .env file as fallback first (won't override existing values)
         LoadEnvFile(".env");
+        
+        // Parse command-line arguments (will override .env values if provided)
+        await ProcessCommandLineArgumentsAsync(args);
 
-        // Add diagnostic logging to confirm environment variable values
-        _logger.LogInformation("DIAGNOSTIC - After .env load: PBI_PORT={Port}, PBI_DB_ID={DbId}",
+        // Add diagnostic logging to confirm environment variable values after both .env and command-line processing
+        _logger.LogInformation("DIAGNOSTIC - Final config values: PBI_PORT={Port}, PBI_DB_ID={DbId}",
             Environment.GetEnvironmentVariable("PBI_PORT"),
             Environment.GetEnvironmentVariable("PBI_DB_ID"));
 
@@ -105,10 +105,10 @@ public class ServerConfigurator
     }
 
     /// <summary>
-    /// Loads environment variables from a file
+    /// Loads environment variables from a file as fallback values (won't override existing values)
     /// </summary>
     /// <param name="path">Path to the environment file</param>
-    private static void LoadEnvFile(string path)
+    private void LoadEnvFile(string path)
     {
         if (!File.Exists(path))
         {
@@ -120,7 +120,21 @@ public class ServerConfigurator
             var parts = line.Split('=', 2, StringSplitOptions.RemoveEmptyEntries);
             if (parts.Length == 2)
             {
-                Environment.SetEnvironmentVariable(parts[0].Trim(), parts[1].Trim());
+                var key = parts[0].Trim();
+                var value = parts[1].Trim();
+                
+                // Only set if the environment variable doesn't already exist (fallback behavior)
+                if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(key)))
+                {
+                    Environment.SetEnvironmentVariable(key, value);
+                    _logger.LogDebug("Set fallback .env variable {Key}={Value}", key, value);
+                }
+                else
+                {
+                    // Log when .env values are being skipped due to existing values
+                    _logger.LogDebug("Skipping .env variable {Key}={Value} - already set to {ExistingValue}",
+                        key, value, Environment.GetEnvironmentVariable(key));
+                }
             }
         }
     }
