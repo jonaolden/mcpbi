@@ -23,7 +23,6 @@ coverage.*
 
 # VS/VSCode settings
 .vs/
-.vscode/
 *.suo
 *.user
 *.userosscache
@@ -32,6 +31,10 @@ coverage.*
 
 # Rider settings
 .idea/
+
+# IDE configurations
+.vscode/
+.roo/
 
 # OS generated files
 .DS_Store
@@ -46,7 +49,6 @@ Thumbs.db
 *.snupkg
 *.nuspec
 *.psmdcp
-*.ps1
 
 # Test results
 [Tt]est[Rr]esult*/
@@ -56,11 +58,24 @@ Thumbs.db
 *.cache
 *.pdb
 
-# Ignore local configs and resources
-.roo/
-.vscode/
+# Development resources
 resources/development/
+
+# Configuration files
 .editorconfig
-/.roo
-.roo
 docs/RunQuery-Design.md
+
+# Build and publish outputs
+releases/
+Releases/
+publish/
+bin/
+obj/
+
+# Temporary files
+temp*.txt
+*.tmp
+image.png
+
+# IDE workspace files
+*.code-workspace

@@ -1,104 +1,132 @@
 # Tabular MCP Server - Deployment Guide
 
-This guide provides comprehensive instructions for deploying the Tabular MCP Server in different environments.
+This guide provides comprehensive instructions for deploying the Tabular MCP Server.
 
-## Published Builds
+## Quick Start with Pre-built Executable (Recommended)
 
-The project has been published in three different configurations:
+The fastest way to get started is using the pre-built executable from the `Releases/` directory:
 
-### 1. Self-Contained (Recommended for Distribution)
-- **Location**: `./publish/win-x64/`
-- **Description**: Includes the .NET runtime, no external dependencies required
-- **Size**: ~150MB
-- **Use Case**: Distribution to users who may not have .NET 8.0 installed
+### Prerequisites
+- Windows OS (Windows 10/11 recommended)
+- Power BI Desktop with a PBIX file open
+- Visual Studio Code with MCP extension support
 
-### 2. Framework-Dependent
-- **Location**: `./publish/win-x64-framework-dependent/`
-- **Description**: Requires .NET 8.0 Runtime to be installed on target machine
-- **Size**: ~50MB
-- **Use Case**: Development environments or where .NET 8.0 is already installed
+### Quick Start Steps
+1. Ensure Power BI Desktop is running with a PBIX file open
+2. Run `Releases\pbi-local-mcp.DiscoverCli.exe` to set up Power BI connection
+3. Configure VS Code with the MCP configuration (see Installation section below)
 
-### 3. Single-File Executable (Easiest Distribution)
-- **Location**: `./publish/win-x64-single-file/`
-- **Description**: Everything packaged into a single executable file
-- **Size**: ~150MB (single file)
-- **Use Case**: Simplest distribution method, just copy one .exe file
+## Development Setup
 
-## Quick Start
+For development and testing, you can run the server directly from source code:
 
-### Option 1: Single-File Executable (Recommended)
-1. Copy the entire `./publish/win-x64-single-file/` folder to your target location
-2. Run `pbi-local-mcp.exe discover-pbi` to set up Power BI connection
-3. Configure VS Code with the provided MCP configuration
+### Prerequisites
+- .NET 8.0 SDK installed
+- Power BI Desktop with a PBIX file open
+- Visual Studio Code with MCP extension support
 
-### Option 2: Self-Contained
-1. Copy the entire `./publish/win-x64/` folder to your target location
-2. Run `pbi-local-mcp.exe discover-pbi` to set up Power BI connection
-3. Configure VS Code with the provided MCP configuration
+### Quick Start from Source
+1. Clone this repository
+2. Run `dotnet run --project pbi-local-mcp/pbi-local-mcp.csproj discover-pbi` to set up Power BI connection
+3. Configure VS Code with the provided MCP configuration (see Installation section below)
 
-### Option 3: Framework-Dependent
-1. Ensure .NET 8.0 Runtime is installed on target machine
-2. Copy the entire `./publish/win-x64-framework-dependent/` folder to your target location
-3. Run `pbi-local-mcp.exe discover-pbi` to set up Power BI connection
-4. Configure VS Code with the provided MCP configuration
+## Creating Distribution Builds
+
+To create deployable builds for distribution:
+
+```cmd
+# Self-contained build (includes .NET runtime)
+dotnet publish pbi-local-mcp/pbi-local-mcp.csproj -c Release -r win-x64 --self-contained true -o ./dist/win-x64-self-contained
+
+# Framework-dependent build (requires .NET 8.0 runtime)
+dotnet publish pbi-local-mcp/pbi-local-mcp.csproj -c Release -r win-x64 --self-contained false -o ./dist/win-x64-framework-dependent
+
+# Single-file executable
+dotnet publish pbi-local-mcp/pbi-local-mcp.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o ./dist/win-x64-single-file
+```
 
 ## Installation Instructions
 
 ### Prerequisites
 - Windows OS (Windows 10/11 recommended)
+- .NET 8.0 SDK (for development) or .NET 8.0 Runtime (for framework-dependent builds)
 - Power BI Desktop installed and running with a PBIX file open
 - Visual Studio Code with MCP extension support
 
-### Step 1: Choose Your Deployment Method
-Select one of the published builds based on your requirements:
-- **Single-file**: Best for simple distribution
-- **Self-contained**: Best for users without .NET 8.0
-- **Framework-dependent**: Smallest size if .NET 8.0 is available
+### Step 1: Choose Your Setup Method
 
-### Step 2: Deploy the Application
-1. Create a folder for the MCP server (e.g., `C:\Tools\tabular-mcp\`)
-2. Copy the contents of your chosen publish folder to this location
+#### Option A: Development Setup (Recommended for Contributors)
+1. Clone this repository to your preferred location
+2. Follow the setup instructions in [`docs/Installation.md`](docs/Installation.md)
+
+#### Option B: Published Build Deployment
+1. Create a published build using the commands in the "Creating Distribution Builds" section above
+2. Copy the build output to your target location (e.g., `C:\Tools\tabular-mcp\`)
 3. Note the path to the executable for VS Code configuration
 
-### Step 3: Configure Power BI Connection
-1. Open Command Prompt or PowerShell in the deployment folder
+### Step 2: Configure Power BI Connection
+1. Open Command Prompt or PowerShell in your project/deployment folder
 2. Run the discovery command:
    ```cmd
-   pbi-local-mcp.exe discover-pbi
+   # For development setup
+   dotnet run --project pbi-local-mcp/pbi-local-mcp.csproj discover-pbi
+   
+   # For pre-built executable (recommended)
+   Releases\pbi-local-mcp.DiscoverCli.exe
    ```
 3. Follow the prompts to select your Power BI instance and database
 4. This will create a `.env` file with your connection settings
 
-### Step 4: Configure VS Code MCP Integration
+### Step 3: Configure VS Code MCP Integration
 Create or update your VS Code MCP configuration file (`.vscode/mcp.json`):
 
-#### For Single-File Deployment:
+#### For Pre-built Executable (Recommended):
 ```json
 {
-  "servers": {
-    "tabular-mcp": {
-      "type": "stdio",
-      "command": "C:\\Tools\\tabular-mcp\\pbi-local-mcp.exe",
-      "envFile": "C:\\Tools\\tabular-mcp\\.env"
+  "mcpServers": {
+    "MCPBI": {
+      "command": "Releases/mcpbi.exe",
+      "args": [],
+      "disabled": false,
+      "alwaysAllow": []
     }
   }
 }
 ```
 
-#### For Other Deployments:
+#### For Development Setup:
 ```json
 {
   "servers": {
     "tabular-mcp": {
       "type": "stdio",
-      "command": "C:\\Tools\\tabular-mcp\\pbi-local-mcp.exe",
-      "envFile": "C:\\Tools\\tabular-mcp\\.env"
+      "command": "dotnet",
+      "envFile": "${workspaceFolder}/.env",
+      "args": [
+        "run",
+        "--project",
+        "${workspaceFolder}/pbi-local-mcp/pbi-local-mcp.csproj"
+      ]
     }
   }
 }
 ```
 
-### Step 5: Test the Installation
+#### For Custom Installation Path:
+```json
+{
+  "mcpServers": {
+    "MCPBI": {
+      "command": "C:\\Tools\\tabular-mcp\\mcpbi.exe",
+      "args": [],
+      "disabled": false,
+      "alwaysAllow": []
+    }
+  }
+}
+```
+
+### Step 4: Test the Installation
 1. Restart VS Code
 2. Open a workspace that includes the MCP configuration
 3. The Tabular MCP Server should now be available in VS Code's MCP-enabled features
@@ -121,17 +149,17 @@ You can also set these manually if needed:
 The server supports several command line arguments:
 
 ```cmd
-# Discover Power BI instances and configure connection
-pbi-local-mcp.exe discover-pbi
+# For pre-built executable (recommended)
+Releases\pbi-local-mcp.DiscoverCli.exe                    # Discovery tool
+Releases\mcpbi.exe --port 12345                          # Start with specific port
+Releases\mcpbi.exe --db-id "your-database-id"            # Start with specific DB ID
+Releases\mcpbi.exe --help                                # Show help
 
-# Run with specific port (overrides .env file)
-pbi-local-mcp.exe --port 12345
-
-# Run with specific database ID (overrides .env file)
-pbi-local-mcp.exe --db-id "your-database-id"
-
-# Show help
-pbi-local-mcp.exe --help
+# For development setup
+dotnet run --project pbi-local-mcp/pbi-local-mcp.csproj discover-pbi
+dotnet run --project pbi-local-mcp/pbi-local-mcp.csproj -- --port 12345
+dotnet run --project pbi-local-mcp/pbi-local-mcp.csproj -- --db-id "your-database-id"
+dotnet run --project pbi-local-mcp/pbi-local-mcp.csproj -- --help
 ```
 
 ## Troubleshooting
@@ -164,18 +192,26 @@ The server provides detailed logging. To enable verbose logging:
 
 ## Distribution
 
+### Pre-built Releases
+
+The `Releases/` directory contains pre-built executables ready for distribution:
+
+- `mcpbi.exe` - Main MCP server executable
+- `pbi-local-mcp.DiscoverCli.exe` - Discovery CLI tool for Power BI setup
+- Supporting DLL files (msalruntime.dll, msasxpress.dll, etc.)
+
 ### Creating Installation Packages
 
 For distribution to end users, consider creating:
 
-1. **ZIP Package**: Compress the chosen publish folder
+1. **ZIP Package**: Compress the `Releases/` directory contents
 2. **Installer**: Use tools like Inno Setup or WiX to create an MSI installer
-3. **Portable Package**: Use the single-file build for maximum portability
+3. **Portable Package**: The `Releases/` directory already provides a portable solution
 
 ### Version Management
 
-Each build includes version information:
-- Check the `.xml` documentation file for version details
+Build information is managed through:
+- Project file version properties in [`pbi-local-mcp.csproj`](pbi-local-mcp/pbi-local-mcp.csproj)
 - Use semantic versioning for releases
 - Include version in package names for clarity
 
@@ -188,9 +224,10 @@ Each build includes version information:
 
 ## Performance Notes
 
-- **Single-file builds**: Slightly slower startup due to extraction overhead
-- **Self-contained builds**: Fastest startup, larger disk footprint
-- **Framework-dependent builds**: Fastest startup, smallest footprint with .NET installed
+- **Development setup**: Fast compilation and startup for development/testing
+- **Single-file builds**: Slightly slower startup due to extraction overhead, but easiest distribution
+- **Self-contained builds**: Fast startup, larger disk footprint, no runtime dependencies
+- **Framework-dependent builds**: Fastest startup, smallest footprint when .NET 8.0 is already installed
 
 ## Next Steps
 
