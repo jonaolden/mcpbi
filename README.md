@@ -1,8 +1,7 @@
-# Tabular MCP Server
-
+# Tabular MCP Server *AKA MCPBI*
 This is a Model Context Protocol (MCP) server for locally running Tabular Models, i.e. PowerBI models running on PowerBI Desktop. 
 
-This server allows any MCP-enabled LLM Client to communicate with your tabular models and help you debug, analyse and compose DAX queries. 
+This server allows MCP-enabled LLM clients to communicate with your tabular models and help you debug, analyse and compose DAX queries. 
 
 *Example: Copilot querying Tabular Model via MCP*
 
@@ -10,7 +9,7 @@ This server allows any MCP-enabled LLM Client to communicate with your tabular m
 
 It connects to a local running instance of Tabular models using the [AdomdConnection in ADOMD.NET](https://learn.microsoft.com/en-us/analysis-services/adomd/multidimensional-models-adomd-net-client/connections-in-adomd-net?view=asallproducts-allversions). 
 
-Using this connection, the server then allows clients to execute [DAX-queries](https://www.sqlbi.com/articles/execute-dax-queries-through-ole-db-and-adomd-net/) to retrieve model metadata (using [DAX INFO functions](https://learn.microsoft.com/en-us/dax/info-functions-dax)) through pre-defined and well documented tools for high accuracy, as well as custom DAX queries for debugging and development.
+Using this connection, the server then allows clients to execute [DAX-queries](https://www.sqlbi.com/articles/execute-dax-queries-through-ole-db-and-adomd-net/) to retrieve model metadata (using [DAX INFO functions](https://learn.microsoft.com/en-us/dax/info-functions-dax)) through pre-defined tools for high accuracy, as well as custom DAX queries for debugging and development.
 
 This MCP server enables communication between clients and Power BI tabular models via ADOMD.NET, supporting both predefined metadata queries and flexible DAX queries with full DEFINE block capabilities for advanced analysis.
 
@@ -49,7 +48,7 @@ Analyze query performance characteristics and identify potential bottlenecks.
 ## How to install
 See [`docs/Installation.md`](docs/Installation.md) for requirements and installation instructions.
 
-### Quick Start with Pre-built Executable
+### Quick Start a) with Pre-built Executables
 For the fastest setup, you can use the pre-built executable from the `Releases` section.
 
 1. **Configure Power BI Connection:**
@@ -59,21 +58,34 @@ For the fastest setup, you can use the pre-built executable from the `Releases` 
    Follow the prompts to detect your Power BI instance and create the `.env` file.
 
 2. **Configure VS Code MCP Integration:**
-   Create `.vscode/mcp.json` with:
+   Configure `mcp.json` with:
    ```json
-   {
-     "mcpServers": {
-       "MCPBI": {
-         "command": "Releases/mcpbi.exe",
-         "args": [],
-         "disabled": false,
-         "alwaysAllow": []
-       }
-     }
-   }
+  {
+    "mcpServers": {
+      "MCPBI": {
+        "command": "C:\\dir\\to\\mcpbi.exe",
+        "args": []
+      }
+    }
+  }
    ```
 
-3. **Test the connection:** The server will automatically read connection settings from the `.env` file created in step 1.
+### Quick Start b) with port as argument
+Or if you already know which port you are running PowerBI Tabular model on (visible from Tabular Editor for instance)
+
+   Configure `mcp.json` with:
+   ```json
+  {
+    "mcpServers": {
+      "MCPBI": {
+        "command": "C:\\dir\\to\\mcpbi.exe",
+        "args": ["--port","12345"]
+      }
+    }
+  }
+   ```
+
+
 
 ## Testing
 See [`resources/testing.md`](resources/testing.md)

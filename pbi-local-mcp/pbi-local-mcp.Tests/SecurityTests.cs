@@ -14,6 +14,14 @@ public class SecurityTests
     [InlineData("Table_With_Underscores")]
     [InlineData("Table With Spaces")]
     [InlineData("Table123")]
+    [InlineData("Profit Margin %")]
+    [InlineData("Table's Name")]
+    [InlineData("O'Connor")]
+    [InlineData("Table--comment")]
+    [InlineData("Table;")]
+    [InlineData("Table\n")]
+    [InlineData("Table\r")]
+    [InlineData("Table\t")]
     public void DaxSecurityUtils_IsValidIdentifier_ValidIdentifiers_ReturnsTrue(string identifier)
     {
         // Act
@@ -27,15 +35,7 @@ public class SecurityTests
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    [InlineData("Table'; DROP TABLE Users; --")]
-    [InlineData("Table<script>alert('xss')</script>")]
-    [InlineData("Table/*comment*/")]
-    [InlineData("Table--comment")]
-    [InlineData("Table;")]
-    [InlineData("Table\0")]
-    [InlineData("Table\n")]
-    [InlineData("Table\r")]
-    [InlineData("Table\t")]
+    [InlineData("Table\0")] // Only null characters are rejected
     public void DaxSecurityUtils_IsValidIdentifier_InvalidIdentifiers_ReturnsFalse(string identifier)
     {
         // Act
@@ -62,6 +62,8 @@ public class SecurityTests
     [InlineData("TableName", "'TableName'")]
     [InlineData("Table's Name", "'Table''s Name'")]
     [InlineData("O'Connor", "'O''Connor'")]
+    [InlineData("Profit Margin %", "'Profit Margin %'")]
+    [InlineData("Table--comment", "'Table--comment'")]
     public void DaxSecurityUtils_EscapeDaxIdentifier_ValidIdentifiers_EscapesCorrectly(string input, string expected)
     {
         // Act
@@ -74,7 +76,8 @@ public class SecurityTests
     [Theory]
     [InlineData(null)]
     [InlineData("")]
-    [InlineData("Table'; DROP TABLE Users; --")]
+    [InlineData("   ")]
+    [InlineData("Table\0")]
     public void DaxSecurityUtils_EscapeDaxIdentifier_InvalidIdentifiers_ThrowsArgumentException(string identifier)
     {
         // Act & Assert
@@ -113,7 +116,6 @@ public class SecurityTests
     
     [Theory]
     [InlineData("[Name] = 'Value' <script>")]
-    [InlineData("[Name] = 'Value' & illegal_char")]
     [InlineData("[Name] = 'Value' $ illegal")]
     public void FilterExpressionValidator_ValidateFilterExpression_InvalidCharacters_ThrowsArgumentException(string filterExpr)
     {

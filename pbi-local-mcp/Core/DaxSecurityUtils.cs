@@ -7,18 +7,17 @@ namespace pbi_local_mcp.Core;
 /// </summary>
 public static class DaxSecurityUtils
 {
-    private static readonly Regex ValidIdentifierRegex = new(@"^[a-zA-Z_][a-zA-Z0-9_\s]*$", RegexOptions.Compiled);
-    
     /// <summary>
     /// Validates that an identifier is safe for use in DAX/DMV queries
+    /// Allows all characters but enforces reasonable length and non-empty constraints
     /// </summary>
     /// <param name="identifier">The identifier to validate</param>
     /// <returns>True if the identifier is valid and safe</returns>
     public static bool IsValidIdentifier(string identifier)
     {
-        return !string.IsNullOrWhiteSpace(identifier) && 
-               ValidIdentifierRegex.IsMatch(identifier) &&
-               identifier.Length <= 128; // Max reasonable length
+        return !string.IsNullOrWhiteSpace(identifier) &&
+               identifier.Length <= 128 && // Max reasonable length
+               !identifier.Contains('\0'); // No null characters
     }
     
     /// <summary>

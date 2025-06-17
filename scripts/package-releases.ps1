@@ -89,7 +89,7 @@ $configurations = @(
 
 # Package each configuration
 foreach ($config in $configurations) {
-    $packageName = "tabular-mcp-server-$($config.Name)-v$CleanVersion"
+    $packageName = "mcpbi-$($config.Name)-v$CleanVersion"
     $packagePath = Join-Path $OutputPath $packageName
     $zipPath = "$packagePath.zip"
     
@@ -111,6 +111,20 @@ foreach ($config in $configurations) {
     $appPath = Join-Path $packagePath "app"
     Copy-Item $config.SourcePath $appPath -Recurse -Force
     
+    # Rename main executable to mcpbi.exe
+    $oldExePath = Join-Path $appPath "pbi-local-mcp.exe"
+    $newExePath = Join-Path $appPath "mcpbi.exe"
+    if (Test-Path $oldExePath) {
+        Move-Item $oldExePath $newExePath -Force
+    }
+    
+    # Copy CLI discovery tool
+    $cliSourcePath = "./publish/win-x64/pbi-local-mcp.DiscoverCli.exe"
+    $cliDestPath = Join-Path $appPath "pbi-local-mcp.DiscoverCli.exe"
+    if (Test-Path $cliSourcePath) {
+        Copy-Item $cliSourcePath $cliDestPath -Force
+    }
+    
     # Create documentation structure
     $docsPath = Join-Path $packagePath "docs"
     New-Item -ItemType Directory -Path $docsPath -Force | Out-Null
@@ -126,7 +140,7 @@ foreach ($config in $configurations) {
     
     # Create package-specific README
     $packageReadme = @"
-# Tabular MCP Server - $($config.DisplayName)
+# MCPBI - Power BI Tabular MCP Server - $($config.DisplayName)
 
 Version: $Version
 Package: $($config.Name)
@@ -134,23 +148,37 @@ Package: $($config.Name)
 ## Description
 $($config.Description)
 
-## Quick Start
+## Quick Start a) For the fastest setup, you can use the CLI tool to find your running tabular model
 
-1. **Setup Power BI Connection**
-   ``````
+1. **Configure Power BI Connection:**
+   ``````cmd
    cd app
-   pbi-local-mcp.exe discover-pbi
+   pbi-local-mcp.DiscoverCli.exe
    ``````
+   Follow the prompts to detect your Power BI instance and create the `.env` file.
 
-2. **Configure VS Code**
-   Add to your `.vscode/mcp.json`:
+2. **Configure VS Code MCP Integration:**
+   Configure `mcp.json` with:
    ``````json
    {
-     "servers": {
-       "tabular-mcp": {
-         "type": "stdio",
-         "command": "[PATH_TO_PACKAGE]/app/pbi-local-mcp.exe",
-         "envFile": "[PATH_TO_PACKAGE]/app/.env"
+     "mcpServers": {
+       "MCPBI": {
+         "command": "C:\\dir\\to\\mcpbi.exe",
+         "args": []
+       }
+     }
+   }
+   ``````
+
+## Quick Start b) If you already know which port you are running PowerBI Tabular model on (visible from Tabular Editor for instance)
+
+   Configure `mcp.json` with:
+   ``````json
+   {
+     "mcpServers": {
+       "MCPBI": {
+         "command": "C:\\dir\\to\\mcpbi.exe",
+         "args": ["--port","12345"]
        }
      }
    }
@@ -159,7 +187,7 @@ $($config.Description)
 3. **Test Connection**
    - Restart VS Code
    - Open a workspace with MCP configuration
-   - The server should be available for Power BI operations
+   - The MCPBI server should be available for Power BI operations
 
 ## Documentation
 - See `docs/DEPLOYMENT.md` for detailed installation instructions
@@ -177,22 +205,22 @@ Package created: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
     # Create installation script for Windows
     $installScript = @"
 @echo off
-echo === Tabular MCP Server Installation ===
+echo === MCPBI - Power BI Tabular MCP Server Installation ===
 echo.
-echo This script will help you set up the Tabular MCP Server.
+echo This script will help you set up the MCPBI server.
 echo.
 echo Step 1: Ensure Power BI Desktop is running with a PBIX file open
 pause
 echo.
 echo Step 2: Running Power BI discovery...
 cd /d "%~dp0app"
-pbi-local-mcp.exe discover-pbi
+pbi-local-mcp.DiscoverCli.exe
 echo.
 if %ERRORLEVEL% EQU 0 (
     echo Setup completed successfully!
     echo.
     echo Next steps:
-    echo 1. Copy the path: %~dp0app\pbi-local-mcp.exe
+    echo 1. Copy the path: %~dp0app\mcpbi.exe
     echo 2. Add MCP configuration to VS Code
     echo 3. See docs\DEPLOYMENT.md for detailed instructions
 ) else (
@@ -210,9 +238,9 @@ pause
     # Create PowerShell installation script
     $psInstallScript = @"
 #!/usr/bin/env pwsh
-Write-Host "=== Tabular MCP Server Installation ===" -ForegroundColor Cyan
+Write-Host "=== MCPBI - Power BI Tabular MCP Server Installation ===" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "This script will help you set up the Tabular MCP Server." -ForegroundColor Green
+Write-Host "This script will help you set up the MCPBI server." -ForegroundColor Green
 Write-Host ""
 
 Write-Host "Step 1: Checking prerequisites..." -ForegroundColor Yellow
@@ -233,15 +261,15 @@ Write-Host "Step 2: Running Power BI discovery..." -ForegroundColor Yellow
 
 # Change to app directory and run discovery
 Set-Location "`$PSScriptRoot\app"
-& ".\pbi-local-mcp.exe" discover-pbi
+& ".\pbi-local-mcp.DiscoverCli.exe"
 
 if (`$LASTEXITCODE -eq 0) {
     Write-Host ""
     Write-Host "Setup completed successfully!" -ForegroundColor Green
     Write-Host ""
     Write-Host "Next steps:" -ForegroundColor Yellow
-    Write-Host "1. Copy this path: `$PSScriptRoot\app\pbi-local-mcp.exe" -ForegroundColor White
-    Write-Host "2. Add MCP configuration to VS Code (.vscode/mcp.json)" -ForegroundColor White
+    Write-Host "1. Copy this path: `$PSScriptRoot\app\mcpbi.exe" -ForegroundColor White
+    Write-Host "2. Add MCP configuration to VS Code (mcp.json)" -ForegroundColor White
     Write-Host "3. See docs\DEPLOYMENT.md for detailed instructions" -ForegroundColor White
 } else {
     Write-Host ""
@@ -295,18 +323,39 @@ Read-Host "Press Enter to continue"
     Write-Host "  ZIP size: $zipSize MB, Extracted size: $folderSize MB" -ForegroundColor Gray
 }
 
+# Copy mcpbi.exe directly to Releases directory for easy access
+$directMcpbiPath = Join-Path $OutputPath "mcpbi.exe"
+$sourceMcpbiPath = "./publish/win-x64-single-file/pbi-local-mcp.exe"
+if (Test-Path $sourceMcpbiPath) {
+    Copy-Item $sourceMcpbiPath $directMcpbiPath -Force
+    Write-Host "`nCopied mcpbi.exe to Releases directory for direct use" -ForegroundColor Green
+}
+
+# Copy CLI discovery tool directly to Releases directory
+$directCliPath = Join-Path $OutputPath "pbi-local-mcp.DiscoverCli.exe"
+$sourceCliPath = "./publish/win-x64/pbi-local-mcp.DiscoverCli.exe"
+if (Test-Path $sourceCliPath) {
+    Copy-Item $sourceCliPath $directCliPath -Force
+    Write-Host "Copied pbi-local-mcp.DiscoverCli.exe to Releases directory for direct use" -ForegroundColor Green
+}
+
 # Create combined release info
 $releaseInfo = @"
-# Tabular MCP Server Release v$CleanVersion
+# MCPBI - Power BI Tabular MCP Server Release v$CleanVersion
 
 Generated: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
+
+## Quick Access Files
+
+- **mcpbi.exe** - Ready-to-use executable (single file, portable)
+- **pbi-local-mcp.DiscoverCli.exe** - CLI tool for automatic Power BI discovery
 
 ## Available Packages
 
 "@
 
 foreach ($config in $configurations) {
-    $packageName = "tabular-mcp-server-$($config.Name)-v$CleanVersion"
+    $packageName = "mcpbi-$($config.Name)-v$CleanVersion"
     $zipPath = Join-Path $OutputPath "$packageName.zip"
     
     if (Test-Path $zipPath) {
