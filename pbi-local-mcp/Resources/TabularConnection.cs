@@ -356,6 +356,92 @@ public class TabularConnection : ITabularConnection, IDisposable
         Dispose(false);
     }
     /// <summary>
+    /// Discovers available databases on the Power BI instance at the specified port
+    /// </summary>
+    /// <param name="port">Port number for the Power BI instance</param>
+    /// <param name="logger">Logger instance for diagnostic information</param>
+    /// <returns>List of available database names</returns>
+    /// <exception cref="ArgumentException">Thrown when port is invalid</exception>
+    /// <exception cref="InvalidOperationException">Thrown when no databases are found or connection fails</exception>
+    public static async Task<List<string>> DiscoverDatabasesAsync(string port, ILogger<TabularConnection>? logger = null)
+    {
+        if (string.IsNullOrWhiteSpace(port))
+            throw new ArgumentException("Port cannot be null or empty", nameof(port));
+
+        if (!int.TryParse(port, out var portNumber) || portNumber < 1 || portNumber > 65535)
+            throw new ArgumentException($"Invalid port number: {port}", nameof(port));
+
+        logger = logger ?? NullLogger<TabularConnection>.Instance;
+        
+        // Use a temporary connection without specifying Initial Catalog to discover databases
+        var connectionString = $"Data Source=localhost:{port}";
+        
+        try
+        {
+            using var connection = new AdomdConnection(connectionString);
+            logger.LogDebug("Attempting to discover databases on port {Port}", port);
+            
+            await Task.Run(() => connection.Open()).ConfigureAwait(false);
+            
+            // Query for available catalogs/databases (using same format as InstanceDiscovery)
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = "SELECT * FROM $SYSTEM.DBSCHEMA_CATALOGS";
+            cmd.CommandType = CommandType.Text;
+            cmd.CommandTimeout = 30; // Shorter timeout for discovery
+            
+            var databases = new List<string>();
+            using var reader = await Task.Run(() => cmd.ExecuteReader()).ConfigureAwait(false);
+            
+            while (await Task.Run(() => reader.Read()).ConfigureAwait(false))
+            {
+                var catalogName = reader["CATALOG_NAME"]?.ToString();
+                if (!string.IsNullOrWhiteSpace(catalogName))
+                {
+                    databases.Add(catalogName);
+                }
+            }
+            
+            logger.LogDebug("Discovered {Count} databases on port {Port}: {Databases}",
+                databases.Count, port, string.Join(", ", databases));
+            
+            if (!databases.Any())
+            {
+                throw new InvalidOperationException($"No databases found on Power BI instance at port {port}");
+            }
+            
+            return databases;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to discover databases on port {Port}", port);
+            throw new InvalidOperationException($"Could not discover databases on port {port}: {ex.Message}", ex);
+        }
+    }
+
+    /// <summary>
+    /// Creates a TabularConnection with automatic database discovery
+    /// Connects to the Power BI instance and selects the first available database
+    /// </summary>
+    /// <param name="port">Port number for the Power BI instance</param>
+    /// <param name="logger">Logger instance for diagnostic information</param>
+    /// <returns>TabularConnection configured with the discovered database</returns>
+    /// <exception cref="ArgumentException">Thrown when port is invalid</exception>
+    /// <exception cref="InvalidOperationException">Thrown when no databases are found or connection fails</exception>
+    public static async Task<TabularConnection> CreateWithDiscoveryAsync(string port, ILogger<TabularConnection>? logger = null)
+    {
+        logger = logger ?? NullLogger<TabularConnection>.Instance;
+        
+        var databases = await DiscoverDatabasesAsync(port, logger);
+        
+        // Use the first available database
+        var selectedDatabase = databases.First();
+        logger.LogInformation("Auto-selected database '{Database}' from {Count} available databases on port {Port}",
+            selectedDatabase, databases.Count, port);
+        
+        return new TabularConnection(logger, port, selectedDatabase);
+    }
+
+    /// <summary>
     /// Creates an enhanced error message that includes query details for better error reporting through MCP protocol
     /// </summary>
     /// <param name="originalException">The original exception that occurred</param>

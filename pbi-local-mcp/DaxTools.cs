@@ -35,8 +35,8 @@ public class DaxTools // Changed from static class
         [Description("Optional table name to filter measures. If null, returns all measures.")] string? tableName = null) // Removed static
 #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     {
-        // var tabular = CreateConnection(); // Replaced
-        string dmv;
+        // DMV queries don't support JOINs, so we need to query measures and tables separately
+        string measuresDmv;
 
         if (!string.IsNullOrEmpty(tableName))
         {
@@ -45,14 +45,14 @@ public class DaxTools // Changed from static class
             
             var escapedTableName = DaxSecurityUtils.EscapeDaxIdentifier(tableName);
             var tableIdQuery = $"SELECT [ID] FROM $SYSTEM.TMSCHEMA_TABLES WHERE [NAME] = {escapedTableName}";
-            var tableIdResult = await _tabularConnection.ExecAsync(tableIdQuery, QueryType.DMV); // Use injected _tabularConnection
+            var tableIdResult = await _tabularConnection.ExecAsync(tableIdQuery, QueryType.DMV);
 
             if (tableIdResult is IEnumerable<Dictionary<string, object?>> rows && rows.Any())
             {
                 var tableIdObj = rows.First()["ID"];
                 if (tableIdObj != null && int.TryParse(tableIdObj.ToString(), out int actualTableId))
                 {
-                    dmv = $"SELECT m.[Name] as MeasureName, m.[TableID], t.[Name] as TableName, m.[DataType], m.[IsHidden] FROM $SYSTEM.TMSCHEMA_MEASURES m LEFT JOIN $SYSTEM.TMSCHEMA_TABLES t ON m.[TableID] = t.[ID] WHERE m.[TableID] = {actualTableId}";
+                    measuresDmv = $"SELECT [Name] as MeasureName, [TableID], [DataType], [IsHidden] FROM $SYSTEM.TMSCHEMA_MEASURES WHERE [TableID] = {actualTableId}";
                 }
                 else
                 {
@@ -66,11 +66,53 @@ public class DaxTools // Changed from static class
         }
         else
         {
-            dmv = "SELECT m.[Name] as MeasureName, m.[TableID], t.[Name] as TableName, m.[DataType], m.[IsHidden] FROM $SYSTEM.TMSCHEMA_MEASURES m LEFT JOIN $SYSTEM.TMSCHEMA_TABLES t ON m.[TableID] = t.[ID]";
+            measuresDmv = "SELECT [Name] as MeasureName, [TableID], [DataType], [IsHidden] FROM $SYSTEM.TMSCHEMA_MEASURES";
         }
 
-        var result = await _tabularConnection.ExecAsync(dmv, QueryType.DMV); // Use injected _tabularConnection
-        return result;
+        // Get measures data
+        var measuresResult = await _tabularConnection.ExecAsync(measuresDmv, QueryType.DMV);
+        
+        if (!(measuresResult is IEnumerable<Dictionary<string, object?>> measuresRows) || !measuresRows.Any())
+        {
+            return new List<Dictionary<string, object?>>();
+        }
+
+        // Get all tables to map TableID to TableName
+        var tablesDmv = "SELECT [ID], [Name] FROM $SYSTEM.TMSCHEMA_TABLES";
+        var tablesResult = await _tabularConnection.ExecAsync(tablesDmv, QueryType.DMV);
+        
+        var tableNameLookup = new Dictionary<string, string>();
+        if (tablesResult is IEnumerable<Dictionary<string, object?>> tablesRows)
+        {
+            foreach (var tableRow in tablesRows)
+            {
+                var tableId = tableRow["ID"]?.ToString();
+                var tableName2 = tableRow["Name"]?.ToString();
+                if (!string.IsNullOrEmpty(tableId) && !string.IsNullOrEmpty(tableName2))
+                {
+                    tableNameLookup[tableId] = tableName2;
+                }
+            }
+        }
+
+        // Combine measures with table names
+        var enrichedMeasures = new List<Dictionary<string, object?>>();
+        foreach (var measureRow in measuresRows)
+        {
+            var enrichedMeasure = new Dictionary<string, object?>(measureRow);
+            var tableId = measureRow["TableID"]?.ToString();
+            if (!string.IsNullOrEmpty(tableId) && tableNameLookup.TryGetValue(tableId, out var tableNameValue))
+            {
+                enrichedMeasure["TableName"] = tableNameValue;
+            }
+            else
+            {
+                enrichedMeasure["TableName"] = "Unknown";
+            }
+            enrichedMeasures.Add(enrichedMeasure);
+        }
+
+        return enrichedMeasures;
     }
 
     [McpServerTool, Description("Get details for a specific measure by name.")]
@@ -196,66 +238,145 @@ public class DaxTools // Changed from static class
         [Description("The DAX query to execute. Can be a complete query with DEFINE block, an EVALUATE statement, or a simple expression.")] string dax,
         [Description("Maximum number of rows to return for table expressions (default: 10). Ignored for complete queries.")] int topN = 10) // Removed static
     {
-        // var tabular = CreateConnection(); // Replaced
-        string originalDax = dax; 
-        string query = dax.Trim();
+        string originalDax = dax;
+        
+        try
+        {
+            _logger.LogDebug("Starting RunQuery execution for query: {Query}", originalDax?.Substring(0, Math.Min(100, originalDax?.Length ?? 0)));
+            
+            // Input validation
+            if (string.IsNullOrWhiteSpace(dax))
+            {
+                var error = "DAX query cannot be null or empty";
+                _logger.LogWarning(error);
+                throw new ArgumentException(error, nameof(dax));
+            }
 
-        var initialValidationErrors = new List<string>();
+            string query = dax.Trim();
+            
+            // Pre-execution validation with detailed error reporting
+            var validationErrors = ValidateQuerySyntax(query);
+            if (validationErrors.Any())
+            {
+                var validationError = $"Query validation failed: {string.Join("; ", validationErrors)}";
+                _logger.LogWarning("Query validation failed for query: {Query}. Errors: {Errors}",
+                    originalDax, string.Join("; ", validationErrors));
+                throw new ArgumentException(validationError, nameof(dax));
+            }
+
+            // Additional validation for complete DAX queries
+            if (query.Contains("DEFINE", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    ValidateCompleteDAXQuery(query);
+                }
+                catch (ArgumentException validationEx)
+                {
+                    _logger.LogWarning("Complete DAX query validation failed: {Error}", validationEx.Message);
+                    throw new ArgumentException($"DAX query structure validation failed: {validationEx.Message}", nameof(dax), validationEx);
+                }
+            }
+
+            // Determine query type and construct final query
+            string finalQuery;
+            QueryType queryType;
+            
+            if (query.StartsWith("DEFINE", StringComparison.OrdinalIgnoreCase))
+            {
+                finalQuery = query;
+                queryType = QueryType.DAX;
+                _logger.LogDebug("Executing DEFINE query as DAX");
+            }
+            else if (query.StartsWith("EVALUATE", StringComparison.OrdinalIgnoreCase))
+            {
+                finalQuery = query;
+                queryType = QueryType.DAX;
+                _logger.LogDebug("Executing EVALUATE query as DAX");
+            }
+            else
+            {
+                // Construct EVALUATE statement for simple expressions
+                try
+                {
+                    finalQuery = ConstructEvaluateStatement(query, topN);
+                    queryType = QueryType.DAX;
+                    _logger.LogDebug("Constructed EVALUATE statement for simple expression: {FinalQuery}",
+                        finalQuery.Substring(0, Math.Min(100, finalQuery.Length)));
+                }
+                catch (Exception constructEx)
+                {
+                    _logger.LogError(constructEx, "Failed to construct EVALUATE statement for query: {Query}", originalDax);
+                    throw new ArgumentException($"Failed to construct valid DAX query from expression: {constructEx.Message}", nameof(dax), constructEx);
+                }
+            }
+
+            // Execute the query with enhanced error handling
+            try
+            {
+                _logger.LogDebug("Executing query with QueryType: {QueryType}", queryType);
+                var result = await _tabularConnection.ExecAsync(finalQuery, queryType);
+                _logger.LogDebug("Query execution completed successfully");
+                return result;
+            }
+            catch (Exception execEx)
+            {
+                // Log detailed execution error information
+                _logger.LogError(execEx, "Query execution failed. Original: {OriginalQuery}, Final: {FinalQuery}, QueryType: {QueryType}",
+                    originalDax, finalQuery, queryType);
+                
+                // Re-throw with preserved stack trace and enhanced context
+                throw new Exception(
+                    $"DAX query execution failed: {execEx.Message}\n\n" +
+                    $"Original Query:\n{originalDax}\n\n" +
+                    $"Final Query:\n{finalQuery}\n\n" +
+                    $"Query Type: {queryType}",
+                    execEx);
+            }
+        }
+        catch (ArgumentException)
+        {
+            // Re-throw argument exceptions (validation errors) as-is
+            throw;
+        }
+        catch (Exception ex)
+        {
+            // Log unexpected errors and wrap with context
+            _logger.LogError(ex, "Unexpected error in RunQuery for query: {Query}", originalDax);
+            
+            // Don't wrap in McpException to avoid serialization issues
+            throw new Exception($"An unexpected error occurred while executing the DAX query: {ex.Message}\n\nOriginal Query:\n{originalDax}", ex);
+        }
+    }
+
+    /// <summary>
+    /// Validates basic DAX query syntax and returns a list of validation errors.
+    /// </summary>
+    /// <param name="query">The DAX query to validate.</param>
+    /// <returns>List of validation error messages. Empty list if validation passes.</returns>
+    private static List<string> ValidateQuerySyntax(string query)
+    {
+        var errors = new List<string>();
+        
         if (string.IsNullOrWhiteSpace(query))
         {
-            initialValidationErrors.Add("Query cannot be empty.");
-        }
-        else
-        {
-            CheckBalancedDelimiters(query, '(', ')', "parentheses", initialValidationErrors);
-            CheckBalancedDelimiters(query, '[', ']', "brackets", initialValidationErrors);
-            CheckBalancedQuotes(query, initialValidationErrors);
-        }
-
-        if (initialValidationErrors.Any())
-        {
-            throw new ArgumentException(string.Join(" ", initialValidationErrors));
-        }
-
-        if (query.ToUpperInvariant().Contains("DEFINE"))
-        {
-            ValidateCompleteDAXQuery(query); 
+            errors.Add("Query cannot be empty");
+            return errors;
         }
 
         try
         {
-            if (query.StartsWith("DEFINE", StringComparison.OrdinalIgnoreCase))
-            {
-                var result = await _tabularConnection.ExecAsync(query, QueryType.DAX); // Use injected _tabularConnection
-                return result;
-            }
-
-            if (query.StartsWith("EVALUATE", StringComparison.OrdinalIgnoreCase))
-            {
-                var result = await _tabularConnection.ExecAsync(query, QueryType.DAX); // Use injected _tabularConnection
-                return result;
-            }
-
-            var evaluateStatement = ConstructEvaluateStatement(query, topN);
-            var result2 = await _tabularConnection.ExecAsync(evaluateStatement, QueryType.DAX); // Use injected _tabularConnection
-            return result2;
+            // Check balanced delimiters
+            CheckBalancedDelimiters(query, '(', ')', "parentheses", errors);
+            CheckBalancedDelimiters(query, '[', ']', "brackets", errors);
+            CheckBalancedQuotes(query, errors);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error executing DAX query: {OriginalQuery} (Processed: {ProcessedQuery})", originalDax, query);
-            
-            // The TabularConnection now throws standard exceptions with enhanced messages
-            // We should preserve those enhanced messages and just add any additional context if needed
-            if (ex.Message.Contains("DAX Query Error:") || ex.Message.Contains("DMV Query Error:"))
-            {
-                // The exception already has enhanced error information from TabularConnection
-                // Just re-throw it to preserve the detailed message
-                throw;
-            }
-            
-            // For other exceptions (like validation errors), add DAX context
-            throw new McpException($"Error executing DAX query: {ex.Message}\n\nOriginal Query:\n{originalDax}", ex);
+            errors.Add($"Syntax validation error: {ex.Message}");
         }
+
+        return errors;
     }
 
     /// <summary>
@@ -526,25 +647,95 @@ public class DaxTools // Changed from static class
     /// <param name="query">The core query expression.</param>
     /// <param name="topN">Maximum number of rows to return (default: 10).</param>
     /// <returns>The constructed EVALUATE statement.</returns>
+    /// <exception cref="ArgumentException">Thrown when query construction fails.</exception>
     private static string ConstructEvaluateStatement(string query, int topN) // Kept static
     {
-        query = query.Trim();
-        bool isCoreQueryTableExpr = query.StartsWith("'") || 
-                                    query.StartsWith("SELECTCOLUMNS", StringComparison.OrdinalIgnoreCase) ||
-                                    query.StartsWith("ADDCOLUMNS", StringComparison.OrdinalIgnoreCase) ||
-                                    query.StartsWith("SUMMARIZE", StringComparison.OrdinalIgnoreCase) ||
-                                    query.StartsWith("FILTER", StringComparison.OrdinalIgnoreCase) ||
-                                    query.StartsWith("VALUES", StringComparison.OrdinalIgnoreCase) ||
-                                    query.StartsWith("ALL", StringComparison.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            throw new ArgumentException("Query expression cannot be empty", nameof(query));
+        }
 
-        if (isCoreQueryTableExpr)
+        if (topN < 0)
         {
-            return topN > 0 ? $"EVALUATE TOPN({topN}, {query})" : $"EVALUATE {query}";
+            throw new ArgumentException("TopN value cannot be negative", nameof(topN));
         }
-        else
+
+        try
         {
-            return $"EVALUATE ROW(\"Value\", {query})";
+            query = query.Trim();
+            
+            // Check if the query is a table expression
+            bool isCoreQueryTableExpr = IsTableExpression(query);
+
+            string constructedQuery;
+            if (isCoreQueryTableExpr)
+            {
+                // For table expressions, use TOPN if specified
+                if (topN > 0)
+                {
+                    constructedQuery = $"EVALUATE TOPN({topN}, {query})";
+                }
+                else
+                {
+                    constructedQuery = $"EVALUATE {query}";
+                }
+            }
+            else
+            {
+                // For scalar expressions, wrap in ROW
+                constructedQuery = $"EVALUATE ROW(\"Value\", {query})";
+            }
+
+            // Basic validation of constructed query
+            if (string.IsNullOrWhiteSpace(constructedQuery) || !constructedQuery.Contains("EVALUATE"))
+            {
+                throw new InvalidOperationException("Failed to construct valid EVALUATE statement");
+            }
+
+            return constructedQuery;
         }
+        catch (Exception ex) when (!(ex is ArgumentException))
+        {
+            throw new ArgumentException($"Failed to construct EVALUATE statement: {ex.Message}", nameof(query), ex);
+        }
+    }
+
+    /// <summary>
+    /// Determines if a DAX expression is a table expression or a scalar expression.
+    /// </summary>
+    /// <param name="query">The DAX expression to analyze.</param>
+    /// <returns>True if the expression is likely a table expression, false if it's a scalar expression.</returns>
+    private static bool IsTableExpression(string query)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+            return false;
+
+        query = query.Trim();
+
+        // Check for table reference patterns
+        if (query.StartsWith("'") && query.EndsWith("'"))
+            return true;
+
+        // Check for common table functions
+        var tableExpressionPatterns = new[]
+        {
+            "SELECTCOLUMNS", "ADDCOLUMNS", "SUMMARIZE", "FILTER", "VALUES", "ALL",
+            "DISTINCT", "UNION", "INTERSECT", "EXCEPT", "CROSSJOIN", "NATURALINNERJOIN",
+            "NATURALLEFTOUTERJOIN", "TOPN", "SAMPLE", "DATATABLE", "SUBSTITUTEWITHINDEX",
+            "GROUPBY", "SUMMARIZECOLUMNS", "TREATAS", "CALCULATETABLE"
+        };
+
+        foreach (var pattern in tableExpressionPatterns)
+        {
+            if (query.StartsWith(pattern, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        // Check for calculated table patterns like { ... }
+        if (query.StartsWith("{") && query.EndsWith("}"))
+            return true;
+
+        return false;
     }
 
     // New Tools Implementation - Based on Additional Tools Recommendations

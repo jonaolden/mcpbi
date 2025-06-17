@@ -1,18 +1,17 @@
-Prerequisites: 
-Required: PowerBI Desktop 
-Optional: Tabular Editor (to )
+# Quick Test
 
-Steps:
+**Prerequisites:** PowerBI Desktop with Sample.pbix open
 
+**Run All Tests:**
+```powershell
+./test-all.ps1
+```
 
-1. Open Sample.pbix in Power BI.
+**With Specific Port:**
+```powershell
+./test-all.ps1 -Port 12345
+```
 
-2. Go to External Tools -> Tabular Editor and notice your Port (in the window header)
-
-3. Run InstanceDiscovery using "dotnet run --project InstanceDiscovery ;"
-
-4. From CLI, select the PowerBI instance for testing (confirm with Port from step 2.)
-
-5. Run test suite using "dotnet test --logger "console;verbosity=detailed";"
+**Port Discovery:** External Tools → Tabular Editor (port shown in window header)
 
 
