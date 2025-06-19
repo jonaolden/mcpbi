@@ -9,7 +9,7 @@ This server allows MCP-enabled LLM clients to communicate with your tabular mode
 
 It connects to a local running instance of Tabular models using the [AdomdConnection in ADOMD.NET](https://learn.microsoft.com/en-us/analysis-services/adomd/multidimensional-models-adomd-net-client/connections-in-adomd-net?view=asallproducts-allversions). 
 
-Using this connection, the server then allows clients to execute [DAX-queries](https://www.sqlbi.com/articles/execute-dax-queries-through-ole-db-and-adomd-net/) to retrieve model metadata (using [DAX INFO functions](https://learn.microsoft.com/en-us/dax/info-functions-dax)) through pre-defined tools for high accuracy, as well as custom DAX queries for debugging and development.
+Using this connection, the server then allows clients to execute [DAX-queries](https://www.sqlbi.com/articles/execute-dax-queries-through-ole-db-and-adomd-net/) and retrieve model metadata (using DMV queries) through pre-defined tools for high accuracy, as well as custom DAX queries for debugging and development.
 
 This MCP server enables communication between clients and Power BI tabular models via ADOMD.NET, supporting both predefined metadata queries and flexible DAX queries with full DEFINE block capabilities for advanced analysis.
 
