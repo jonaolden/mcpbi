@@ -4,7 +4,6 @@ using pbi_local_mcp.Configuration;
 using Microsoft.AnalysisServices.AdomdClient;
 using System.Data;
 using Microsoft.Extensions.Logging.Abstractions;
-using ModelContextProtocol;
 
 namespace pbi_local_mcp;
 
@@ -140,14 +139,12 @@ public class TabularConnection : ITabularConnection, IDisposable
         {
             _logger.LogError(ex, "Error executing {QueryType} query: {Query}", queryType, query);
             
-            // Create enhanced error message with query details for better MCP protocol compatibility
+            // Create enhanced error message with query details for better error reporting
             var enhancedMessage = CreateEnhancedErrorMessage(ex, query, queryType);
             
-            if (ex is AdomdException adomdEx)
-            {
-                throw new McpException(enhancedMessage, adomdEx);
-            }
-            throw new McpException(enhancedMessage, ex);
+            // Use standard Exception instead of McpException for application-level database errors
+            // McpException is only for MCP protocol-level errors, not database query failures
+            throw new Exception(enhancedMessage, ex);
         }
     }
 
@@ -192,14 +189,12 @@ public class TabularConnection : ITabularConnection, IDisposable
         {
             _logger.LogError(ex, "Error executing {QueryType} query: {Query}", queryType, query);
             
-            // Create enhanced error message with query details for better MCP protocol compatibility
+            // Create enhanced error message with query details for better error reporting
             var enhancedMessage = CreateEnhancedErrorMessage(ex, query, queryType);
             
-            if (ex is AdomdException adomdEx)
-            {
-                throw new McpException(enhancedMessage, adomdEx);
-            }
-            throw new McpException(enhancedMessage, ex);
+            // Use standard Exception instead of McpException for application-level database errors
+            // McpException is only for MCP protocol-level errors, not database query failures
+            throw new Exception(enhancedMessage, ex);
         }
     }
 
