@@ -1,1 +1,0 @@
-Implement DAX formatting from https://github.com/sql-bi/DaxFormatter

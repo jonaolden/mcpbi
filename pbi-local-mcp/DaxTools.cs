@@ -1,8 +1,10 @@
 // File: DaxTools.cs
 using System.ComponentModel;
+
 using Microsoft.Extensions.Logging; // Added for ILogger
-using ModelContextProtocol;
+
 using ModelContextProtocol.Server;
+
 using pbi_local_mcp.Core; // Added for ITabularConnection
 
 namespace pbi_local_mcp;
@@ -32,196 +34,209 @@ public class DaxTools // Changed from static class
     [McpServerTool, Description("List all measures in the model with essential information (name, table, data type, visibility), optionally filtered by table name. Use GetMeasureDetails for full DAX expressions.")]
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
     public async Task<object> ListMeasures(
-        [Description("Optional table name to filter measures. If null, returns all measures.")] string? tableName = null) // Removed static
+        [Description("Optional table name to filter measures. If null, returns all measures.")] string? tableName = null)
 #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     {
-        // DMV queries don't support JOINs, so we need to query measures and tables separately
-        string measuresDmv;
-
-        if (!string.IsNullOrEmpty(tableName))
+        try
         {
-            if (!DaxSecurityUtils.IsValidIdentifier(tableName))
-                throw new ArgumentException("Invalid table name format", nameof(tableName));
-            
-            var escapedTableName = DaxSecurityUtils.EscapeDaxIdentifier(tableName);
-            var tableIdQuery = $"SELECT [ID] FROM $SYSTEM.TMSCHEMA_TABLES WHERE [NAME] = {escapedTableName}";
-            var tableIdResult = await _tabularConnection.ExecAsync(tableIdQuery, QueryType.DMV);
+            _logger.LogDebug("Starting ListMeasures with tableName: {TableName}", tableName ?? "ALL");
 
-            if (tableIdResult is IEnumerable<Dictionary<string, object?>> rows && rows.Any())
+            // Build query with essential columns only (no DAX expressions)
+            string daxQuery;
+            var selectColumns = @"
+                SELECTCOLUMNS(
+                    INFO.VIEW.MEASURES(),
+                    ""Name"", [Name],
+                    ""Table"", [Table],
+                    ""DataType"", [DataType],
+                    ""IsHidden"", [IsHidden],
+                    ""FormatString"", [FormatString],
+                    ""Description"", [Description]
+                )";
+
+            if (!string.IsNullOrEmpty(tableName))
             {
-                var tableIdObj = rows.First()["ID"];
-                if (tableIdObj != null && int.TryParse(tableIdObj.ToString(), out int actualTableId))
-                {
-                    measuresDmv = $"SELECT [Name] as MeasureName, [TableID], [DataType], [IsHidden] FROM $SYSTEM.TMSCHEMA_MEASURES WHERE [TableID] = {actualTableId}";
-                }
-                else
-                {
-                    throw new Exception($"Invalid or non-integer Table ID for table '{tableName}'. Please check the table configuration.");
-                }
+                if (!DaxSecurityUtils.IsValidIdentifier(tableName))
+                    throw new ArgumentException("Invalid table name format", nameof(tableName));
+
+                var escapedTableName = $"\"{tableName.Replace("\"", "\"\"")}\"";
+                daxQuery = $"EVALUATE FILTER({selectColumns}, [Table] = {escapedTableName})";
             }
             else
             {
-                return new List<Dictionary<string, object?>>();
+                daxQuery = $"EVALUATE {selectColumns}";
             }
-        }
-        else
-        {
-            measuresDmv = "SELECT [Name] as MeasureName, [TableID], [DataType], [IsHidden] FROM $SYSTEM.TMSCHEMA_MEASURES";
-        }
 
-        // Get measures data
-        var measuresResult = await _tabularConnection.ExecAsync(measuresDmv, QueryType.DMV);
-        
-        if (!(measuresResult is IEnumerable<Dictionary<string, object?>> measuresRows) || !measuresRows.Any())
-        {
-            return new List<Dictionary<string, object?>>();
-        }
+            _logger.LogDebug("Executing ListMeasures query: {Query}", daxQuery);
+            var result = await _tabularConnection.ExecAsync(daxQuery, QueryType.DAX);
+            _logger.LogDebug("Successfully executed ListMeasures");
 
-        // Get all tables to map TableID to TableName
-        var tablesDmv = "SELECT [ID], [Name] FROM $SYSTEM.TMSCHEMA_TABLES";
-        var tablesResult = await _tabularConnection.ExecAsync(tablesDmv, QueryType.DMV);
-        
-        var tableNameLookup = new Dictionary<string, string>();
-        if (tablesResult is IEnumerable<Dictionary<string, object?>> tablesRows)
-        {
-            foreach (var tableRow in tablesRows)
-            {
-                var tableId = tableRow["ID"]?.ToString();
-                var tableName2 = tableRow["Name"]?.ToString();
-                if (!string.IsNullOrEmpty(tableId) && !string.IsNullOrEmpty(tableName2))
-                {
-                    tableNameLookup[tableId] = tableName2;
-                }
-            }
+            return result;
         }
-
-        // Combine measures with table names
-        var enrichedMeasures = new List<Dictionary<string, object?>>();
-        foreach (var measureRow in measuresRows)
+        catch (Exception ex)
         {
-            var enrichedMeasure = new Dictionary<string, object?>(measureRow);
-            var tableId = measureRow["TableID"]?.ToString();
-            if (!string.IsNullOrEmpty(tableId) && tableNameLookup.TryGetValue(tableId, out var tableNameValue))
-            {
-                enrichedMeasure["TableName"] = tableNameValue;
-            }
-            else
-            {
-                enrichedMeasure["TableName"] = "Unknown";
-            }
-            enrichedMeasures.Add(enrichedMeasure);
+            _logger.LogError(ex, "Error in ListMeasures for tableName: {TableName}", tableName);
+            throw new Exception($"Failed to list measures: {ex.Message}", ex);
         }
-
-        return enrichedMeasures;
     }
 
     [McpServerTool, Description("Get details for a specific measure by name.")]
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
     public async Task<object> GetMeasureDetails(
-        [Description("Name of the measure to get details for")] string measureName) // Removed static
+        [Description("Name of the measure to get details for")] string measureName)
 #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     {
-        if (!DaxSecurityUtils.IsValidIdentifier(measureName))
-            throw new ArgumentException("Invalid measure name format", nameof(measureName));
-        
-        // var tabular = CreateConnection(); // Replaced
-        var escapedMeasureName = DaxSecurityUtils.EscapeDaxIdentifier(measureName);
-        var dmv = $"SELECT * FROM $SYSTEM.TMSCHEMA_MEASURES WHERE [NAME] = {escapedMeasureName}";
-        var result = await _tabularConnection.ExecAsync(dmv, QueryType.DMV); // Use injected _tabularConnection
-        return result;
+        try
+        {
+            if (!DaxSecurityUtils.IsValidIdentifier(measureName))
+                throw new ArgumentException("Invalid measure name format", nameof(measureName));
+
+            _logger.LogDebug("Starting GetMeasureDetails for measure: {MeasureName}", measureName);
+
+            // For string comparison in DAX, we need double quotes, not single quotes
+            var escapedMeasureName = $"\"{measureName.Replace("\"", "\"\"")}\"";
+            var daxQuery = $"EVALUATE FILTER(INFO.VIEW.MEASURES(), [Name] = {escapedMeasureName})";
+
+            _logger.LogDebug("Executing INFO.VIEW.MEASURES query: {Query}", daxQuery);
+            var result = await _tabularConnection.ExecAsync(daxQuery, QueryType.DAX);
+            _logger.LogDebug("Successfully executed GetMeasureDetails for measure: {MeasureName}", measureName);
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetMeasureDetails for measure: {MeasureName}", measureName);
+            throw new Exception($"Failed to get details for measure '{measureName}': {ex.Message}", ex);
+        }
     }
 
     [McpServerTool, Description("List all tables in the model.")]
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
-    public async Task<object> ListTables() // Removed static
+    public async Task<object> ListTables()
 #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     {
-        // var tabular = CreateConnection(); // Replaced
-        var dmv = "SELECT * FROM $SYSTEM.TMSCHEMA_TABLES";
-        var result = await _tabularConnection.ExecAsync(dmv, QueryType.DMV); // Use injected _tabularConnection
-        return result;
+        try
+        {
+            _logger.LogDebug("Starting ListTables");
+
+            var daxQuery = "EVALUATE INFO.VIEW.TABLES()";
+
+            _logger.LogDebug("Executing INFO.VIEW.TABLES query: {Query}", daxQuery);
+            var result = await _tabularConnection.ExecAsync(daxQuery, QueryType.DAX);
+            _logger.LogDebug("Successfully executed ListTables");
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in ListTables");
+            throw new Exception($"Failed to list tables: {ex.Message}", ex);
+        }
     }
 
     [McpServerTool, Description("Get details for a specific table by name.")]
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
     public async Task<object> GetTableDetails(
-        [Description("Name of the table to get details for")] string tableName) // Removed static
+        [Description("Name of the table to get details for")] string tableName)
 #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     {
-        if (!DaxSecurityUtils.IsValidIdentifier(tableName))
-            throw new ArgumentException("Invalid table name format", nameof(tableName));
-        
-        // var tabular = CreateConnection(); // Replaced
-        var escapedTableName = DaxSecurityUtils.EscapeDaxIdentifier(tableName);
-        var dmv = $"SELECT * FROM $SYSTEM.TMSCHEMA_TABLES WHERE [NAME] = {escapedTableName}";
-        var result = await _tabularConnection.ExecAsync(dmv, QueryType.DMV); // Use injected _tabularConnection
-        return result;
+        try
+        {
+            if (!DaxSecurityUtils.IsValidIdentifier(tableName))
+                throw new ArgumentException("Invalid table name format", nameof(tableName));
+
+            _logger.LogDebug("Starting GetTableDetails for table: {TableName}", tableName);
+
+            // For string comparison in DAX, we need double quotes, not single quotes
+            var escapedTableName = $"\"{tableName.Replace("\"", "\"\"")}\"";
+            var daxQuery = $"EVALUATE FILTER(INFO.VIEW.TABLES(), [Name] = {escapedTableName})";
+
+            _logger.LogDebug("Executing INFO.VIEW.TABLES query: {Query}", daxQuery);
+            var result = await _tabularConnection.ExecAsync(daxQuery, QueryType.DAX);
+            _logger.LogDebug("Successfully executed GetTableDetails for table: {TableName}", tableName);
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetTableDetails for table: {TableName}", tableName);
+            throw new Exception($"Failed to get details for table '{tableName}': {ex.Message}", ex);
+        }
     }
 
     [McpServerTool, Description("Get columns for a specific table by name.")]
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
     public async Task<object> GetTableColumns(
-        [Description("Name of the table to get columns for")] string tableName) // Removed static
+        [Description("Name of the table to get columns for")] string tableName)
 #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     {
-        if (!DaxSecurityUtils.IsValidIdentifier(tableName))
-            throw new ArgumentException("Invalid table name format", nameof(tableName));
-        
-        // var tabular = CreateConnection(); // Replaced
-        var escapedTableName = DaxSecurityUtils.EscapeDaxIdentifier(tableName);
-        var tableIdQuery = $"SELECT [ID] FROM $SYSTEM.TMSCHEMA_TABLES WHERE [NAME] = {escapedTableName}";
-        var tableIdResult = await _tabularConnection.ExecAsync(tableIdQuery, QueryType.DMV); // Use injected _tabularConnection
-        var tableId = tableIdResult is IEnumerable<Dictionary<string, object?>> rows && rows.Any()
-            ? rows.First()["ID"]?.ToString()
-            : null;
+        try
+        {
+            if (!DaxSecurityUtils.IsValidIdentifier(tableName))
+                throw new ArgumentException("Invalid table name format", nameof(tableName));
 
-        if (string.IsNullOrEmpty(tableId))
-            throw new Exception($"Table ID not found for table '{tableName}'");
+            _logger.LogDebug("Starting GetTableColumns for table: {TableName}", tableName);
 
-        var dmv = $"SELECT * FROM $SYSTEM.TMSCHEMA_COLUMNS WHERE [TABLEID] = '{tableId}'";
-        var result = await _tabularConnection.ExecAsync(dmv, QueryType.DMV); // Use injected _tabularConnection
-        return result;
+            // For string comparison in DAX, we need double quotes, not single quotes
+            var escapedTableName = $"\"{tableName.Replace("\"", "\"\"")}\"";
+            var daxQuery = $"EVALUATE FILTER(INFO.VIEW.COLUMNS(), [Table] = {escapedTableName})";
+
+            _logger.LogDebug("Executing INFO.VIEW.COLUMNS query: {Query}", daxQuery);
+            var result = await _tabularConnection.ExecAsync(daxQuery, QueryType.DAX);
+            _logger.LogDebug("Successfully executed GetTableColumns for table: {TableName}", tableName);
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetTableColumns for table: {TableName}", tableName);
+            throw new Exception($"Failed to get columns for table '{tableName}': {ex.Message}", ex);
+        }
     }
 
     [McpServerTool, Description("Get relationships for a specific table by name.")]
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
     public async Task<object> GetTableRelationships(
-        [Description("Name of the table to get relationships for")] string tableName) // Removed static
+        [Description("Name of the table to get relationships for")] string tableName)
 #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     {
-        if (!DaxSecurityUtils.IsValidIdentifier(tableName))
-            throw new ArgumentException("Invalid table name format", nameof(tableName));
-        
-        // var tabular = CreateConnection(); // Replaced
-        var escapedTableName = DaxSecurityUtils.EscapeDaxIdentifier(tableName);
-        var tableIdQuery = $"SELECT [ID] FROM $SYSTEM.TMSCHEMA_TABLES WHERE [NAME] = {escapedTableName}";
-        var tableIdResult = await _tabularConnection.ExecAsync(tableIdQuery, QueryType.DMV); // Use injected _tabularConnection
-        var tableId = tableIdResult is IEnumerable<Dictionary<string, object?>> rows && rows.Any()
-            ? rows.First()["ID"]?.ToString()
-            : null;
+        try
+        {
+            if (!DaxSecurityUtils.IsValidIdentifier(tableName))
+                throw new ArgumentException("Invalid table name format", nameof(tableName));
 
-        if (string.IsNullOrEmpty(tableId))
-            throw new Exception($"Table ID not found for table '{tableName}'");
+            _logger.LogDebug("Starting GetTableRelationships for table: {TableName}", tableName);
 
-        var dmv = $"SELECT * FROM $SYSTEM.TMSCHEMA_RELATIONSHIPS WHERE [FROMTABLEID] = '{tableId}' OR [TOTABLEID] = '{tableId}'";
-        var result = await _tabularConnection.ExecAsync(dmv, QueryType.DMV); // Use injected _tabularConnection
-        return result;
+            // For string comparison in DAX, we need double quotes, not single quotes
+            var escapedTableName = $"\"{tableName.Replace("\"", "\"\"")}\"";
+            var daxQuery = $"EVALUATE FILTER(INFO.VIEW.RELATIONSHIPS(), [FromTable] = {escapedTableName} || [ToTable] = {escapedTableName})";
+
+            _logger.LogDebug("Executing INFO.VIEW.RELATIONSHIPS query: {Query}", daxQuery);
+            var result = await _tabularConnection.ExecAsync(daxQuery, QueryType.DAX);
+            _logger.LogDebug("Successfully executed GetTableRelationships for table: {TableName}", tableName);
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetTableRelationships for table: {TableName}", tableName);
+            throw new Exception($"Failed to get relationships for table '{tableName}': {ex.Message}", ex);
+        }
     }
 
     [McpServerTool, Description("Preview data from a table (top N rows).")]
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
     public async Task<object> PreviewTableData(
         [Description("Name of the table to preview data for")] string tableName,
-        [Description("Maximum number of rows to return (default: 10)")] int topN = 10) // Removed static
+        [Description("Maximum number of rows to return (default: 10)")] int topN = 10)
 #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     {
         if (!DaxSecurityUtils.IsValidIdentifier(tableName))
             throw new ArgumentException("Invalid table name format", nameof(tableName));
-        
-        // var tabular = CreateConnection(); // Replaced
+
         var escapedTableName = DaxSecurityUtils.EscapeDaxIdentifier(tableName);
         var dax = $"EVALUATE TOPN({topN}, {escapedTableName})";
-        var result = await _tabularConnection.ExecAsync(dax); // Use injected _tabularConnection
+        var result = await _tabularConnection.ExecAsync(dax);
         return result;
     }
 
@@ -236,14 +251,14 @@ public class DaxTools // Changed from static class
     [McpServerTool, Description("Execute a DAX query. Supports complete DAX queries with DEFINE blocks, EVALUATE statements, or simple expressions.")]
     public async Task<object> RunQuery(
         [Description("The DAX query to execute. Can be a complete query with DEFINE block, an EVALUATE statement, or a simple expression.")] string dax,
-        [Description("Maximum number of rows to return for table expressions (default: 10). Ignored for complete queries.")] int topN = 10) // Removed static
+        [Description("Maximum number of rows to return for table expressions (default: 10). Ignored for complete queries.")] int topN = 10)
     {
         string originalDax = dax;
-        
+
         try
         {
             _logger.LogDebug("Starting RunQuery execution for query: {Query}", originalDax?.Substring(0, Math.Min(100, originalDax?.Length ?? 0)));
-            
+
             // Input validation
             if (string.IsNullOrWhiteSpace(dax))
             {
@@ -253,7 +268,7 @@ public class DaxTools // Changed from static class
             }
 
             string query = dax.Trim();
-            
+
             // Pre-execution validation with detailed error reporting
             var validationErrors = ValidateQuerySyntax(query);
             if (validationErrors.Any())
@@ -281,7 +296,7 @@ public class DaxTools // Changed from static class
             // Determine query type and construct final query
             string finalQuery;
             QueryType queryType;
-            
+
             if (query.StartsWith("DEFINE", StringComparison.OrdinalIgnoreCase))
             {
                 finalQuery = query;
@@ -324,7 +339,7 @@ public class DaxTools // Changed from static class
                 // Log detailed execution error information
                 _logger.LogError(execEx, "Query execution failed. Original: {OriginalQuery}, Final: {FinalQuery}, QueryType: {QueryType}",
                     originalDax, finalQuery, queryType);
-                
+
                 // Re-throw with preserved stack trace and enhanced context
                 throw new Exception(
                     $"DAX query execution failed: {execEx.Message}\n\n" +
@@ -343,7 +358,7 @@ public class DaxTools // Changed from static class
         {
             // Log unexpected errors and wrap with context
             _logger.LogError(ex, "Unexpected error in RunQuery for query: {Query}", originalDax);
-            
+
             // Don't wrap in McpException to avoid serialization issues
             throw new Exception($"An unexpected error occurred while executing the DAX query: {ex.Message}\n\nOriginal Query:\n{originalDax}", ex);
         }
@@ -357,7 +372,7 @@ public class DaxTools // Changed from static class
     private static List<string> ValidateQuerySyntax(string query)
     {
         var errors = new List<string>();
-        
+
         if (string.IsNullOrWhiteSpace(query))
         {
             errors.Add("Query cannot be empty");
@@ -404,9 +419,9 @@ public class DaxTools // Changed from static class
             if (normalizedQuery.Contains("DEFINE", StringComparison.OrdinalIgnoreCase))
             {
                 int definePos = normalizedQuery.IndexOf("DEFINE", StringComparison.OrdinalIgnoreCase);
-                int evaluatePos = normalizedQuery.IndexOf("EVALUATE", StringComparison.OrdinalIgnoreCase); 
+                int evaluatePos = normalizedQuery.IndexOf("EVALUATE", StringComparison.OrdinalIgnoreCase);
 
-                if (evaluatePos != -1 && definePos > evaluatePos) 
+                if (evaluatePos != -1 && definePos > evaluatePos)
                 {
                     errors.Add("DEFINE statement must come before any EVALUATE statement.");
                 }
@@ -416,14 +431,14 @@ public class DaxTools // Changed from static class
                 {
                     errors.Add("Only one DEFINE block is allowed in a DAX query.");
                 }
-                
+
                 var defineContentMatch = System.Text.RegularExpressions.Regex.Match(
                     normalizedQuery,
                     @"\bDEFINE\b\s*(?:MEASURE|VAR|TABLE|COLUMN)\s+",
                     System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline
                 );
 
-                if (!defineContentMatch.Success) 
+                if (!defineContentMatch.Success)
                 {
                     var defineBlockContentPattern = @"\bDEFINE\b(.*?)(?=\bEVALUATE\b|$)";
                     var defineBlockMatch = System.Text.RegularExpressions.Regex.Match(normalizedQuery, defineBlockContentPattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline);
@@ -431,7 +446,7 @@ public class DaxTools // Changed from static class
                     {
                         errors.Add("DEFINE block must contain at least one definition (MEASURE, VAR, TABLE, or COLUMN).");
                     }
-                    else if (defineBlockMatch.Success) 
+                    else if (defineBlockMatch.Success)
                     {
                         string defineContent = defineBlockMatch.Groups[1].Value.Trim();
                         if (!string.IsNullOrEmpty(defineContent) &&
@@ -461,7 +476,7 @@ public class DaxTools // Changed from static class
     {
         var normalized = System.Text.RegularExpressions.Regex.Replace(query, @"\r\n?|\n", "\n");
         normalized = NormalizeWhitespacePreservingStrings(normalized);
-        return normalized.Trim(); 
+        return normalized.Trim();
     }
 
     /// <summary>
@@ -472,7 +487,7 @@ public class DaxTools // Changed from static class
     {
         var result = new System.Text.StringBuilder();
         bool inString = false;
-        char stringDelimiter = '"'; 
+        char stringDelimiter = '"';
         bool lastCharWasWhitespace = false;
 
         for (int i = 0; i < input.Length; i++)
@@ -481,12 +496,12 @@ public class DaxTools // Changed from static class
 
             if (!inString && (c == '"' || c == '\''))
             {
-                if (c == '\'' && i + 1 < input.Length && input[i+1] == '\'')
+                if (c == '\'' && i + 1 < input.Length && input[i + 1] == '\'')
                 {
                 }
 
 
-                if (c == '"') 
+                if (c == '"')
                 {
                     inString = true;
                     stringDelimiter = c;
@@ -497,11 +512,11 @@ public class DaxTools // Changed from static class
             }
             else if (inString && c == stringDelimiter)
             {
-                if (c == '"' && i + 1 < input.Length && input[i+1] == '"')
+                if (c == '"' && i + 1 < input.Length && input[i + 1] == '"')
                 {
-                    result.Append(c); 
-                    result.Append(input[i+1]); 
-                    i++; 
+                    result.Append(c);
+                    result.Append(input[i + 1]);
+                    i++;
                     lastCharWasWhitespace = false;
                     continue;
                 }
@@ -545,7 +560,7 @@ public class DaxTools // Changed from static class
     {
         int balance = 0;
         bool inString = false;
-        char stringDelimiter = '\0'; 
+        char stringDelimiter = '\0';
 
         for (int i = 0; i < query.Length; i++)
         {
@@ -557,7 +572,7 @@ public class DaxTools // Changed from static class
                 {
                     if (i + 1 < query.Length && query[i + 1] == stringDelimiter)
                     {
-                        i++; 
+                        i++;
                     }
                     else
                     {
@@ -583,7 +598,7 @@ public class DaxTools // Changed from static class
                     if (balance < 0)
                     {
                         errors.Add($"DAX query has unbalanced {delimiterName}: extra '{closeChar}' found.");
-                        return; 
+                        return;
                     }
                 }
             }
@@ -604,7 +619,7 @@ public class DaxTools // Changed from static class
     private static void CheckBalancedQuotes(string query, List<string> errors) // Kept static
     {
         bool inDoubleQuoteString = false;
-        bool inSingleQuoteIdentifier = false; 
+        bool inSingleQuoteIdentifier = false;
 
         for (int i = 0; i < query.Length; i++)
         {
@@ -612,11 +627,11 @@ public class DaxTools // Changed from static class
 
             if (c == '"')
             {
-                if (inSingleQuoteIdentifier) continue; 
+                if (inSingleQuoteIdentifier) continue;
 
                 if (i + 1 < query.Length && query[i + 1] == '"')
                 {
-                    i++; 
+                    i++;
                 }
                 else
                 {
@@ -625,7 +640,7 @@ public class DaxTools // Changed from static class
             }
             else if (c == '\'')
             {
-                if (inDoubleQuoteString) continue; 
+                if (inDoubleQuoteString) continue;
                 inSingleQuoteIdentifier = !inSingleQuoteIdentifier;
             }
         }
@@ -663,7 +678,7 @@ public class DaxTools // Changed from static class
         try
         {
             query = query.Trim();
-            
+
             // Check if the query is a table expression
             bool isCoreQueryTableExpr = IsTableExpression(query);
 
@@ -767,7 +782,7 @@ public class DaxTools // Changed from static class
             // Try to execute a simple validation query
             bool executionValid = false;
             string executionError = "";
-            
+
             try
             {
                 var testQuery = $"EVALUATE ROW(\"ValidationTest\", {daxExpression})";
@@ -840,7 +855,7 @@ public class DaxTools // Changed from static class
             // Analyze query structure and complexity
             var complexityAnalysis = AnalyzeQueryStructure(daxQuery);
             var performanceMetrics = CalculatePerformanceMetrics(daxQuery, executionTime, executionSuccessful);
-            
+
             var optimizationSuggestions = new List<string>();
             if (includeOptimizations)
             {
@@ -943,7 +958,7 @@ public class DaxTools // Changed from static class
         var calculateCount = System.Text.RegularExpressions.Regex.Matches(expression, @"\bCALCULATE\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Count;
 
         var complexityScore = (functionCount * 2) + (nestedLevels * 3) + (filterCount * 4) + (calculateCount * 2);
-        
+
         string level = complexityScore switch
         {
             <= 5 => "Low",
