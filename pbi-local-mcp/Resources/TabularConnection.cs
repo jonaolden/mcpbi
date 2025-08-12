@@ -140,7 +140,7 @@ public class TabularConnection : ITabularConnection, IDisposable
             _logger.LogError(ex, "Error executing {QueryType} query: {Query}", queryType, query);
             
             // Create enhanced error message with query details for better error reporting
-            var enhancedMessage = CreateEnhancedErrorMessage(ex, query, queryType);
+            var enhancedMessage = DaxTools.CreateDetailedErrorMessage(ex, query, query, queryType);
             
             // Use standard Exception instead of McpException for application-level database errors
             // McpException is only for MCP protocol-level errors, not database query failures
@@ -190,7 +190,7 @@ public class TabularConnection : ITabularConnection, IDisposable
             _logger.LogError(ex, "Error executing {QueryType} query: {Query}", queryType, query);
             
             // Create enhanced error message with query details for better error reporting
-            var enhancedMessage = CreateEnhancedErrorMessage(ex, query, queryType);
+            var enhancedMessage = DaxTools.CreateDetailedErrorMessage(ex, query, query, queryType);
             
             // Use standard Exception instead of McpException for application-level database errors
             // McpException is only for MCP protocol-level errors, not database query failures
@@ -436,18 +436,5 @@ public class TabularConnection : ITabularConnection, IDisposable
         return new TabularConnection(logger, port, selectedDatabase);
     }
 
-    /// <summary>
-    /// Creates an enhanced error message that includes query details for better error reporting through MCP protocol
-    /// </summary>
-    /// <param name="originalException">The original exception that occurred</param>
-    /// <param name="query">The query that caused the exception</param>
-    /// <param name="queryType">The type of query (DAX or DMV)</param>
-    /// <returns>Enhanced error message with query context</returns>
-    private static string CreateEnhancedErrorMessage(Exception originalException, string query, QueryType queryType)
-    {
-        var queryTypeStr = queryType == QueryType.DAX ? "DAX" : "DMV";
-        var truncatedQuery = query.Length > 200 ? query.Substring(0, 200) + "..." : query;
-        
-        return $"{queryTypeStr} Query Error: {originalException.Message}\n\nQuery Type: {queryTypeStr}\nQuery: {truncatedQuery}";
-    }
+
 }

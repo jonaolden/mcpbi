@@ -543,48 +543,74 @@ namespace pbi_local_mcp.Tests
         }
 
         /// <summary>
-        /// Tests that RunQuery throws an ArgumentException when a DEFINE query is missing an EVALUATE statement.
+        /// Tests that RunQuery returns structured error response when a DEFINE query is missing an EVALUATE statement.
         /// </summary>
         [Fact]
-        public async Task RunQuery_DefineWithoutEvaluate_ThrowsArgumentException()
+        public async Task RunQuery_DefineWithoutEvaluate_ReturnsStructuredErrorResponse()
         {
-            Console.WriteLine("\n[RunQuery_DefineWithoutEvaluate_ThrowsArgumentException] Testing DEFINE without EVALUATE");
+            Console.WriteLine("\n[RunQuery_DefineWithoutEvaluate_ReturnsStructuredErrorResponse] Testing DEFINE without EVALUATE");
             string invalidDax = "DEFINE MEASURE Sales[Total] = SUM(Sales[Amount])"; 
 
-            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
-                await _daxTools.RunQuery(invalidDax, 0)); // Changed to instance call
-            Assert.Contains("DAX query must contain at least one EVALUATE statement.", exception.Message);
-            Console.WriteLine("[RunQuery_DefineWithoutEvaluate_ThrowsArgumentException] Correctly threw exception.");
+            var result = await _daxTools.RunQuery(invalidDax, 0);
+            
+            // Verify structured error response
+            Assert.NotNull(result);
+            var resultType = result.GetType();
+            var successProperty = resultType.GetProperty("Success");
+            Assert.NotNull(successProperty);
+            Assert.False((bool)successProperty.GetValue(result)!);
+            
+            var errorCategoryProperty = resultType.GetProperty("ErrorCategory");
+            Assert.NotNull(errorCategoryProperty);
+            Assert.Equal("validation", errorCategoryProperty.GetValue(result));
+            
+            Console.WriteLine("[RunQuery_DefineWithoutEvaluate_ReturnsStructuredErrorResponse] Correctly returned structured error response.");
         }
 
         /// <summary>
-        /// Tests that RunQuery throws an ArgumentException for unbalanced parentheses.
+        /// Tests that RunQuery returns structured error response for unbalanced parentheses.
         /// </summary>
         [Fact]
-        public async Task RunQuery_UnbalancedParentheses_ThrowsArgumentException()
+        public async Task RunQuery_UnbalancedParentheses_ReturnsStructuredErrorResponse()
         {
-            Console.WriteLine("\n[RunQuery_UnbalancedParentheses_ThrowsArgumentException] Testing unbalanced parentheses");
+            Console.WriteLine("\n[RunQuery_UnbalancedParentheses_ReturnsStructuredErrorResponse] Testing unbalanced parentheses");
             string invalidDax = "DEFINE VAR X = (1 + 2 EVALUATE {X}"; 
 
-            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
-                await _daxTools.RunQuery(invalidDax, 0)); // Changed to instance call
-            Assert.Contains("unbalanced parentheses", exception.Message);
-            Console.WriteLine("[RunQuery_UnbalancedParentheses_ThrowsArgumentException] Correctly threw exception.");
+            var result = await _daxTools.RunQuery(invalidDax, 0);
+            
+            // Verify structured error response
+            Assert.NotNull(result);
+            var resultType = result.GetType();
+            var successProperty = resultType.GetProperty("Success");
+            Assert.NotNull(successProperty);
+            Assert.False((bool)successProperty.GetValue(result)!);
+            
+            Console.WriteLine("[RunQuery_UnbalancedParentheses_ReturnsStructuredErrorResponse] Correctly returned structured error response.");
         }
 
         /// <summary>
-        /// Tests that RunQuery throws an ArgumentException for unbalanced brackets.
+        /// Tests that RunQuery returns structured error response for unbalanced brackets.
         /// </summary>
         [Fact]
-        public async Task RunQuery_UnbalancedBrackets_ThrowsArgumentException()
+        public async Task RunQuery_UnbalancedBrackets_ReturnsStructuredErrorResponse()
         {
-            Console.WriteLine("\n[RunQuery_UnbalancedBrackets_ThrowsArgumentException] Testing unbalanced brackets");
+            Console.WriteLine("\n[RunQuery_UnbalancedBrackets_ReturnsStructuredErrorResponse] Testing unbalanced brackets");
             string invalidDax = "DEFINE MEASURE Sales[Total = SUM(Sales[Amount]) EVALUATE {1}"; 
 
-            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
-                await _daxTools.RunQuery(invalidDax, 0)); // Changed to instance call
-            Assert.Contains("unbalanced brackets", exception.Message);
-            Console.WriteLine("[RunQuery_UnbalancedBrackets_ThrowsArgumentException] Correctly threw exception.");
+            var result = await _daxTools.RunQuery(invalidDax, 0);
+            
+            // Verify structured error response
+            Assert.NotNull(result);
+            var resultType = result.GetType();
+            var successProperty = resultType.GetProperty("Success");
+            Assert.NotNull(successProperty);
+            Assert.False((bool)successProperty.GetValue(result)!);
+            
+            var errorCategoryProperty = resultType.GetProperty("ErrorCategory");
+            Assert.NotNull(errorCategoryProperty);
+            Assert.Equal("validation", errorCategoryProperty.GetValue(result));
+            
+            Console.WriteLine("[RunQuery_UnbalancedBrackets_ReturnsStructuredErrorResponse] Correctly returned structured error response.");
         }
 
         /// <summary>
@@ -622,109 +648,189 @@ namespace pbi_local_mcp.Tests
         }
 
         [Fact]
-        public async Task RunQuery_MultipleDefineBlocks_ThrowsArgumentException()
+        public async Task RunQuery_MultipleDefineBlocks_ReturnsStructuredErrorResponse()
         {
-            Console.WriteLine("\n[RunQuery_MultipleDefineBlocks_ThrowsArgumentException] Testing multiple DEFINE blocks");
+            Console.WriteLine("\n[RunQuery_MultipleDefineBlocks_ReturnsStructuredErrorResponse] Testing multiple DEFINE blocks");
             string invalidDax = @"
                 DEFINE MEASURE Sales[Total] = SUM(Sales[Amount])
                 DEFINE VAR X = 1
                 EVALUATE {X}";
 
-            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
-                await _daxTools.RunQuery(invalidDax, 0)); // Changed to instance call
-            Assert.Contains("Only one DEFINE block is allowed in a DAX query.", exception.Message);
-            Console.WriteLine("[RunQuery_MultipleDefineBlocks_ThrowsArgumentException] Correctly threw exception.");
+            var result = await _daxTools.RunQuery(invalidDax, 0);
+            
+            // Verify structured error response
+            Assert.NotNull(result);
+            var resultType = result.GetType();
+            var successProperty = resultType.GetProperty("Success");
+            Assert.NotNull(successProperty);
+            Assert.False((bool)successProperty.GetValue(result)!);
+            
+            var errorCategoryProperty = resultType.GetProperty("ErrorCategory");
+            Assert.NotNull(errorCategoryProperty);
+            Assert.Equal("validation", errorCategoryProperty.GetValue(result));
+            
+            Console.WriteLine("[RunQuery_MultipleDefineBlocks_ReturnsStructuredErrorResponse] Correctly returned structured error response.");
         }
 
         [Fact]
-        public async Task RunQuery_DefineAfterEvaluate_ThrowsArgumentException()
+        public async Task RunQuery_DefineAfterEvaluate_ReturnsStructuredErrorResponse()
         {
-            Console.WriteLine("\n[RunQuery_DefineAfterEvaluate_ThrowsArgumentException] Testing DEFINE after EVALUATE");
+            Console.WriteLine("\n[RunQuery_DefineAfterEvaluate_ReturnsStructuredErrorResponse] Testing DEFINE after EVALUATE");
             string invalidDax = @"
                 EVALUATE {1}
                 DEFINE MEASURE Sales[Total] = SUM(Sales[Amount])";
             
-            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
-                await _daxTools.RunQuery(invalidDax, 0)); // Changed to instance call
-            Assert.Contains("DEFINE statement must come before any EVALUATE statement.", exception.Message);
-            Console.WriteLine("[RunQuery_DefineAfterEvaluate_ThrowsArgumentException] Correctly threw exception.");
+            var result = await _daxTools.RunQuery(invalidDax, 0);
+            
+            // Verify structured error response
+            Assert.NotNull(result);
+            var resultType = result.GetType();
+            var successProperty = resultType.GetProperty("Success");
+            Assert.NotNull(successProperty);
+            Assert.False((bool)successProperty.GetValue(result)!);
+            
+            var errorCategoryProperty = resultType.GetProperty("ErrorCategory");
+            Assert.NotNull(errorCategoryProperty);
+            Assert.Equal("validation", errorCategoryProperty.GetValue(result));
+            
+            Console.WriteLine("[RunQuery_DefineAfterEvaluate_ReturnsStructuredErrorResponse] Correctly returned structured error response.");
         }
 
         [Fact]
-        public async Task RunQuery_EmptyDefineBlock_ThrowsArgumentException()
+        public async Task RunQuery_EmptyDefineBlock_ReturnsStructuredErrorResponse()
         {
-            Console.WriteLine("\n[RunQuery_EmptyDefineBlock_ThrowsArgumentException] Testing empty DEFINE block");
+            Console.WriteLine("\n[RunQuery_EmptyDefineBlock_ReturnsStructuredErrorResponse] Testing empty DEFINE block");
             string invalidDax = @"
                 DEFINE
                 EVALUATE {1}";
 
-            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
-                await _daxTools.RunQuery(invalidDax, 0)); // Changed to instance call
-            Assert.Contains("DEFINE block must contain at least one definition (MEASURE, VAR, TABLE, or COLUMN).", exception.Message);
-            Console.WriteLine("[RunQuery_EmptyDefineBlock_ThrowsArgumentException] Correctly threw exception.");
+            var result = await _daxTools.RunQuery(invalidDax, 0);
+            
+            // Verify structured error response
+            Assert.NotNull(result);
+            var resultType = result.GetType();
+            var successProperty = resultType.GetProperty("Success");
+            Assert.NotNull(successProperty);
+            Assert.False((bool)successProperty.GetValue(result)!);
+            
+            var errorCategoryProperty = resultType.GetProperty("ErrorCategory");
+            Assert.NotNull(errorCategoryProperty);
+            Assert.Equal("validation", errorCategoryProperty.GetValue(result));
+            
+            Console.WriteLine("[RunQuery_EmptyDefineBlock_ReturnsStructuredErrorResponse] Correctly returned structured error response.");
         }
         
         [Fact]
-        public async Task RunQuery_DefineBlockWithNoValidDefinition_ThrowsArgumentException()
+        public async Task RunQuery_DefineBlockWithNoValidDefinition_ReturnsStructuredErrorResponse()
         {
-            Console.WriteLine("\n[RunQuery_DefineBlockWithNoValidDefinition_ThrowsArgumentException] Testing DEFINE block with no valid definition keyword");
+            Console.WriteLine("\n[RunQuery_DefineBlockWithNoValidDefinition_ReturnsStructuredErrorResponse] Testing DEFINE block with no valid definition keyword");
             string invalidDax = @"
                 DEFINE
                   MyVar = 10  // Missing VAR keyword
                 EVALUATE {1}";
 
-            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
-                await _daxTools.RunQuery(invalidDax, 0)); // Changed to instance call
-            Assert.Contains("DEFINE block must contain at least one valid definition (MEASURE, VAR, TABLE, or COLUMN).", exception.Message);
-            Console.WriteLine("[RunQuery_DefineBlockWithNoValidDefinition_ThrowsArgumentException] Correctly threw exception.");
+            var result = await _daxTools.RunQuery(invalidDax, 0);
+            
+            // Verify structured error response
+            Assert.NotNull(result);
+            var resultType = result.GetType();
+            var successProperty = resultType.GetProperty("Success");
+            Assert.NotNull(successProperty);
+            Assert.False((bool)successProperty.GetValue(result)!);
+            
+            var errorCategoryProperty = resultType.GetProperty("ErrorCategory");
+            Assert.NotNull(errorCategoryProperty);
+            Assert.Equal("validation", errorCategoryProperty.GetValue(result));
+            
+            Console.WriteLine("[RunQuery_DefineBlockWithNoValidDefinition_ReturnsStructuredErrorResponse] Correctly returned structured error response.");
         }
 
         [Fact]
-        public async Task RunQuery_UnbalancedSingleQuotes_ThrowsArgumentException()
+        public async Task RunQuery_UnbalancedSingleQuotes_ReturnsStructuredErrorResponse()
         {
-            Console.WriteLine("\n[RunQuery_UnbalancedSingleQuotes_ThrowsArgumentException] Testing unbalanced single quotes");
+            Console.WriteLine("\n[RunQuery_UnbalancedSingleQuotes_ReturnsStructuredErrorResponse] Testing unbalanced single quotes");
             string invalidDax = "EVALUATE 'Sales[Amount]"; 
 
-            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
-                await _daxTools.RunQuery(invalidDax, 0)); // Changed to instance call
-            Assert.Contains("DAX query has unbalanced single quotes", exception.Message);
-            Console.WriteLine("[RunQuery_UnbalancedSingleQuotes_ThrowsArgumentException] Correctly threw exception.");
+            var result = await _daxTools.RunQuery(invalidDax, 0);
+            
+            // Verify structured error response
+            Assert.NotNull(result);
+            var resultType = result.GetType();
+            var successProperty = resultType.GetProperty("Success");
+            Assert.NotNull(successProperty);
+            Assert.False((bool)successProperty.GetValue(result)!);
+            
+            var errorCategoryProperty = resultType.GetProperty("ErrorCategory");
+            Assert.NotNull(errorCategoryProperty);
+            Assert.Equal("validation", errorCategoryProperty.GetValue(result));
+            
+            Console.WriteLine("[RunQuery_UnbalancedSingleQuotes_ReturnsStructuredErrorResponse] Correctly returned structured error response.");
         }
 
         [Fact]
-        public async Task RunQuery_UnbalancedDoubleQuotes_ThrowsArgumentException()
+        public async Task RunQuery_UnbalancedDoubleQuotes_ReturnsStructuredErrorResponse()
         {
-            Console.WriteLine("\n[RunQuery_UnbalancedDoubleQuotes_ThrowsArgumentException] Testing unbalanced double quotes");
+            Console.WriteLine("\n[RunQuery_UnbalancedDoubleQuotes_ReturnsStructuredErrorResponse] Testing unbalanced double quotes");
             string invalidDax = "EVALUATE ROW(\"Value\", \"Hello World)"; 
 
-            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
-                await _daxTools.RunQuery(invalidDax, 0)); // Changed to instance call
-            Assert.Contains("DAX query has unbalanced double quotes", exception.Message);
-            Console.WriteLine("[RunQuery_UnbalancedDoubleQuotes_ThrowsArgumentException] Correctly threw exception.");
+            var result = await _daxTools.RunQuery(invalidDax, 0);
+            
+            // Verify structured error response
+            Assert.NotNull(result);
+            var resultType = result.GetType();
+            var successProperty = resultType.GetProperty("Success");
+            Assert.NotNull(successProperty);
+            Assert.False((bool)successProperty.GetValue(result)!);
+            
+            var errorCategoryProperty = resultType.GetProperty("ErrorCategory");
+            Assert.NotNull(errorCategoryProperty);
+            Assert.Equal("validation", errorCategoryProperty.GetValue(result));
+            
+            Console.WriteLine("[RunQuery_UnbalancedDoubleQuotes_ReturnsStructuredErrorResponse] Correctly returned structured error response.");
         }
         
         [Fact]
-        public async Task RunQuery_QueryIsEmpty_ThrowsArgumentException()
+        public async Task RunQuery_QueryIsEmpty_ReturnsStructuredErrorResponse()
         {
-            Console.WriteLine("\n[RunQuery_QueryIsEmpty_ThrowsArgumentException] Testing empty query");
+            Console.WriteLine("\n[RunQuery_QueryIsEmpty_ReturnsStructuredErrorResponse] Testing empty query");
             string invalidDax = "";
 
-            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
-                await _daxTools.RunQuery(invalidDax, 0)); // Changed to instance call
-            Assert.Contains("DAX query cannot be null or empty", exception.Message);
-            Console.WriteLine("[RunQuery_QueryIsEmpty_ThrowsArgumentException] Correctly threw exception.");
+            var result = await _daxTools.RunQuery(invalidDax, 0);
+            
+            // Verify structured error response
+            Assert.NotNull(result);
+            var resultType = result.GetType();
+            var successProperty = resultType.GetProperty("Success");
+            Assert.NotNull(successProperty);
+            Assert.False((bool)successProperty.GetValue(result)!);
+            
+            var errorCategoryProperty = resultType.GetProperty("ErrorCategory");
+            Assert.NotNull(errorCategoryProperty);
+            Assert.Equal("validation", errorCategoryProperty.GetValue(result));
+            
+            Console.WriteLine("[RunQuery_QueryIsEmpty_ReturnsStructuredErrorResponse] Correctly returned structured error response.");
         }
 
         [Fact]
-        public async Task RunQuery_QueryIsWhitespace_ThrowsArgumentException()
+        public async Task RunQuery_QueryIsWhitespace_ReturnsStructuredErrorResponse()
         {
-            Console.WriteLine("\n[RunQuery_QueryIsWhitespace_ThrowsArgumentException] Testing whitespace query");
+            Console.WriteLine("\n[RunQuery_QueryIsWhitespace_ReturnsStructuredErrorResponse] Testing whitespace query");
             string invalidDax = "   \n\t   ";
 
-            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
-                await _daxTools.RunQuery(invalidDax, 0)); // Changed to instance call
-            Assert.Contains("DAX query cannot be null or empty", exception.Message);
-            Console.WriteLine("[RunQuery_QueryIsWhitespace_ThrowsArgumentException] Correctly threw exception.");
+            var result = await _daxTools.RunQuery(invalidDax, 0);
+            
+            // Verify structured error response
+            Assert.NotNull(result);
+            var resultType = result.GetType();
+            var successProperty = resultType.GetProperty("Success");
+            Assert.NotNull(successProperty);
+            Assert.False((bool)successProperty.GetValue(result)!);
+            
+            var errorCategoryProperty = resultType.GetProperty("ErrorCategory");
+            Assert.NotNull(errorCategoryProperty);
+            Assert.Equal("validation", errorCategoryProperty.GetValue(result));
+            
+            Console.WriteLine("[RunQuery_QueryIsWhitespace_ReturnsStructuredErrorResponse] Correctly returned structured error response.");
         }
 
         [Fact]
