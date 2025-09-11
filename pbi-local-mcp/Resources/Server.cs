@@ -4,11 +4,13 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.CommandLine;
 using System.Reflection;
+using System.IO;
+using System.Security.Cryptography;
 using ModelContextProtocol.Server;
+using Microsoft.AnalysisServices.AdomdClient;
 
 using pbi_local_mcp.Configuration;
 using pbi_local_mcp.Core;
-using Microsoft.AnalysisServices.AdomdClient;
 
 namespace pbi_local_mcp.Resources;
 
@@ -85,37 +87,33 @@ public class ServerConfigurator
             .WithStdioServerTransport()
             .WithToolsFromAssembly();
 
-        // Diagnostic reflection: enumerate attributed tool types & methods actually present in this assembly
+        // Startup banner (replaces prior temporary diagnostic reflection block)
         try
         {
-            var asm = typeof(DaxTools).Assembly;
-            var toolTypes = asm
-                .GetTypes()
-                .Where(t => t.GetCustomAttribute<McpServerToolTypeAttribute>() != null)
-                .ToList();
-
-            foreach (var tt in toolTypes)
+            var asm = typeof(ServerConfigurator).Assembly;
+            string version = asm.GetName().Version?.ToString() ?? "n/a";
+            string hash = "n/a";
+            try
             {
-                var toolMethods = tt
-                    .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static)
-                    .Where(m => m.GetCustomAttribute<McpServerToolAttribute>() != null)
-                    .Select(m => $"{m.Name}({string.Join(",", m.GetParameters().Select(p => p.ParameterType.Name))})")
-                    .ToList();
-
-                _logger.LogInformation("DIAGNOSTIC: ToolType {ToolType} MethodCount={Count} Methods={Methods}",
-                    tt.FullName, toolMethods.Count, string.Join(" | ", toolMethods));
+                var path = asm.Location;
+                if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
+                {
+                    using var sha = SHA256.Create();
+                    using var fs = File.OpenRead(path);
+                    hash = Convert.ToHexString(sha.ComputeHash(fs)).Substring(0, 12);
+                }
+            }
+            catch
+            {
+                // swallow hash errors silently
             }
 
-            _logger.LogInformation("DIAGNOSTIC: Assembly {AssemblyName} Version={Version} ToolTypeCount={ToolTypeCount} TotalToolMethods={TotalMethods}",
-                asm.GetName().Name,
-                asm.GetName().Version?.ToString() ?? "n/a",
-                toolTypes.Count,
-                toolTypes.Sum(t => t.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static)
-                    .Count(m => m.GetCustomAttribute<McpServerToolAttribute>() != null)));
+            _logger.LogInformation("Startup Assembly={Assembly} Version={Version} HashPrefix={Hash} (hash truncated)",
+                asm.GetName().Name, version, hash);
         }
-        catch (Exception diagEx)
+        catch (Exception bannerEx)
         {
-            _logger.LogWarning(diagEx, "DIAGNOSTIC: Failed to enumerate tool metadata");
+            _logger.LogWarning(bannerEx, "Failed to emit startup assembly banner");
         }
 
         _logger.LogInformation("MCP server configured with tools from assembly.");

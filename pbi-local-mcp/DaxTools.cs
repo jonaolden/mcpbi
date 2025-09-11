@@ -755,7 +755,12 @@ public class DaxTools // Changed from static class
 
     // New Tools Implementation - Based on Additional Tools Recommendations
 
-
+    /// <summary>
+    /// Validates DAX syntax and identifies potential issues with enhanced error analysis.
+    /// </summary>
+    /// <param name="daxExpression">DAX expression to validate</param>
+    /// <param name="includeRecommendations">Include performance and best practice recommendations</param>
+    /// <returns>Validation results including syntax errors, warnings, and recommendations</returns>
     [McpServerTool, Description("Validate DAX syntax and identify potential issues with enhanced error analysis.")]
     public async Task<object> ValidateDaxSyntax(
         [Description("DAX expression to validate")] string daxExpression,
@@ -822,6 +827,12 @@ public class DaxTools // Changed from static class
         }
     }
 
+    /// <summary>
+    /// Analyzes query performance characteristics and identifies potential bottlenecks.
+    /// </summary>
+    /// <param name="daxQuery">DAX query to analyze</param>
+    /// <param name="includeOptimizations">Include complexity metrics and optimization suggestions</param>
+    /// <returns>Performance analysis results including execution time, complexity metrics, and optimization suggestions</returns>
     [McpServerTool, Description("Analyze query performance characteristics and identify potential bottlenecks.")]
     public async Task<object> AnalyzeQueryPerformance(
         [Description("DAX query to analyze")] string daxQuery,

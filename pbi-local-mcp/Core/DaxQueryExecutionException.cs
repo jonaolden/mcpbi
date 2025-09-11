@@ -1,5 +1,3 @@
-using System;
-using System.Runtime.Serialization;
 using Microsoft.AnalysisServices.AdomdClient;
 
 namespace pbi_local_mcp.Core
@@ -8,8 +6,7 @@ namespace pbi_local_mcp.Core
     /// Represents errors that occur during DAX or DMV query execution.
     /// This exception provides access to the original query and its type.
     /// </summary>
-    [Serializable]
-    public class DaxQueryExecutionException : Exception // Inherit from System.Exception
+    public class DaxQueryExecutionException : Exception
     {
         /// <summary>
         /// Gets the query text that caused the exception.
@@ -70,31 +67,6 @@ namespace pbi_local_mcp.Core
         {
             Query = query;
             QueryType = queryType;
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="DaxQueryExecutionException"/> class
-        /// with serialized data.
-        /// </summary>
-        /// <param name="info">The <see cref="SerializationInfo"/> that holds the serialized object data about the exception being thrown.</param>
-        /// <param name="context">The <see cref="StreamingContext"/> that contains contextual information about the source or destination.</param>
-        protected DaxQueryExecutionException(SerializationInfo info, StreamingContext context)
-            : base(info, context)
-        {
-            Query = info.GetString(nameof(Query));
-            QueryType = (QueryType)info.GetInt32(nameof(QueryType));
-        }
-
-        /// <summary>
-        /// Sets the <see cref="SerializationInfo"/> with information about the exception.
-        /// </summary>
-        /// <param name="info">The <see cref="SerializationInfo"/> that holds the serialized object data about the exception being thrown.</param>
-        /// <param name="context">The <see cref="StreamingContext"/> that contains contextual information about the source or destination.</param>
-        public override void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
-            base.GetObjectData(info, context);
-            info.AddValue(nameof(Query), Query);
-            info.AddValue(nameof(QueryType), (int)QueryType);
         }
     }
 }

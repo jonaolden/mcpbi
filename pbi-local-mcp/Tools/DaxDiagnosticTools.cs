@@ -1,32 +1,8 @@
-using System;
-using System.ComponentModel;
-using System.Threading.Tasks;
-using ModelContextProtocol.Server;
+/*
+    Diagnostic tool removed after verification of instance tool discovery.
 
-namespace pbi_local_mcp.Tools
-{
-    /// <summary>
-    /// Diagnostic static tool set to validate MCP reflection discovery (static class + static methods scenario).
-    /// If this registers while instance tools do not, the issue is with instance construction.
-    /// </summary>
-    [McpServerToolType]
-    public static class DaxDiagnosticTools
-    {
-        /// <summary>
-        /// Simple ping tool to confirm tool discovery pipeline.
-        /// </summary>
-        [McpServerTool, Description("Simple health check / discovery validation tool returning timestamp and assembly identity.")]
-        public static Task<object> Ping()
-        {
-            var asm = typeof(DaxDiagnosticTools).Assembly.GetName();
-            return Task.FromResult<object>(new
-            {
-                Status = "OK",
-                Utc = DateTime.UtcNow,
-                Assembly = asm.Name,
-                Version = asm.Version?.ToString() ?? "n/a",
-                ToolType = typeof(DaxDiagnosticTools).FullName
-            });
-        }
-    }
-}
+    Intentional stub kept (no attributes) to avoid exposing an unnecessary tool and
+    because automated file deletion is not performed by this pipeline step.
+
+    Original static class DaxDiagnosticTools (with [McpServerToolType] and Ping method) has been removed.
+*/
