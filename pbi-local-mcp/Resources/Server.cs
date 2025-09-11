@@ -3,6 +3,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.CommandLine;
+using System.Reflection;
+using ModelContextProtocol.Server;
 
 using pbi_local_mcp.Configuration;
 using pbi_local_mcp.Core;
@@ -82,6 +84,39 @@ public class ServerConfigurator
             .AddMcpServer()
             .WithStdioServerTransport()
             .WithToolsFromAssembly();
+
+        // Diagnostic reflection: enumerate attributed tool types & methods actually present in this assembly
+        try
+        {
+            var asm = typeof(DaxTools).Assembly;
+            var toolTypes = asm
+                .GetTypes()
+                .Where(t => t.GetCustomAttribute<McpServerToolTypeAttribute>() != null)
+                .ToList();
+
+            foreach (var tt in toolTypes)
+            {
+                var toolMethods = tt
+                    .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static)
+                    .Where(m => m.GetCustomAttribute<McpServerToolAttribute>() != null)
+                    .Select(m => $"{m.Name}({string.Join(",", m.GetParameters().Select(p => p.ParameterType.Name))})")
+                    .ToList();
+
+                _logger.LogInformation("DIAGNOSTIC: ToolType {ToolType} MethodCount={Count} Methods={Methods}",
+                    tt.FullName, toolMethods.Count, string.Join(" | ", toolMethods));
+            }
+
+            _logger.LogInformation("DIAGNOSTIC: Assembly {AssemblyName} Version={Version} ToolTypeCount={ToolTypeCount} TotalToolMethods={TotalMethods}",
+                asm.GetName().Name,
+                asm.GetName().Version?.ToString() ?? "n/a",
+                toolTypes.Count,
+                toolTypes.Sum(t => t.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static)
+                    .Count(m => m.GetCustomAttribute<McpServerToolAttribute>() != null)));
+        }
+        catch (Exception diagEx)
+        {
+            _logger.LogWarning(diagEx, "DIAGNOSTIC: Failed to enumerate tool metadata");
+        }
 
         _logger.LogInformation("MCP server configured with tools from assembly.");
 
