@@ -262,7 +262,7 @@ public class DaxTools // Changed from static class
             // Input validation
             if (string.IsNullOrWhiteSpace(dax))
             {
-                var error = "DAX query cannot be null or empty";
+                const string error = "DAX query cannot be null or empty";
                 _logger.LogWarning(error);
                 throw new ArgumentException(error, nameof(dax));
             }
@@ -326,7 +326,7 @@ public class DaxTools // Changed from static class
                 }
             }
 
-            // Execute the query with enhanced error handling
+            // Execute the query with enhanced error logging & classification (no contract change)
             try
             {
                 _logger.LogDebug("Executing query with QueryType: {QueryType}", queryType);
@@ -336,13 +336,20 @@ public class DaxTools // Changed from static class
             }
             catch (Exception execEx)
             {
-                // Log detailed execution error information
-                _logger.LogError(execEx, "Query execution failed. Original: {OriginalQuery}, Final: {FinalQuery}, QueryType: {QueryType}",
-                    originalDax, finalQuery, queryType);
+                var classification = ClassifyError(execEx);
+                var safeOriginal = originalDax ?? string.Empty;
+                var suggestions = GetErrorSuggestions(classification, execEx.Message, safeOriginal)
+                    .Take(3).ToArray();
 
-                // Re-throw with preserved stack trace and enhanced context
+                _logger.LogError(execEx,
+                    "Query execution failed (Classified={Classification}). OriginalLen={OrigLen} FinalLen={FinalLen} QueryType={QueryType} Suggestions={Suggestions}",
+                    classification, originalDax?.Length, finalQuery.Length, queryType, string.Join(" | ", suggestions));
+
+                // Re-throw with preserved stack trace and enhanced context (maintain existing public contract)
                 throw new Exception(
                     $"DAX query execution failed: {execEx.Message}\n\n" +
+                    $"Classification: {classification}\n" +
+                    (suggestions.Length > 0 ? $"Suggestions: {string.Join(" | ", suggestions)}\n\n" : "") +
                     $"Original Query:\n{originalDax}\n\n" +
                     $"Final Query:\n{finalQuery}\n\n" +
                     $"Query Type: {queryType}",
@@ -356,11 +363,12 @@ public class DaxTools // Changed from static class
         }
         catch (Exception ex)
         {
-            // Log unexpected errors and wrap with context
-            _logger.LogError(ex, "Unexpected error in RunQuery for query: {Query}", originalDax);
+            var classification = ClassifyError(ex);
+            _logger.LogError(ex, "Unexpected error in RunQuery (Classified={Classification}) for query: {Query}", classification, originalDax);
 
-            // Don't wrap in McpException to avoid serialization issues
-            throw new Exception($"An unexpected error occurred while executing the DAX query: {ex.Message}\n\nOriginal Query:\n{originalDax}", ex);
+            throw new Exception(
+                $"An unexpected error occurred while executing the DAX query: {ex.Message}\n" +
+                $"Classification: {classification}\n\nOriginal Query:\n{originalDax}", ex);
         }
     }
 
@@ -1092,10 +1100,96 @@ public class DaxTools // Changed from static class
             suggestions.Add("Consider breaking down this large query into smaller, more manageable parts");
         }
 
-        var iteratorFunctions = System.Text.RegularExpressions.Regex.Matches(query, @"\b(SUMX|AVERAGEX|COUNTX|MAXX|MINX)\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Count;
+        var iteratorFunctions = System.Text.RegularExpressions.Regex
+            .Matches(query, @"\b(SUMX|AVERAGEX|COUNTX|MAXX|MINX)\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase)
+            .Count;
         if (iteratorFunctions > 2)
         {
             suggestions.Add("Multiple iterator functions detected - ensure they are necessary and consider alternatives");
+        }
+
+        return suggestions;
+    }
+
+    /// <summary>
+    /// Classifies an exception into a high-level DAX/MCP friendly category.
+    /// Lightweight version (selective port from PR #16) used only for logging/context enrichment.
+    /// </summary>
+    private static string ClassifyError(Exception exception)
+    {
+        var msg = exception.Message.ToLowerInvariant();
+        var type = exception.GetType().Name;
+
+        if (msg.Contains("syntax") || msg.Contains("parse"))
+            return "Syntax Error";
+        if (msg.Contains("column") && (msg.Contains("not found") || msg.Contains("doesn't exist") || msg.Contains("could not be found")))
+            return "Column Reference Error";
+        if (msg.Contains("table") && (msg.Contains("not found") || msg.Contains("doesn't exist")))
+            return "Table Reference Error";
+        if (msg.Contains("measure") && (msg.Contains("not found") || msg.Contains("doesn't exist")))
+            return "Measure Reference Error";
+        if (msg.Contains("function") && (msg.Contains("not found") || msg.Contains("unknown")))
+            return "Function Error";
+        if (msg.Contains("timeout") || msg.Contains("connection") || msg.Contains("network"))
+            return "Connection Error";
+        if (msg.Contains("permission") || msg.Contains("access denied") || msg.Contains("unauthorized"))
+            return "Permission Error";
+        if (type.Contains("Argument"))
+            return "Parameter Error";
+        if (msg.Contains("memory") || msg.Contains("resource"))
+            return "Resource Error";
+
+        return "General Execution Error";
+    }
+
+    /// <summary>
+    /// Generates up to several short actionable suggestions based on error classification.
+    /// Lightweight port (no structured error object exposure).
+    /// </summary>
+    private static List<string> GetErrorSuggestions(string errorType, string errorMessage, string query)
+    {
+        var suggestions = new List<string>();
+        switch (errorType)
+        {
+            case "Syntax Error":
+                suggestions.Add("Check unmatched parentheses/brackets/quotes");
+                suggestions.Add("Verify function names and comma placement");
+                break;
+            case "Column Reference Error":
+                suggestions.Add("Verify column exists and spelling is correct");
+                suggestions.Add("Use 'Table'[Column] fully-qualified form");
+                break;
+            case "Table Reference Error":
+                suggestions.Add("Confirm table exists in model");
+                suggestions.Add("Quote table names with spaces: 'Table Name'");
+                break;
+            case "Measure Reference Error":
+                suggestions.Add("Check measure spelling / visibility");
+                break;
+            case "Function Error":
+                suggestions.Add("Verify function name and parameter count");
+                break;
+            case "Connection Error":
+                suggestions.Add("Ensure Power BI instance is running / correct port");
+                break;
+            case "Permission Error":
+                suggestions.Add("Verify model access / RLS constraints");
+                break;
+            case "Parameter Error":
+                suggestions.Add("Validate provided argument values");
+                break;
+            case "Resource Error":
+                suggestions.Add("Simplify query to reduce resource usage");
+                break;
+            default:
+                suggestions.Add("Simplify the query to isolate issue");
+                break;
+        }
+
+        if (query.Contains("DEFINE", StringComparison.OrdinalIgnoreCase) &&
+            !query.Contains("EVALUATE", StringComparison.OrdinalIgnoreCase))
+        {
+            suggestions.Add("DEFINE block must be followed by an EVALUATE statement");
         }
 
         return suggestions;
