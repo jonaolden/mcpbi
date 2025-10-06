@@ -19,7 +19,7 @@ public static class DaxSecurityUtils
                identifier.Length <= 128 && // Max reasonable length
                !identifier.Contains('\0'); // No null characters
     }
-    
+
     /// <summary>
     /// Escapes a DAX identifier for safe use in queries
     /// </summary>
@@ -30,7 +30,7 @@ public static class DaxSecurityUtils
     {
         if (!IsValidIdentifier(identifier))
             throw new ArgumentException($"Invalid identifier: {identifier}");
-        
+
         // Escape single quotes by doubling them
         return "'" + identifier.Replace("'", "''") + "'";
     }
@@ -42,11 +42,11 @@ public static class DaxSecurityUtils
 public static class FilterExpressionValidator
 {
     private static readonly string[] ForbiddenPatterns = {
-        ";", "--", "/*", "*/", "xp_", "sp_", "exec", "execute", 
+        ";", "--", "/*", "*/", "xp_", "sp_", "exec", "execute",
         "drop", "delete", "insert", "update", "create", "alter",
         "union", "script", "eval", "javascript"
     };
-    
+
     /// <summary>
     /// Validates a filter expression for safe use in DMV queries
     /// </summary>
@@ -55,14 +55,14 @@ public static class FilterExpressionValidator
     public static void ValidateFilterExpression(string filterExpr)
     {
         if (string.IsNullOrWhiteSpace(filterExpr)) return;
-        
+
         var lowerExpr = filterExpr.ToLowerInvariant();
         foreach (var pattern in ForbiddenPatterns)
         {
             if (lowerExpr.Contains(pattern))
                 throw new ArgumentException($"Filter expression contains forbidden pattern: {pattern}");
         }
-        
+
         // Additional validation: only allow alphanumeric, spaces, brackets, quotes, operators
         if (!Regex.IsMatch(filterExpr, @"^[a-zA-Z0-9\s\[\]'""=<>!&|().,_-]+$"))
             throw new ArgumentException("Filter expression contains invalid characters");

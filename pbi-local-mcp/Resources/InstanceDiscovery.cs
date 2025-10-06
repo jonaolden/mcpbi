@@ -1,9 +1,10 @@
-using Microsoft.Extensions.Logging;
-using pbi_local_mcp.Core;
-using System.Data;
 using System.Management;
 using System.Runtime.Versioning;
+
 using Microsoft.AnalysisServices.AdomdClient;
+using Microsoft.Extensions.Logging;
+
+using pbi_local_mcp.Core;
 
 namespace pbi_local_mcp;
 

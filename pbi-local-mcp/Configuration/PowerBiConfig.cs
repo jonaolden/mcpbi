@@ -7,7 +7,7 @@ public class PowerBiConfig
 {
     private string _port = string.Empty;
     private string _dbId = string.Empty;
-    
+
     /// <summary>
     /// Gets or sets the port number for connecting to the Power BI instance
     /// </summary>
@@ -18,10 +18,10 @@ public class PowerBiConfig
         {
             if (string.IsNullOrWhiteSpace(value))
                 throw new ArgumentException("Port cannot be null or empty");
-                
+
             if (!int.TryParse(value, out var port) || port < 1 || port > 65535)
                 throw new ArgumentException($"Invalid port number: {value}. Must be between 1 and 65535.");
-                
+
             _port = value;
         }
     }
@@ -36,10 +36,10 @@ public class PowerBiConfig
         {
             if (string.IsNullOrWhiteSpace(value))
                 throw new ArgumentException("Database ID cannot be null or empty");
-                
+
             if (value.Length > 100) // Reasonable limit
                 throw new ArgumentException("Database ID too long");
-                
+
             _dbId = value;
         }
     }

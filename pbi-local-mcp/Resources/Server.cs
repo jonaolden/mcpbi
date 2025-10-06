@@ -1,13 +1,14 @@
+using System.CommandLine;
+using System.IO;
+using System.Security.Cryptography;
+
+using Microsoft.AnalysisServices.AdomdClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System.CommandLine;
-using System.Reflection;
-using System.IO;
-using System.Security.Cryptography;
+
 using ModelContextProtocol.Server;
-using Microsoft.AnalysisServices.AdomdClient;
 
 using pbi_local_mcp.Configuration;
 using pbi_local_mcp.Core;
@@ -38,10 +39,10 @@ public class ServerConfigurator
     public async Task RunAsync(string[] args)
     {
         _logger.LogInformation("Configuring MCP server...");
-        
+
         // Load .env file as fallback first (won't override existing values)
         LoadEnvFile(".env");
-        
+
         // Parse command-line arguments (will override .env values if provided)
         await ProcessCommandLineArgumentsAsync(args);
 
@@ -52,18 +53,14 @@ public class ServerConfigurator
 
         var builder = Host.CreateApplicationBuilder(args);
 
-        // Configure logging first - separate MCP and debug logging
-        // For MCP servers, ALL console logging must go to stderr to avoid interfering with JSON-RPC communication
-        builder.Logging.AddConsole(options =>
-        {
-            options.LogToStandardErrorThreshold = LogLevel.Trace; // ALL logs to stderr
-        });
-        builder.Logging.SetMinimumLevel(LogLevel.Debug);
+        // Configure logging via centralized extension
+        builder.Logging.ConfigureMcpLogging();
 
         _logger.LogInformation("Starting MCP server configuration...");
 
         // Configure services
         builder.Services
+            .AddMemoryCache()
             .Configure<PowerBiConfig>(config =>
             {
                 config.Port = Environment.GetEnvironmentVariable("PBI_PORT") ?? "";
@@ -78,7 +75,8 @@ public class ServerConfigurator
                 var logger = serviceProvider.GetRequiredService<ILogger<TabularConnection>>();
                 return new TabularConnection(config, logger);
             })
-            .AddSingleton<DaxTools>();
+            .AddSingleton<DaxTools>()
+            .AddSingleton<PowerBiResourceProvider>(); // resource provider DI
 
         _logger.LogInformation("Core services registered.");
 
@@ -127,13 +125,9 @@ public class ServerConfigurator
     /// </summary>
     public static async Task RunServerAsync(string[] args)
     {
-        var loggerFactory = LoggerFactory.Create(builder =>
+        var loggerFactory = LoggerFactory.Create(b =>
         {
-            builder.AddConsole(options =>
-            {
-                options.LogToStandardErrorThreshold = LogLevel.Trace; // ALL logs to stderr
-            });
-            builder.SetMinimumLevel(LogLevel.Debug);
+            b.ConfigureMcpLogging();
         });
 
         var logger = loggerFactory.CreateLogger<ServerConfigurator>();
@@ -159,7 +153,7 @@ public class ServerConfigurator
             {
                 var key = parts[0].Trim();
                 var value = parts[1].Trim();
-                
+
                 // Only set if the environment variable doesn't already exist (fallback behavior)
                 if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(key)))
                 {

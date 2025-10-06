@@ -1,9 +1,6 @@
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+
 using pbi_local_mcp.Configuration;
-using Microsoft.AnalysisServices.AdomdClient;
-using System.Data;
-using ModelContextProtocol;
 
 namespace pbi_local_mcp.Tests;
 
@@ -13,14 +10,16 @@ public class EnhancedErrorMessageTests
     public void TestCreateEnhancedErrorMessage_DAXQuery()
     {
         // Arrange
-        var config = new PowerBiConfig { Port = "12345", DbId = "TestDB" };
+        var port = Environment.GetEnvironmentVariable("PBI_PORT") ?? "12345";
+        var dbId = Environment.GetEnvironmentVariable("PBI_DB_ID") ?? "TestDB";
+        var config = new PowerBiConfig { Port = port, DbId = dbId };
         var logger = NullLogger<TabularConnection>.Instance;
         var connection = new TabularConnection(config, logger);
-        
+
         // Create a test scenario that would trigger enhanced error message
         var testQuery = "EVALUATE BADFUNCTION()";
         var testException = new Exception("Unknown function 'BADFUNCTION'");
-        
+
         // Act & Assert
         try
         {
@@ -31,10 +30,10 @@ public class EnhancedErrorMessageTests
         catch (Exception ex)
         {
             // Verify the enhanced message contains all expected information
-            Assert.True(ex.Message.Contains("DAX Query Error"));
-            Assert.True(ex.Message.Contains("Unknown function 'BADFUNCTION'"));
-            Assert.True(ex.Message.Contains("Query Type: DAX"));
-            Assert.True(ex.Message.Contains("EVALUATE BADFUNCTION()"));
+            Assert.Contains("DAX Query Error", ex.Message);
+            Assert.Contains("Unknown function 'BADFUNCTION'", ex.Message);
+            Assert.Contains("Query Type: DAX", ex.Message);
+            Assert.Contains("EVALUATE BADFUNCTION()", ex.Message);
             Assert.Equal(testException, ex.InnerException);
         }
     }
@@ -43,14 +42,16 @@ public class EnhancedErrorMessageTests
     public void TestCreateEnhancedErrorMessage_DMVQuery()
     {
         // Arrange
-        var config = new PowerBiConfig { Port = "12345", DbId = "TestDB" };
+        var port = Environment.GetEnvironmentVariable("PBI_PORT") ?? "12345";
+        var dbId = Environment.GetEnvironmentVariable("PBI_DB_ID") ?? "TestDB";
+        var config = new PowerBiConfig { Port = port, DbId = dbId };
         var logger = NullLogger<TabularConnection>.Instance;
         var connection = new TabularConnection(config, logger);
-        
+
         // Create a test scenario for DMV query error
         var testQuery = "SELECT * FROM $SYSTEM.BADTABLE";
         var testException = new Exception("Table '$SYSTEM.BADTABLE' does not exist");
-        
+
         // Act & Assert
         try
         {
@@ -61,10 +62,10 @@ public class EnhancedErrorMessageTests
         catch (Exception ex)
         {
             // Verify the enhanced message contains all expected information
-            Assert.True(ex.Message.Contains("DMV Query Error"));
-            Assert.True(ex.Message.Contains("Table '$SYSTEM.BADTABLE' does not exist"));
-            Assert.True(ex.Message.Contains("Query Type: DMV"));
-            Assert.True(ex.Message.Contains("SELECT * FROM $SYSTEM.BADTABLE"));
+            Assert.Contains("DMV Query Error", ex.Message);
+            Assert.Contains("Table '$SYSTEM.BADTABLE' does not exist", ex.Message);
+            Assert.Contains("Query Type: DMV", ex.Message);
+            Assert.Contains("SELECT * FROM $SYSTEM.BADTABLE", ex.Message);
             Assert.Equal(testException, ex.InnerException);
         }
     }
@@ -73,14 +74,16 @@ public class EnhancedErrorMessageTests
     public void TestCreateEnhancedErrorMessage_LongQuery_ShouldTruncate()
     {
         // Arrange
-        var config = new PowerBiConfig { Port = "12345", DbId = "TestDB" };
+        var port = Environment.GetEnvironmentVariable("PBI_PORT") ?? "12345";
+        var dbId = Environment.GetEnvironmentVariable("PBI_DB_ID") ?? "TestDB";
+        var config = new PowerBiConfig { Port = port, DbId = dbId };
         var logger = NullLogger<TabularConnection>.Instance;
         var connection = new TabularConnection(config, logger);
-        
+
         // Create a very long query (over 200 characters)
         var longQuery = new string('X', 250); // 250 characters
         var testException = new Exception("Query too complex");
-        
+
         // Act & Assert
         try
         {
@@ -92,10 +95,10 @@ public class EnhancedErrorMessageTests
         catch (Exception ex)
         {
             // Verify the message is truncated properly
-            Assert.True(ex.Message.Contains("DAX Query Error"));
-            Assert.True(ex.Message.Contains("Query too complex"));
-            Assert.True(ex.Message.Contains("Query Type: DAX"));
-            Assert.True(ex.Message.EndsWith("..."));
+            Assert.Contains("DAX Query Error", ex.Message);
+            Assert.Contains("Query too complex", ex.Message);
+            Assert.Contains("Query Type: DAX", ex.Message);
+            Assert.EndsWith("...", ex.Message);
             // Verify the query is truncated to approximately 200 characters + "..."
             var queryPart = ex.Message.Substring(ex.Message.IndexOf("Query: ") + 7);
             Assert.True(queryPart.Length <= 210); // 200 + "..." + some buffer

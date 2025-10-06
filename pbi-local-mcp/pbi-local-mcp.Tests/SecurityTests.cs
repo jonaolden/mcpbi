@@ -1,6 +1,5 @@
-using Xunit;
-using pbi_local_mcp.Core;
 using pbi_local_mcp.Configuration;
+using pbi_local_mcp.Core;
 
 namespace pbi_local_mcp.Tests;
 
@@ -26,11 +25,11 @@ public class SecurityTests
     {
         // Act
         var result = DaxSecurityUtils.IsValidIdentifier(identifier);
-        
+
         // Assert
         Assert.True(result);
     }
-    
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -40,24 +39,24 @@ public class SecurityTests
     {
         // Act
         var result = DaxSecurityUtils.IsValidIdentifier(identifier);
-        
+
         // Assert
         Assert.False(result);
     }
-    
+
     [Fact]
     public void DaxSecurityUtils_IsValidIdentifier_TooLongIdentifier_ReturnsFalse()
     {
         // Arrange
         var longIdentifier = new string('a', 129); // Over 128 character limit
-        
+
         // Act
         var result = DaxSecurityUtils.IsValidIdentifier(longIdentifier);
-        
+
         // Assert
         Assert.False(result);
     }
-    
+
     [Theory]
     [InlineData("TableName", "'TableName'")]
     [InlineData("Table's Name", "'Table''s Name'")]
@@ -68,11 +67,11 @@ public class SecurityTests
     {
         // Act
         var result = DaxSecurityUtils.EscapeDaxIdentifier(input);
-        
+
         // Assert
         Assert.Equal(expected, result);
     }
-    
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -83,7 +82,7 @@ public class SecurityTests
         // Act & Assert
         Assert.Throws<ArgumentException>(() => DaxSecurityUtils.EscapeDaxIdentifier(identifier));
     }
-    
+
     [Theory]
     [InlineData("[Name] = 'Value'")]
     [InlineData("[ID] > 100")]
@@ -93,7 +92,7 @@ public class SecurityTests
         // Act & Assert - Should not throw
         FilterExpressionValidator.ValidateFilterExpression(filterExpr);
     }
-    
+
     [Theory]
     [InlineData("[Name] = 'Value'; DROP TABLE Users; --")]
     [InlineData("[Name] = 'Value'--comment")]
@@ -113,7 +112,7 @@ public class SecurityTests
         // Act & Assert
         Assert.Throws<ArgumentException>(() => FilterExpressionValidator.ValidateFilterExpression(filterExpr));
     }
-    
+
     [Theory]
     [InlineData("[Name] = 'Value' <script>")]
     [InlineData("[Name] = 'Value' $ illegal")]
@@ -122,7 +121,7 @@ public class SecurityTests
         // Act & Assert
         Assert.Throws<ArgumentException>(() => FilterExpressionValidator.ValidateFilterExpression(filterExpr));
     }
-    
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -148,12 +147,12 @@ public class PowerBiConfigSecurityTests
     {
         // Arrange
         var config = new PowerBiConfig();
-        
+
         // Act & Assert - Should not throw
         config.Port = port;
         Assert.Equal(port, config.Port);
     }
-    
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -169,11 +168,11 @@ public class PowerBiConfigSecurityTests
     {
         // Arrange
         var config = new PowerBiConfig();
-        
+
         // Act & Assert
         Assert.Throws<ArgumentException>(() => config.Port = port);
     }
-    
+
     [Theory]
     [InlineData("ValidDatabaseId")]
     [InlineData("Database_123")]
@@ -182,12 +181,12 @@ public class PowerBiConfigSecurityTests
     {
         // Arrange
         var config = new PowerBiConfig();
-        
+
         // Act & Assert - Should not throw
         config.DbId = dbId;
         Assert.Equal(dbId, config.DbId);
     }
-    
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -196,18 +195,18 @@ public class PowerBiConfigSecurityTests
     {
         // Arrange
         var config = new PowerBiConfig();
-        
+
         // Act & Assert
         Assert.Throws<ArgumentException>(() => config.DbId = dbId);
     }
-    
+
     [Fact]
     public void PowerBiConfig_DbId_TooLongDbId_ThrowsArgumentException()
     {
         // Arrange
         var config = new PowerBiConfig();
         var longDbId = new string('a', 101); // Over 100 character limit
-        
+
         // Act & Assert
         Assert.Throws<ArgumentException>(() => config.DbId = longDbId);
     }

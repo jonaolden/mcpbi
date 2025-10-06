@@ -1,9 +1,11 @@
-using Microsoft.Extensions.Logging;
-using pbi_local_mcp.Core;
-using pbi_local_mcp.Configuration;
-using Microsoft.AnalysisServices.AdomdClient;
 using System.Data;
+
+using Microsoft.AnalysisServices.AdomdClient;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+
+using pbi_local_mcp.Configuration;
+using pbi_local_mcp.Core;
 
 namespace pbi_local_mcp;
 
@@ -29,6 +31,35 @@ public class TabularConnection : ITabularConnection, IDisposable
     private readonly AdomdConnection _connection;
     private bool _disposed;
 
+    // Metadata / diagnostics
+    private readonly int _port;
+    private readonly string? _databaseId;
+    private readonly Version _assemblyVersion = typeof(TabularConnection).Assembly.GetName().Version ?? new Version(0, 0, 0, 0);
+    /// <summary>
+    /// Gets the numeric port the connection was initialized with (0 if unknown or not parsed).
+    /// </summary>
+    public int Port => _port;
+
+    /// <summary>
+    /// Gets the database (catalog) identifier for the connected model, or null if not provided.
+    /// </summary>
+    public string? DatabaseId => _databaseId;
+
+    /// <summary>
+    /// UTC timestamp when this connection instance was created.
+    /// </summary>
+    public DateTime StartupUtc { get; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// Version of the assembly implementing <see cref="TabularConnection"/>.
+    /// </summary>
+    public Version AssemblyVersion => _assemblyVersion;
+
+    // Schema summary caching
+    private volatile SchemaSummary? _schemaCache;
+    private DateTime _schemaCacheExpiry;
+    private static readonly TimeSpan SchemaCacheTtl = TimeSpan.FromSeconds(30);
+
     /// <summary>
     /// Default command timeout in seconds
     /// </summary>
@@ -51,6 +82,9 @@ public class TabularConnection : ITabularConnection, IDisposable
         config.Validate();
         _connectionString = $"Data Source=localhost:{config.Port};Initial Catalog={config.DbId}";
         _connection = new AdomdConnection(_connectionString);
+
+        if (!int.TryParse(config.Port, out _port) || _port < 0) _port = 0;
+        _databaseId = string.IsNullOrWhiteSpace(config.DbId) ? null : config.DbId;
     }
 
     /// <summary>
@@ -82,6 +116,9 @@ public class TabularConnection : ITabularConnection, IDisposable
 
         _connectionString = $"Data Source=localhost:{port};Initial Catalog={dbId}";
         _connection = new AdomdConnection(_connectionString);
+
+        if (!int.TryParse(port, out _port) || _port < 0) _port = 0;
+        _databaseId = dbId;
     }
 
     /// <summary>
@@ -96,6 +133,31 @@ public class TabularConnection : ITabularConnection, IDisposable
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _connection = connection ?? throw new ArgumentNullException(nameof(connection));
         _connectionString = connection.ConnectionString;
+
+        // Attempt to parse port & catalog from connection string (best-effort)
+        try
+        {
+            var parts = _connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            foreach (var p in parts)
+            {
+                if (p.StartsWith("Data Source=", StringComparison.OrdinalIgnoreCase))
+                {
+                    var ds = p.Substring("Data Source=".Length);
+                    var colonIdx = ds.LastIndexOf(':');
+                    if (colonIdx > -1 && int.TryParse(ds[(colonIdx + 1)..], out var portParsed))
+                        _port = portParsed;
+                }
+                else if (p.StartsWith("Initial Catalog=", StringComparison.OrdinalIgnoreCase))
+                {
+                    _databaseId = p.Substring("Initial Catalog=".Length);
+                }
+            }
+        }
+        catch
+        {
+            _port = 0;
+            _databaseId = null;
+        }
     }
 
     /// <inheritdoc/>
@@ -138,10 +200,10 @@ public class TabularConnection : ITabularConnection, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error executing {QueryType} query: {Query}", queryType, query);
-            
+
             // Create enhanced error message with query details for better error reporting
             var enhancedMessage = DaxTools.CreateDetailedErrorMessage(ex, query, query, queryType);
-            
+
             // Use standard Exception instead of McpException for application-level database errors
             // McpException is only for MCP protocol-level errors, not database query failures
             throw new Exception(enhancedMessage, ex);
@@ -188,10 +250,10 @@ public class TabularConnection : ITabularConnection, IDisposable
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogError(ex, "Error executing {QueryType} query: {Query}", queryType, query);
-            
+
             // Create enhanced error message with query details for better error reporting
             var enhancedMessage = DaxTools.CreateDetailedErrorMessage(ex, query, query, queryType);
-            
+
             // Use standard Exception instead of McpException for application-level database errors
             // McpException is only for MCP protocol-level errors, not database query failures
             throw new Exception(enhancedMessage, ex);
@@ -367,26 +429,26 @@ public class TabularConnection : ITabularConnection, IDisposable
             throw new ArgumentException($"Invalid port number: {port}", nameof(port));
 
         logger = logger ?? NullLogger<TabularConnection>.Instance;
-        
+
         // Use a temporary connection without specifying Initial Catalog to discover databases
         var connectionString = $"Data Source=localhost:{port}";
-        
+
         try
         {
             using var connection = new AdomdConnection(connectionString);
             logger.LogDebug("Attempting to discover databases on port {Port}", port);
-            
+
             await Task.Run(() => connection.Open()).ConfigureAwait(false);
-            
+
             // Query for available catalogs/databases (using same format as InstanceDiscovery)
             using var cmd = connection.CreateCommand();
             cmd.CommandText = "SELECT * FROM $SYSTEM.DBSCHEMA_CATALOGS";
             cmd.CommandType = CommandType.Text;
             cmd.CommandTimeout = 30; // Shorter timeout for discovery
-            
+
             var databases = new List<string>();
             using var reader = await Task.Run(() => cmd.ExecuteReader()).ConfigureAwait(false);
-            
+
             while (await Task.Run(() => reader.Read()).ConfigureAwait(false))
             {
                 var catalogName = reader["CATALOG_NAME"]?.ToString();
@@ -395,21 +457,119 @@ public class TabularConnection : ITabularConnection, IDisposable
                     databases.Add(catalogName);
                 }
             }
-            
+
             logger.LogDebug("Discovered {Count} databases on port {Port}: {Databases}",
                 databases.Count, port, string.Join(", ", databases));
-            
+
             if (!databases.Any())
             {
                 throw new InvalidOperationException($"No databases found on Power BI instance at port {port}");
             }
-            
+
             return databases;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to discover databases on port {Port}", port);
             throw new InvalidOperationException($"Could not discover databases on port {port}: {ex.Message}", ex);
+        }
+    }
+
+    /// <summary>
+    /// Returns a lightweight cached summary of model schema counts (tables, measures, columns).
+    /// Uses DMV queries and caches results for a short interval.
+    /// </summary>
+    public async Task<SchemaSummary> GetSchemaSummaryAsync(CancellationToken ct = default)
+    {
+        var now = DateTime.UtcNow;
+        var cache = _schemaCache;
+        if (cache != null && now < _schemaCacheExpiry)
+        {
+            return cache;
+        }
+
+        // Simple double-checked locking
+        lock (this)
+        {
+            cache = _schemaCache;
+            if (cache != null && now < _schemaCacheExpiry)
+                return cache;
+        }
+
+        try
+        {
+            ct.ThrowIfCancellationRequested();
+
+            int tableCount = await GetCountAsync("SELECT COUNT(*) AS C FROM $SYSTEM.TMSCHEMA_TABLES", ct);
+            int measureCount = await GetCountAsync("SELECT COUNT(*) AS C FROM $SYSTEM.TMSCHEMA_MEASURES", ct);
+            int columnCount = await GetCountAsync("SELECT COUNT(*) AS C FROM $SYSTEM.TMSCHEMA_COLUMNS", ct);
+
+            DateTime? lastRefreshed = null;
+            try
+            {
+                var dbRows = await ExecAsync("SELECT LASTPROCESSED FROM $SYSTEM.TMSCHEMA_DATABASES", QueryType.DMV, ct);
+                var first = dbRows.FirstOrDefault();
+                if (first != null &&
+                    first.TryGetValue("LASTPROCESSED", out var v) &&
+                    v != null &&
+                    v != DBNull.Value)
+                {
+                    // Convert & normalize to UTC
+                    lastRefreshed = Convert.ToDateTime(v, System.Globalization.CultureInfo.InvariantCulture).ToUniversalTime();
+                }
+            }
+            catch
+            {
+                // Non-fatal: ignore if DMV not available or fails
+            }
+
+            var summary = new SchemaSummary(tableCount, measureCount, columnCount, lastRefreshed);
+
+            lock (this)
+            {
+                _schemaCache = summary;
+                _schemaCacheExpiry = DateTime.UtcNow + SchemaCacheTtl;
+            }
+
+            return summary;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogDebug(ex, "Failed to build schema summary");
+            // Return empty summary to avoid throwing for metadata endpoints
+            var fallback = new SchemaSummary(0, 0, 0, null);
+            lock (this)
+            {
+                _schemaCache = fallback;
+                _schemaCacheExpiry = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+            }
+            return fallback;
+        }
+    }
+
+    private async Task<int> GetCountAsync(string dmvQuery, CancellationToken ct)
+    {
+        var rows = await ExecAsync(dmvQuery, QueryType.DMV, ct);
+        var first = rows.FirstOrDefault();
+        if (first == null) return 0;
+        // Try common keys
+        object? value = null;
+        if (first.Count == 1)
+        {
+            value = first.Values.FirstOrDefault();
+        }
+        else if (first.TryGetValue("C", out var cVal))
+        {
+            value = cVal;
+        }
+        if (value == null || value == DBNull.Value) return 0;
+        try
+        {
+            return Convert.ToInt32(value, System.Globalization.CultureInfo.InvariantCulture);
+        }
+        catch
+        {
+            return 0;
         }
     }
 
@@ -425,16 +585,14 @@ public class TabularConnection : ITabularConnection, IDisposable
     public static async Task<TabularConnection> CreateWithDiscoveryAsync(string port, ILogger<TabularConnection>? logger = null)
     {
         logger = logger ?? NullLogger<TabularConnection>.Instance;
-        
+
         var databases = await DiscoverDatabasesAsync(port, logger);
-        
+
         // Use the first available database
         var selectedDatabase = databases.First();
         logger.LogInformation("Auto-selected database '{Database}' from {Count} available databases on port {Port}",
             selectedDatabase, databases.Count, port);
-        
+
         return new TabularConnection(logger, port, selectedDatabase);
     }
-
-
 }
