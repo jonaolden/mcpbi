@@ -65,90 +65,76 @@ if (-not (Test-Path $OutputPath)) {
     Write-Host "Created output directory: $OutputPath" -ForegroundColor Green
 }
 
-# Define release configurations
-$configurations = @(
-    @{
-        Name = "win-x64-selfcontained"
-        DisplayName = "Windows x64 Self-Contained"
-        SourcePath = "./publish/win-x64"
-        Description = "Complete package with .NET runtime included"
-    },
-    @{
-        Name = "win-x64-framework-dependent"
-        DisplayName = "Windows x64 Framework-Dependent"
-        SourcePath = "./publish/win-x64-framework-dependent"
-        Description = "Requires .NET 8.0 Runtime on target machine"
-    },
-    @{
-        Name = "win-x64-portable"
-        DisplayName = "Windows x64 Portable (Single File)"
-        SourcePath = "./publish/win-x64-single-file"
-        Description = "Single executable file, easiest distribution"
-    }
-)
+# Define single release configuration
+$packageName = "mcpbi-v$CleanVersion"
+$packagePath = Join-Path $OutputPath $packageName
+$zipPath = "$packagePath.zip"
+$sourcePath = "./publish/single-file"
 
-# Package each configuration
-foreach ($config in $configurations) {
-    $packageName = "mcpbi-$($config.Name)-v$CleanVersion"
-    $packagePath = Join-Path $OutputPath $packageName
-    $zipPath = "$packagePath.zip"
+Write-Host "`nPackaging MCPBI Release..." -ForegroundColor Yellow
+
+# Check if source path exists
+if (-not (Test-Path $sourcePath)) {
+    Write-Error "Source path not found: $sourcePath"
+    exit 1
+}
+
+# Create package directory
+if (Test-Path $packagePath) {
+    Remove-Item $packagePath -Recurse -Force
+}
+New-Item -ItemType Directory -Path $packagePath -Force | Out-Null
+
+# Copy published files
+$appPath = Join-Path $packagePath "app"
+New-Item -ItemType Directory -Path $appPath -Force | Out-Null
+
+# Copy and rename main executable
+$sourceMcpbiPath = Join-Path $sourcePath "pbi-local-mcp.exe"
+$destMcpbiPath = Join-Path $appPath "mcpbi.exe"
+if (Test-Path $sourceMcpbiPath) {
+    Copy-Item $sourceMcpbiPath $destMcpbiPath -Force
+    Write-Host "  Copied mcpbi.exe" -ForegroundColor Green
+} else {
+    Write-Error "Main executable not found: $sourceMcpbiPath"
+    exit 1
+}
+
+# Copy CLI discovery tool
+$sourceCliPath = Join-Path $sourcePath "pbi-local-mcp.DiscoverCli.exe"
+$destCliPath = Join-Path $appPath "pbi-local-mcp.DiscoverCli.exe"
+if (Test-Path $sourceCliPath) {
+    Copy-Item $sourceCliPath $destCliPath -Force
+    Write-Host "  Copied pbi-local-mcp.DiscoverCli.exe" -ForegroundColor Green
+} else {
+    Write-Warning "Discovery CLI not found: $sourceCliPath"
+}
     
-    Write-Host "`nPackaging $($config.DisplayName)..." -ForegroundColor Yellow
-    
-    # Check if source path exists
-    if (-not (Test-Path $config.SourcePath)) {
-        Write-Warning "Source path not found: $($config.SourcePath). Skipping..."
-        continue
+# Create documentation structure
+$docsPath = Join-Path $packagePath "docs"
+New-Item -ItemType Directory -Path $docsPath -Force | Out-Null
+
+# Copy documentation files
+$docFiles = @("README.md", "DEPLOYMENT.md")
+foreach ($docFile in $docFiles) {
+    if (Test-Path $docFile) {
+        $destPath = Join-Path $docsPath (Split-Path $docFile -Leaf)
+        Copy-Item $docFile $destPath -Force
+        Write-Host "  Copied $docFile" -ForegroundColor Gray
     }
-    
-    # Create package directory
-    if (Test-Path $packagePath) {
-        Remove-Item $packagePath -Recurse -Force
-    }
-    New-Item -ItemType Directory -Path $packagePath -Force | Out-Null
-    
-    # Copy published files
-    $appPath = Join-Path $packagePath "app"
-    Copy-Item $config.SourcePath $appPath -Recurse -Force
-    
-    # Rename main executable to mcpbi.exe
-    $oldExePath = Join-Path $appPath "pbi-local-mcp.exe"
-    $newExePath = Join-Path $appPath "mcpbi.exe"
-    if (Test-Path $oldExePath) {
-        Move-Item $oldExePath $newExePath -Force
-    }
-    
-    # Copy CLI discovery tool
-    $cliSourcePath = "./publish/win-x64/pbi-local-mcp.DiscoverCli.exe"
-    $cliDestPath = Join-Path $appPath "pbi-local-mcp.DiscoverCli.exe"
-    if (Test-Path $cliSourcePath) {
-        Copy-Item $cliSourcePath $cliDestPath -Force
-    }
-    
-    # Create documentation structure
-    $docsPath = Join-Path $packagePath "docs"
-    New-Item -ItemType Directory -Path $docsPath -Force | Out-Null
-    
-    # Copy documentation files
-    $docFiles = @("README.md", "DEPLOYMENT.md", "docs/Installation.md")
-    foreach ($docFile in $docFiles) {
-        if (Test-Path $docFile) {
-            $destPath = Join-Path $docsPath (Split-Path $docFile -Leaf)
-            Copy-Item $docFile $destPath -Force
-        }
-    }
-    
-    # Create package-specific README
-    $packageReadme = @"
-# MCPBI - Power BI Tabular MCP Server - $($config.DisplayName)
+}
+
+# Create package-specific README
+$packageReadme = @"
+# MCPBI - Power BI Tabular MCP Server
 
 Version: $Version
-Package: $($config.Name)
+Build: Single-file, self-contained executables
 
 ## Description
-$($config.Description)
+Complete portable package with .NET runtime included. No additional dependencies required.
 
-## Quick Start a) For the fastest setup, you can use the CLI tool to find your running tabular model
+## Quick Start Option A: Automatic Discovery
 
 1. **Configure Power BI Connection:**
    ``````cmd
@@ -158,52 +144,63 @@ $($config.Description)
    Follow the prompts to detect your Power BI instance and create the `.env` file.
 
 2. **Configure VS Code MCP Integration:**
-   Configure `mcp.json` with:
+   Add to your `mcp.json`:
    ``````json
    {
      "mcpServers": {
-       "MCPBI": {
-         "command": "C:\\dir\\to\\mcpbi.exe",
+       "mcpbi-dev": {
+         "command": "C:\\path\\to\\app\\mcpbi.exe",
          "args": []
        }
      }
    }
    ``````
 
-## Quick Start b) If you already know which port you are running PowerBI Tabular model on (visible from Tabular Editor for instance)
+## Quick Start Option B: Manual Port Configuration
 
-   Configure `mcp.json` with:
-   ``````json
-   {
-     "mcpServers": {
-       "MCPBI": {
-         "command": "C:\\dir\\to\\mcpbi.exe",
-         "args": ["--port","12345"]
-       }
-     }
-   }
-   ``````
+If you already know your Power BI port (visible in Tabular Editor):
 
-3. **Test Connection**
-   - Restart VS Code
-   - Open a workspace with MCP configuration
-   - The MCPBI server should be available for Power BI operations
+``````json
+{
+  "mcpServers": {
+    "mcpbi-dev": {
+      "command": "C:\\path\\to\\app\\mcpbi.exe",
+      "args": ["--port", "12345"]
+    }
+  }
+}
+``````
+
+## Files Included
+
+- **mcpbi.exe** - Main MCP server (single executable, ~150MB)
+- **pbi-local-mcp.DiscoverCli.exe** - Power BI discovery tool
+- **docs/** - Complete documentation
+
+## Requirements
+
+- Windows 10/11
+- Power BI Desktop with a PBIX file open
+- VS Code with MCP support
+
+No .NET installation required - runtime is included.
 
 ## Documentation
-- See `docs/DEPLOYMENT.md` for detailed installation instructions
-- See `docs/Installation.md` for prerequisites and setup
+
+- See `docs/DEPLOYMENT.md` for detailed installation
 - See `docs/README.md` for general project information
 
 ## Support
-For issues and questions, please refer to the project documentation or create an issue in the project repository.
+
+For issues and questions, please refer to the project documentation.
 
 Package created: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
 "@
+
+$packageReadme | Out-File -FilePath (Join-Path $packagePath "README.txt") -Encoding UTF8
     
-    $packageReadme | Out-File -FilePath (Join-Path $packagePath "README.txt") -Encoding UTF8
-    
-    # Create installation script for Windows
-    $installScript = @"
+# Create installation script for Windows
+$installScript = @"
 @echo off
 echo === MCPBI - Power BI Tabular MCP Server Installation ===
 echo.
@@ -220,8 +217,8 @@ if %ERRORLEVEL% EQU 0 (
     echo Setup completed successfully!
     echo.
     echo Next steps:
-    echo 1. Copy the path: %~dp0app\mcpbi.exe
-    echo 2. Add MCP configuration to VS Code
+    echo 1. Copy this path to your mcp.json: %~dp0app\mcpbi.exe
+    echo 2. Restart VS Code
     echo 3. See docs\DEPLOYMENT.md for detailed instructions
 ) else (
     echo Setup failed. Please check:
@@ -232,11 +229,11 @@ if %ERRORLEVEL% EQU 0 (
 echo.
 pause
 "@
+
+$installScript | Out-File -FilePath (Join-Path $packagePath "install.bat") -Encoding ASCII
     
-    $installScript | Out-File -FilePath (Join-Path $packagePath "install.bat") -Encoding ASCII
-    
-    # Create PowerShell installation script
-    $psInstallScript = @"
+# Create PowerShell installation script
+$psInstallScript = @"
 #!/usr/bin/env pwsh
 Write-Host "=== MCPBI - Power BI Tabular MCP Server Installation ===" -ForegroundColor Cyan
 Write-Host ""
@@ -268,8 +265,8 @@ if (`$LASTEXITCODE -eq 0) {
     Write-Host "Setup completed successfully!" -ForegroundColor Green
     Write-Host ""
     Write-Host "Next steps:" -ForegroundColor Yellow
-    Write-Host "1. Copy this path: `$PSScriptRoot\app\mcpbi.exe" -ForegroundColor White
-    Write-Host "2. Add MCP configuration to VS Code (mcp.json)" -ForegroundColor White
+    Write-Host "1. Copy this path to your mcp.json: `$PSScriptRoot\app\mcpbi.exe" -ForegroundColor White
+    Write-Host "2. Restart VS Code" -ForegroundColor White
     Write-Host "3. See docs\DEPLOYMENT.md for detailed instructions" -ForegroundColor White
 } else {
     Write-Host ""
@@ -282,64 +279,62 @@ if (`$LASTEXITCODE -eq 0) {
 Write-Host ""
 Read-Host "Press Enter to continue"
 "@
+
+$psInstallScript | Out-File -FilePath (Join-Path $packagePath "install.ps1") -Encoding UTF8
+
+# Include source code if requested
+if ($IncludeSource) {
+    Write-Host "  Including source code..." -ForegroundColor Cyan
+    $sourcePath = Join-Path $packagePath "source"
+    New-Item -ItemType Directory -Path $sourcePath -Force | Out-Null
     
-    $psInstallScript | Out-File -FilePath (Join-Path $packagePath "install.ps1") -Encoding UTF8
+    # Copy source files (excluding build artifacts and packages)
+    $sourceItems = @(
+        "pbi-local-mcp",
+        "pbi-local-mcp.DiscoverCli",
+        "*.sln",
+        "*.md",
+        ".gitignore"
+    )
     
-    # Include source code if requested
-    if ($IncludeSource) {
-        Write-Host "  Including source code..." -ForegroundColor Cyan
-        $sourcePath = Join-Path $packagePath "source"
-        New-Item -ItemType Directory -Path $sourcePath -Force | Out-Null
-        
-        # Copy source files (excluding build artifacts and packages)
-        $sourceItems = @(
-            "pbi-local-mcp",
-            "pbi-local-mcp.DiscoverCli", 
-            "*.sln",
-            "*.md",
-            ".gitignore"
-        )
-        
-        foreach ($item in $sourceItems) {
-            if (Test-Path $item) {
-                Copy-Item $item (Join-Path $sourcePath (Split-Path $item -Leaf)) -Recurse -Force
-            }
+    foreach ($item in $sourceItems) {
+        if (Test-Path $item) {
+            Copy-Item $item (Join-Path $sourcePath (Split-Path $item -Leaf)) -Recurse -Force
         }
     }
-    
-    # Create ZIP package
-    Write-Host "  Creating ZIP archive..." -ForegroundColor Cyan
-    if (Test-Path $zipPath) {
-        Remove-Item $zipPath -Force
-    }
-    
-    Compress-Archive -Path "$packagePath\*" -DestinationPath $zipPath -CompressionLevel Optimal
-    
-    # Calculate package size
-    $zipSize = [math]::Round((Get-Item $zipPath).Length / 1MB, 2)
-    $folderSize = [math]::Round((Get-ChildItem $packagePath -Recurse | Measure-Object -Property Length -Sum).Sum / 1MB, 2)
-    
-    Write-Host "  Package created: $zipPath" -ForegroundColor Green
-    Write-Host "  ZIP size: $zipSize MB, Extracted size: $folderSize MB" -ForegroundColor Gray
 }
 
-# Copy mcpbi.exe directly to Releases directory for easy access
+# Create ZIP package
+Write-Host "`nCreating ZIP archive..." -ForegroundColor Cyan
+if (Test-Path $zipPath) {
+    Remove-Item $zipPath -Force
+}
+
+Compress-Archive -Path "$packagePath\*" -DestinationPath $zipPath -CompressionLevel Optimal
+
+# Calculate package size
+$zipSize = [math]::Round((Get-Item $zipPath).Length / 1MB, 2)
+$folderSize = [math]::Round((Get-ChildItem $packagePath -Recurse | Measure-Object -Property Length -Sum).Sum / 1MB, 2)
+
+Write-Host "Package created: $zipPath" -ForegroundColor Green
+Write-Host "ZIP size: $zipSize MB, Extracted size: $folderSize MB" -ForegroundColor Gray
+
+# Copy executables directly to Releases directory for easy access
+Write-Host "`nCopying executables to Releases directory..." -ForegroundColor Cyan
+
 $directMcpbiPath = Join-Path $OutputPath "mcpbi.exe"
-$sourceMcpbiPath = "./publish/win-x64-single-file/pbi-local-mcp.exe"
-if (Test-Path $sourceMcpbiPath) {
-    Copy-Item $sourceMcpbiPath $directMcpbiPath -Force
-    Write-Host "`nCopied mcpbi.exe to Releases directory for direct use" -ForegroundColor Green
+if (Test-Path $destMcpbiPath) {
+    Copy-Item $destMcpbiPath $directMcpbiPath -Force
+    Write-Host "  Copied mcpbi.exe" -ForegroundColor Green
 }
 
-# Copy CLI discovery tool directly to Releases directory
 $directCliPath = Join-Path $OutputPath "pbi-local-mcp.DiscoverCli.exe"
-$sourceCliPath = "./publish/win-x64/pbi-local-mcp.DiscoverCli.exe"
-if (Test-Path $sourceCliPath) {
-    Copy-Item $sourceCliPath $directCliPath -Force
-    Write-Host "Copied pbi-local-mcp.DiscoverCli.exe to Releases directory for direct use" -ForegroundColor Green
+if (Test-Path $destCliPath) {
+    Copy-Item $destCliPath $directCliPath -Force
+    Write-Host "  Copied pbi-local-mcp.DiscoverCli.exe" -ForegroundColor Green
 }
 
-# Create combined release info
+# Create release info
 $releaseInfo = @"
 # MCPBI - Power BI Tabular MCP Server Release v$CleanVersion
 
@@ -347,77 +342,67 @@ Generated: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
 
 ## Quick Access Files
 
-- **mcpbi.exe** - Ready-to-use executable (single file, portable)
-- **pbi-local-mcp.DiscoverCli.exe** - CLI tool for automatic Power BI discovery
+For immediate use without extraction:
+- **mcpbi.exe** - Main MCP server (~150MB, single-file executable)
+- **pbi-local-mcp.DiscoverCli.exe** - Power BI discovery tool
 
-## Available Packages
+## Release Package
 
-"@
-
-foreach ($config in $configurations) {
-    $packageName = "mcpbi-$($config.Name)-v$CleanVersion"
-    $zipPath = Join-Path $OutputPath "$packageName.zip"
-    
-    if (Test-Path $zipPath) {
-        $zipSize = [math]::Round((Get-Item $zipPath).Length / 1MB, 2)
-        $releaseInfo += @"
-
-### $($config.DisplayName)
-- **File**: `$packageName.zip` ($zipSize MB)
-- **Description**: $($config.Description)
-- **Best for**: $(
-    switch ($config.Name) {
-        "win-x64-selfcontained" { "Users without .NET 8.0 installed" }
-        "win-x64-framework-dependent" { "Development environments with .NET 8.0" }
-        "win-x64-portable" { "Simple distribution and deployment" }
-    }
-)
-
-"@
-    }
-}
-
-$releaseInfo += @"
+- **File**: mcpbi-v$CleanVersion.zip ($zipSize MB)
+- **Type**: Single-file, self-contained executables
+- **Includes**: Complete .NET runtime (no installation required)
 
 ## Installation
 
-1. Download the appropriate package for your needs
-2. Extract the ZIP file to your preferred location
-3. Run `install.bat` (Windows) or `install.ps1` (PowerShell) for guided setup
-4. Follow the instructions in `docs/DEPLOYMENT.md` for VS Code configuration
+### Quick Start
+1. Extract `mcpbi-v$CleanVersion.zip` to your preferred location
+2. Run `install.bat` or `install.ps1` for guided setup
+3. Add the executable path to your VS Code `mcp.json`
+
+### Alternative: Direct Use
+Use the standalone executables directly from the releases directory.
 
 ## Package Contents
 
-Each package contains:
-- `/app/` - The compiled application and dependencies
-- `/docs/` - Complete documentation
+- `app/mcpbi.exe` - Main MCP server
+- `app/pbi-local-mcp.DiscoverCli.exe` - Discovery tool
+- `docs/` - Complete documentation
 - `install.bat` - Windows batch installation script
 - `install.ps1` - PowerShell installation script
-- `README.txt` - Package-specific instructions
+- `README.txt` - Quick start instructions
 
 ## Requirements
 
 - Windows 10/11
-- Power BI Desktop
+- Power BI Desktop with a PBIX file open
 - Visual Studio Code with MCP support
-$(if (-not $configurations[1]) { "" } else { "- .NET 8.0 Runtime (for framework-dependent package only)" })
+
+**No .NET installation required** - Runtime is included in the executables.
 
 ## Support
 
-For detailed installation and configuration instructions, see the documentation files included in each package.
+See the included documentation for detailed instructions:
+- `docs/DEPLOYMENT.md` - Complete deployment guide
+- `docs/README.md` - Project overview
+- `README.txt` - Quick start guide
+
+## Build Information
+
+- Build Type: Single-file, self-contained
+- Runtime: .NET 8.0 (included)
+- Platform: Windows x64
+- Compression: Optimal
 "@
 
 $releaseInfo | Out-File -FilePath (Join-Path $OutputPath "RELEASE-INFO.md") -Encoding UTF8
 
 Write-Host "`n=== Release Packaging Complete ===" -ForegroundColor Green
 Write-Host "Output directory: $OutputPath" -ForegroundColor Cyan
+Write-Host "Release package: $zipPath" -ForegroundColor Cyan
 Write-Host "Release info: $(Join-Path $OutputPath "RELEASE-INFO.md")" -ForegroundColor Cyan
 
-# List created packages
-Write-Host "`nCreated packages:" -ForegroundColor Yellow
-Get-ChildItem $OutputPath -Filter "*.zip" | ForEach-Object {
-    $size = [math]::Round($_.Length / 1MB, 2)
-    Write-Host "  $($_.Name) ($size MB)" -ForegroundColor White
-}
+Write-Host "`nDirect access executables:" -ForegroundColor Yellow
+Write-Host "  mcpbi.exe" -ForegroundColor White
+Write-Host "  pbi-local-mcp.DiscoverCli.exe" -ForegroundColor White
 
 Write-Host "`nPackaging completed successfully!" -ForegroundColor Green

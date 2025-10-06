@@ -22,29 +22,20 @@ if %ERRORLEVEL% NEQ 0 (
     exit /b 1
 )
 
-echo Step 3: Publishing Self-Contained (win-x64)...
-dotnet publish pbi-local-mcp/pbi-local-mcp.csproj -c Release -r win-x64 --self-contained -o ./publish/win-x64
+echo Step 3: Publishing MCP Server (single-file, self-contained)...
+dotnet publish pbi-local-mcp/pbi-local-mcp.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o ./publish/single-file
 
-echo Step 4: Publishing DiscoverCli (win-x64)...
-dotnet publish pbi-local-mcp.DiscoverCli/pbi-local-mcp.DiscoverCli.csproj -c Release -r win-x64 --self-contained -o ./publish/win-x64
+echo Step 4: Publishing Discovery CLI (single-file, self-contained)...
+dotnet publish pbi-local-mcp.DiscoverCli/pbi-local-mcp.DiscoverCli.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o ./publish/single-file
 
-echo Step 5: Publishing Framework-Dependent (win-x64)...
-dotnet publish pbi-local-mcp/pbi-local-mcp.csproj -c Release -r win-x64 --no-self-contained -o ./publish/win-x64-framework-dependent
-
-echo Step 6: Publishing DiscoverCli Framework-Dependent (win-x64)...
-dotnet publish pbi-local-mcp.DiscoverCli/pbi-local-mcp.DiscoverCli.csproj -c Release -r win-x64 --no-self-contained -o ./publish/win-x64-framework-dependent
-
-echo Step 7: Publishing Single-File (win-x64)...
-dotnet publish pbi-local-mcp/pbi-local-mcp.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o ./publish/win-x64-single-file
-
-echo Step 8: Creating release packages...
+echo Step 5: Creating release package...
 powershell -ExecutionPolicy Bypass -File scripts/package-releases.ps1
 
 echo.
 echo === Publishing Complete ===
 echo.
-echo Available packages:
-dir /b releases\*.zip
+echo Output directory: releases\
+dir /b releases\
 
 echo.
 echo Release information: releases\RELEASE-INFO.md

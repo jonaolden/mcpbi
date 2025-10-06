@@ -32,26 +32,34 @@ For development and testing, you can run the server directly from source code:
 
 ## Creating Distribution Builds
 
-To create deployable builds for distribution:
+To create deployable builds for distribution, use the automated publish script:
 
 ```cmd
-# Self-contained build (includes .NET runtime)
-dotnet publish pbi-local-mcp/pbi-local-mcp.csproj -c Release -r win-x64 --self-contained true -o ./dist/win-x64-self-contained
+# Run the complete publish process (builds and packages everything)
+scripts\publish.bat
+```
 
-# Framework-dependent build (requires .NET 8.0 runtime)
-dotnet publish pbi-local-mcp/pbi-local-mcp.csproj -c Release -r win-x64 --self-contained false -o ./dist/win-x64-framework-dependent
+This creates:
+- Single-file, self-contained executables (no .NET installation required)
+- Complete release package with documentation
+- Ready-to-distribute ZIP file
 
-# Single-file executable
-dotnet publish pbi-local-mcp/pbi-local-mcp.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o ./dist/win-x64-single-file
+**Manual build (if needed):**
+```cmd
+# MCP Server
+dotnet publish pbi-local-mcp/pbi-local-mcp.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o ./publish/single-file
+
+# Discovery CLI
+dotnet publish pbi-local-mcp.DiscoverCli/pbi-local-mcp.DiscoverCli.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o ./publish/single-file
 ```
 
 ## Installation Instructions
 
 ### Prerequisites
 - Windows OS (Windows 10/11 recommended)
-- .NET 8.0 SDK (for development) or .NET 8.0 Runtime (for framework-dependent builds)
+- .NET 8.0 SDK (for development only - **not required for pre-built executables**)
 - Power BI Desktop installed and running with a PBIX file open
-- Visual Studio Code with MCP extension support
+- Visual Studio Code with MCP support
 
 ### Step 1: Choose Your Setup Method
 
@@ -59,10 +67,11 @@ dotnet publish pbi-local-mcp/pbi-local-mcp.csproj -c Release -r win-x64 --self-c
 1. Clone this repository to your preferred location
 2. Follow the setup instructions in [`docs/Installation.md`](docs/Installation.md)
 
-#### Option B: Published Build Deployment
-1. Create a published build using the commands in the "Creating Distribution Builds" section above
-2. Copy the build output to your target location (e.g., `C:\Tools\tabular-mcp\`)
-3. Note the path to the executable for VS Code configuration
+#### Option B: Pre-built Executable Deployment (Recommended for End Users)
+1. Run `scripts\publish.bat` or download a release package
+2. Extract to your target location (e.g., `C:\Tools\tabular-mcp\`)
+3. Run `install.bat` for guided setup
+4. Note the path to `mcpbi.exe` for VS Code configuration
 
 ### Step 2: Configure Power BI Connection
 1. Open Command Prompt or PowerShell in your project/deployment folder
@@ -80,47 +89,32 @@ dotnet publish pbi-local-mcp/pbi-local-mcp.csproj -c Release -r win-x64 --self-c
 ### Step 3: Configure VS Code MCP Integration
 Create or update your VS Code MCP configuration file (`.vscode/mcp.json`):
 
-#### For Pre-built Executable (Recommended):
+#### For Pre-built Executable (Recommended for End Users):
 ```json
 {
   "mcpServers": {
-    "MCPBI": {
-      "command": "Releases/mcpbi.exe",
-      "args": [],
-      "disabled": false,
-      "alwaysAllow": []
+    "mcpbi-dev": {
+      "command": "C:\\Tools\\tabular-mcp\\app\\mcpbi.exe",
+      "args": []
     }
   }
 }
 ```
 
-#### For Development Setup:
+#### For Development Setup (Contributors):
 ```json
 {
-  "servers": {
-    "tabular-mcp": {
-      "type": "stdio",
+  "mcpServers": {
+    "mcpbi-dev": {
       "command": "dotnet",
-      "envFile": "${workspaceFolder}/.env",
       "args": [
         "run",
         "--project",
         "${workspaceFolder}/pbi-local-mcp/pbi-local-mcp.csproj"
-      ]
-    }
-  }
-}
-```
-
-#### For Custom Installation Path:
-```json
-{
-  "mcpServers": {
-    "MCPBI": {
-      "command": "C:\\Tools\\tabular-mcp\\mcpbi.exe",
-      "args": [],
-      "disabled": false,
-      "alwaysAllow": []
+      ],
+      "env": {
+        "DOTNET_ENVIRONMENT": "Development"
+      }
     }
   }
 }
@@ -149,14 +143,13 @@ You can also set these manually if needed:
 The server supports several command line arguments:
 
 ```cmd
-# For pre-built executable (recommended)
-Releases\pbi-local-mcp.DiscoverCli.exe                    # Discovery tool
-Releases\mcpbi.exe --port 12345                          # Start with specific port
-Releases\mcpbi.exe --db-id "your-database-id"            # Start with specific DB ID
-Releases\mcpbi.exe --help                                # Show help
+# Pre-built executables
+pbi-local-mcp.DiscoverCli.exe                           # Discovery tool
+mcpbi.exe --port 12345                                  # Start with specific port
+mcpbi.exe --db-id "your-database-id"                    # Start with specific DB ID
+mcpbi.exe --help                                        # Show help
 
-# For development setup
-dotnet run --project pbi-local-mcp/pbi-local-mcp.csproj discover-pbi
+# Development setup
 dotnet run --project pbi-local-mcp/pbi-local-mcp.csproj -- --port 12345
 dotnet run --project pbi-local-mcp/pbi-local-mcp.csproj -- --db-id "your-database-id"
 dotnet run --project pbi-local-mcp/pbi-local-mcp.csproj -- --help
@@ -176,8 +169,9 @@ dotnet run --project pbi-local-mcp/pbi-local-mcp.csproj -- --help
    - Check that Windows Firewall isn't blocking the connection
 
 3. **Missing Dependencies**
-   - For framework-dependent builds, ensure .NET 8.0 Runtime is installed
-   - Download from: https://dotnet.microsoft.com/download/dotnet/8.0
+   - Pre-built executables include all dependencies (no .NET installation required)
+   - For development, ensure .NET 8.0 SDK is installed
+   - Download SDK from: https://dotnet.microsoft.com/download/dotnet/8.0
 
 4. **MCP Server Not Found in VS Code**
    - Verify the path in `.vscode/mcp.json` is correct
@@ -192,21 +186,21 @@ The server provides detailed logging. To enable verbose logging:
 
 ## Distribution
 
-### Pre-built Releases
+### Release Packages
 
-The `Releases/` directory contains pre-built executables ready for distribution:
+The `releases/` directory contains pre-built executables ready for distribution:
 
-- `mcpbi.exe` - Main MCP server executable
-- `pbi-local-mcp.DiscoverCli.exe` - Discovery CLI tool for Power BI setup
-- Supporting DLL files (msalruntime.dll, msasxpress.dll, etc.)
+- `mcpbi.exe` - Main MCP server (single-file, ~150MB)
+- `pbi-local-mcp.DiscoverCli.exe` - Discovery CLI tool
+- `mcpbi-v{version}.zip` - Complete package with documentation and installation scripts
 
 ### Creating Installation Packages
 
-For distribution to end users, consider creating:
+The automated publish script creates a ready-to-distribute ZIP package:
 
-1. **ZIP Package**: Compress the `Releases/` directory contents
-2. **Installer**: Use tools like Inno Setup or WiX to create an MSI installer
-3. **Portable Package**: The `Releases/` directory already provides a portable solution
+1. **ZIP Package**: Run `scripts\publish.bat` to create `releases\mcpbi-v{version}.zip`
+2. **Portable Package**: Extract the ZIP to any location - no installation required
+3. **Custom Installer**: Use the ZIP contents with tools like Inno Setup or WiX for MSI creation
 
 ### Version Management
 
@@ -225,9 +219,11 @@ Build information is managed through:
 ## Performance Notes
 
 - **Development setup**: Fast compilation and startup for development/testing
-- **Single-file builds**: Slightly slower startup due to extraction overhead, but easiest distribution
-- **Self-contained builds**: Fast startup, larger disk footprint, no runtime dependencies
-- **Framework-dependent builds**: Fastest startup, smallest footprint when .NET 8.0 is already installed
+- **Pre-built executables**: Single-file, self-contained with all dependencies
+  - Startup: ~2-3 seconds (extraction overhead)
+  - Disk space: ~150MB per executable
+  - Deployment: Easiest - just copy one .exe file
+  - No runtime installation required
 
 ## Next Steps
 
