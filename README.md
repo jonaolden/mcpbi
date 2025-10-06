@@ -45,8 +45,49 @@ Validate DAX syntax and identify potential issues with enhanced error analysis.
 ### AnalyzeQueryPerformance
 Analyze query performance characteristics and identify potential bottlenecks.
 
-## How to set up
-See [`docs/setup.md`](docs/setup.md) for requirements and installation instructions.
+## Installation
+
+### Quick Start with Prebuilt Binaries (Recommended)
+
+The fastest way to get started is using prebuilt executables - no .NET installation required:
+
+1. **Download the latest release** from the `Releases/` directory or GitHub releases page
+2. **Extract to your preferred location** (e.g., `C:\Tools\tabular-mcp\`)
+3. **Run Power BI Discovery** to configure connection:
+   ```cmd
+   Releases\pbi-local-mcp.DiscoverCli.exe
+   ```
+   Follow prompts to detect your Power BI instance and create the `.env` file.
+
+4. **Configure VS Code MCP** by adding to `.vscode/mcp.json`:
+   ```json
+   {
+     "mcpServers": {
+       "mcpbi": {
+         "command": "C:\\path\\to\\Releases\\mcpbi.exe",
+         "args": []
+       }
+     }
+   }
+   ```
+
+5. **Restart VS Code** - the Tabular MCP Server is now ready to use!
+
+### Development Setup from Source
+
+For contributors and advanced users who want to build from source:
+
+See [`docs/setup.md`](docs/setup.md) for detailed requirements and installation instructions.
+
+**Quick Start:**
+```sh
+git clone <repository-url>
+cd tabular-mcp
+dotnet build
+dotnet run --project pbi-local-mcp/pbi-local-mcp.csproj discover-pbi
+```
+
+For complete deployment options and troubleshooting, see [`DEPLOYMENT.md`](DEPLOYMENT.md).
 
 ## License
 MIT

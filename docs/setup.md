@@ -7,10 +7,7 @@
 - Visual Studio Code (for MCP server integration)
 - [.NET 8.0 Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)
 
-
-
-
-### Setup from source (recommended)
+### Setup from source
 
 1. **Clone the repository** and open the directory in your terminal.
 
@@ -57,40 +54,9 @@
    ```
    Follow prompts to select the instance and database. This writes `PBI_PORT` and `PBI_DB_ID` to `.env` in the project root.
 
-3. **Configure MCP server in VS Code:**
-   Add a `.vscode/mcp.json` file:
-   ```json
-   {
-     "servers": {
-       "tabular-mcp": {
-         "type": "stdio",
-         "command": "dotnet",
-         "envFile": "${workspaceFolder}/.env",
-         "args": [
-           "run",
-           "--project",
-           "${workspaceFolder}/pbi-local-mcp/pbi-local-mcp.csproj"
-         ]
-       }
-     }
-   }
-   ```
-   This loads the `.env` file and starts the MCP server for VS Code integration.
 
-## Manual Setup
-
-**If you already know your port and database ID:**
-Create `.env` in the project root with:
-```
-PBI_PORT=<your_pbi_instance_port>
-PBI_DB_ID=<your_pbi_database_id>
-```
-
-
-## Prebuilt releases (not recommended due to instable releases)
-
-### Option A: Pre-built Executable
-The fastest way to get started:
+## Prebuilt releases
+Download prebuilt binaries from the `Releases/` directory or GitHub releases page.
 
 1. **Run Power BI Discovery** to detect Power BI Desktop and populate the `.env` file:
    ```cmd
