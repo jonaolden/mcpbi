@@ -8,7 +8,7 @@ namespace pbi_local_mcp.Tests;
 public class DaxToolsErrorHandlingTests
 {
     [Fact]
-    public async Task RunQuery_DAXError_PreservesEnhancedErrorMessage()
+    public async Task RunQuery_DAXError_ReturnsStructuredErrorResponse()
     {
         // Arrange
         var config = new PowerBiConfig { Port = "12345", DbId = "TestDB" };
@@ -17,20 +17,29 @@ public class DaxToolsErrorHandlingTests
         var daxToolsLogger = NullLogger<DaxTools>.Instance;
         var daxTools = new DaxTools(connection, daxToolsLogger);
         
-        // Act & Assert - Expect standard Exception (not McpException to avoid serialization issues)
-        var exception = await Assert.ThrowsAsync<Exception>(() =>
-            daxTools.RunQuery("EVALUATE BADFUNCTION()"));
+        // Act - Execute query with invalid DAX that will cause execution error
+        var result = await daxTools.RunQuery("EVALUATE BADFUNCTION()");
         
-        // Verify the enhanced message is preserved and contains all expected information
-        Assert.Contains("DAX query execution failed:", exception.Message);
-        Assert.Contains("Query Type: DAX", exception.Message);
-        Assert.Contains("Original Query:", exception.Message);
-        Assert.Contains("EVALUATE BADFUNCTION()", exception.Message);
-        Assert.Contains("Final Query:", exception.Message);
+        // Assert - Verify structured error response
+        Assert.NotNull(result);
+        var resultType = result.GetType();
+        var successProperty = resultType.GetProperty("Success");
+        Assert.NotNull(successProperty);
+        Assert.False((bool)successProperty.GetValue(result)!);
+        
+        var errorCategoryProperty = resultType.GetProperty("ErrorCategory");
+        Assert.NotNull(errorCategoryProperty);
+        Assert.Equal("execution", errorCategoryProperty.GetValue(result));
+        
+        var queryInfoProperty = resultType.GetProperty("QueryInfo");
+        Assert.NotNull(queryInfoProperty);
+        var queryInfo = queryInfoProperty.GetValue(result);
+        var originalQueryProperty = queryInfo!.GetType().GetProperty("OriginalQuery");
+        Assert.Contains("EVALUATE BADFUNCTION()", originalQueryProperty!.GetValue(queryInfo)!.ToString());
     }
 
     [Fact]
-    public async Task RunQuery_ValidationError_ThrowsArgumentException()
+    public async Task RunQuery_ValidationError_ReturnsStructuredErrorResponse()
     {
         // Arrange
         var config = new PowerBiConfig { Port = "12345", DbId = "TestDB" };
@@ -39,17 +48,29 @@ public class DaxToolsErrorHandlingTests
         var daxToolsLogger = NullLogger<DaxTools>.Instance;
         var daxTools = new DaxTools(connection, daxToolsLogger);
         
-        // Act & Assert - Test with an empty query that will trigger validation error
-        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
-            daxTools.RunQuery(""));
+        // Act - Test with an empty query that will trigger validation error
+        var result = await daxTools.RunQuery("");
         
-        // Verify validation errors get proper context
-        Assert.Contains("DAX query cannot be null or empty", exception.Message);
-        Assert.Equal("dax", exception.ParamName);
+        // Assert - Verify structured error response
+        Assert.NotNull(result);
+        var resultType = result.GetType();
+        var successProperty = resultType.GetProperty("Success");
+        Assert.NotNull(successProperty);
+        Assert.False((bool)successProperty.GetValue(result)!);
+        
+        var errorCategoryProperty = resultType.GetProperty("ErrorCategory");
+        Assert.NotNull(errorCategoryProperty);
+        Assert.Equal("validation", errorCategoryProperty.GetValue(result));
+        
+        var errorDetailsProperty = resultType.GetProperty("ErrorDetails");
+        Assert.NotNull(errorDetailsProperty);
+        var errorDetails = errorDetailsProperty.GetValue(result);
+        var messageProperty = errorDetails!.GetType().GetProperty("Message");
+        Assert.Contains("DAX query cannot be null or empty", messageProperty!.GetValue(errorDetails)!.ToString());
     }
 
     [Fact]
-    public async Task RunQuery_UnbalancedParentheses_ThrowsArgumentException()
+    public async Task RunQuery_UnbalancedParentheses_ReturnsStructuredErrorResponse()
     {
         // Arrange
         var config = new PowerBiConfig { Port = "12345", DbId = "TestDB" };
@@ -58,18 +79,30 @@ public class DaxToolsErrorHandlingTests
         var daxToolsLogger = NullLogger<DaxTools>.Instance;
         var daxTools = new DaxTools(connection, daxToolsLogger);
         
-        // Act & Assert - Test with unbalanced parentheses
-        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
-            daxTools.RunQuery("SUM(Sales[Amount]"));
+        // Act - Test with unbalanced parentheses
+        var result = await daxTools.RunQuery("SUM(Sales[Amount]");
         
-        // Verify validation errors get proper context
-        Assert.Contains("Query validation failed:", exception.Message);
-        Assert.Contains("unbalanced parentheses", exception.Message);
-        Assert.Equal("dax", exception.ParamName);
+        // Assert - Verify structured error response
+        Assert.NotNull(result);
+        var resultType = result.GetType();
+        var successProperty = resultType.GetProperty("Success");
+        Assert.NotNull(successProperty);
+        Assert.False((bool)successProperty.GetValue(result)!);
+        
+        var errorCategoryProperty = resultType.GetProperty("ErrorCategory");
+        Assert.NotNull(errorCategoryProperty);
+        Assert.Equal("validation", errorCategoryProperty.GetValue(result));
+        
+        var suggestionsProperty = resultType.GetProperty("Suggestions");
+        Assert.NotNull(suggestionsProperty);
+        var suggestions = suggestionsProperty.GetValue(result) as System.Collections.IEnumerable;
+        Assert.NotNull(suggestions);
+        var suggestionsList = suggestions.Cast<string>().ToList();
+        Assert.Contains(suggestionsList, s => s.Contains("unbalanced parentheses"));
     }
 
     [Fact]
-    public async Task RunQuery_WhitespaceOnly_ThrowsArgumentException()
+    public async Task RunQuery_WhitespaceOnly_ReturnsStructuredErrorResponse()
     {
         // Arrange
         var config = new PowerBiConfig { Port = "12345", DbId = "TestDB" };
@@ -78,17 +111,23 @@ public class DaxToolsErrorHandlingTests
         var daxToolsLogger = NullLogger<DaxTools>.Instance;
         var daxTools = new DaxTools(connection, daxToolsLogger);
         
-        // Act & Assert - Test with whitespace-only query
-        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
-            daxTools.RunQuery("   \t\n  "));
+        // Act - Test with whitespace-only query
+        var result = await daxTools.RunQuery("   \t\n  ");
         
-        // Verify validation errors get proper context
-        Assert.Contains("DAX query cannot be null or empty", exception.Message);
-        Assert.Equal("dax", exception.ParamName);
+        // Assert - Verify structured error response
+        Assert.NotNull(result);
+        var resultType = result.GetType();
+        var successProperty = resultType.GetProperty("Success");
+        Assert.NotNull(successProperty);
+        Assert.False((bool)successProperty.GetValue(result)!);
+        
+        var errorCategoryProperty = resultType.GetProperty("ErrorCategory");
+        Assert.NotNull(errorCategoryProperty);
+        Assert.Equal("validation", errorCategoryProperty.GetValue(result));
     }
 
     [Fact]
-    public async Task RunQuery_InvalidDefineQuery_ThrowsArgumentException()
+    public async Task RunQuery_InvalidDefineQuery_ReturnsStructuredErrorResponse()
     {
         // Arrange
         var config = new PowerBiConfig { Port = "12345", DbId = "TestDB" };
@@ -97,12 +136,25 @@ public class DaxToolsErrorHandlingTests
         var daxToolsLogger = NullLogger<DaxTools>.Instance;
         var daxTools = new DaxTools(connection, daxToolsLogger);
         
-        // Act & Assert - Test with invalid DEFINE query structure
-        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
-            daxTools.RunQuery("DEFINE EVALUATE ROW(\"Test\", 1)"));
+        // Act - Test with invalid DEFINE query structure (missing EVALUATE)
+        var result = await daxTools.RunQuery("DEFINE MEASURE Sales[Total] = SUM(Sales[Amount])");
         
-        // Verify validation errors get proper context
-        Assert.Contains("DAX query structure validation failed:", exception.Message);
-        Assert.Equal("dax", exception.ParamName);
+        // Assert - Verify structured error response
+        Assert.NotNull(result);
+        var resultType = result.GetType();
+        var successProperty = resultType.GetProperty("Success");
+        Assert.NotNull(successProperty);
+        Assert.False((bool)successProperty.GetValue(result)!);
+        
+        var errorCategoryProperty = resultType.GetProperty("ErrorCategory");
+        Assert.NotNull(errorCategoryProperty);
+        Assert.Equal("validation", errorCategoryProperty.GetValue(result));
+        
+        var suggestionsProperty = resultType.GetProperty("Suggestions");
+        Assert.NotNull(suggestionsProperty);
+        var suggestions = suggestionsProperty.GetValue(result) as System.Collections.IEnumerable;
+        Assert.NotNull(suggestions);
+        var suggestionsList = suggestions.Cast<string>().ToList();
+        Assert.Contains(suggestionsList, s => s.Contains("DEFINE blocks must be followed by an EVALUATE statement"));
     }
 }

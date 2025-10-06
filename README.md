@@ -9,7 +9,7 @@ This server allows MCP-enabled LLM clients to communicate with your tabular mode
 
 It connects to a local running instance of Tabular models using the [AdomdConnection in ADOMD.NET](https://learn.microsoft.com/en-us/analysis-services/adomd/multidimensional-models-adomd-net-client/connections-in-adomd-net?view=asallproducts-allversions). 
 
-Using this connection, the server then allows clients to execute [DAX-queries](https://www.sqlbi.com/articles/execute-dax-queries-through-ole-db-and-adomd-net/) to retrieve model metadata (using [DAX INFO functions](https://learn.microsoft.com/en-us/dax/info-functions-dax)) through pre-defined tools for high accuracy, as well as custom DAX queries for debugging and development.
+Using this connection, the server then allows clients to execute [DAX-queries](https://www.sqlbi.com/articles/execute-dax-queries-through-ole-db-and-adomd-net/) and retrieve model metadata (using DMV queries) through pre-defined tools for high accuracy, as well as custom DAX queries for debugging and development.
 
 This MCP server enables communication between clients and Power BI tabular models via ADOMD.NET, supporting both predefined metadata queries and flexible DAX queries with full DEFINE block capabilities for advanced analysis.
 
@@ -37,13 +37,26 @@ Get relationships for a specific table by name.
 Preview data from a table (top N rows).
 
 ### RunQuery
-Execute a DAX query. Supports complete DAX queries with DEFINE blocks, EVALUATE statements, or simple expressions.
+Execute a DAX query. Supports complete DAX queries with DEFINE blocks, EVALUATE statements, or simple expressions. **Enhanced with structured error responses** - returns detailed error information instead of throwing exceptions for better MCP protocol compatibility.
 
 ### ValidateDaxSyntax
 Validate DAX syntax and identify potential issues with enhanced error analysis.
 
 ### AnalyzeQueryPerformance
 Analyze query performance characteristics and identify potential bottlenecks.
+
+## 🆕 Latest Improvements
+
+### Enhanced Error Handling System
+- **Structured Error Responses**: All DAX query errors now return structured JSON objects instead of throwing exceptions, ensuring better compatibility with MCP protocol
+- **Intelligent Error Classification**: Automatically categorizes errors (Syntax Error, Column Reference Error, Table Reference Error, Connection Error, etc.)
+- **Contextual Suggestions**: Provides specific troubleshooting recommendations based on error type and query content
+- **Detailed Error Messages**: Includes comprehensive diagnostics with query information, error classification, and step-by-step suggestions
+
+### Improved MCP Protocol Compatibility  
+- **Logging Optimization**: All console output redirected to stderr to prevent interference with JSON-RPC communication
+- **Better Serialization**: Error responses designed for seamless JSON serialization through MCP protocol
+- **Enhanced Debugging**: Detailed error information helps developers quickly identify and resolve DAX query issues
 
 ## How to install
 See [`docs/Installation.md`](docs/Installation.md) for requirements and installation instructions.

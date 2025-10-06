@@ -53,9 +53,10 @@ public class ServerConfigurator
         var builder = Host.CreateApplicationBuilder(args);
 
         // Configure logging first - separate MCP and debug logging
+        // For MCP servers, ALL console logging must go to stderr to avoid interfering with JSON-RPC communication
         builder.Logging.AddConsole(options =>
         {
-            options.LogToStandardErrorThreshold = LogLevel.Warning; // Only errors to stderr
+            options.LogToStandardErrorThreshold = LogLevel.Trace; // ALL logs to stderr
         });
         builder.Logging.SetMinimumLevel(LogLevel.Debug);
 
@@ -128,7 +129,10 @@ public class ServerConfigurator
     {
         var loggerFactory = LoggerFactory.Create(builder =>
         {
-            builder.AddConsole();
+            builder.AddConsole(options =>
+            {
+                options.LogToStandardErrorThreshold = LogLevel.Trace; // ALL logs to stderr
+            });
             builder.SetMinimumLevel(LogLevel.Debug);
         });
 
