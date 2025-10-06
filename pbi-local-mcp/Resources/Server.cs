@@ -75,8 +75,7 @@ public class ServerConfigurator
                 var logger = serviceProvider.GetRequiredService<ILogger<TabularConnection>>();
                 return new TabularConnection(config, logger);
             })
-            .AddSingleton<DaxTools>()
-            .AddSingleton<PowerBiResourceProvider>(); // resource provider DI
+            .AddSingleton<DaxTools>();
 
         _logger.LogInformation("Core services registered.");
 
