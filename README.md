@@ -105,7 +105,8 @@ Use [`AnalyzeQueryPerformance`] to identify slow queries, then iterate improveme
 There are several ways to detect Power BI Desktop instances.
 The easiest is to open Tabular Editor and check the port in the connection string.
 
-![Tabular Editor](image.png)
+<img width="317" height="63" alt="Tabular Editor" src="https://github.com/user-attachments/assets/eca039c7-5ca4-4fc6-a957-7684a971a01e" />
+
    
 Simply add the port to your MCP server configuration in the next step (you can ignore the database ID, as this server connects to the default model).   
 If you don't have Tabular Editor, you can use the included discovery tool to find the running instance and database.
@@ -152,7 +153,6 @@ If you don't have Tabular Editor, you can use the included discovery tool to fin
    ```
    Replace `path\\to\\release` with your actual release directory path and `YOUR_PBI_PORT` with the port number from PBI instance.
 
-5. **Restart your editor** to load the MCP server configuration.
 
 ### Setup from Source (For Development)
 
@@ -207,7 +207,6 @@ If you don't have Tabular Editor, you can use the included discovery tool to fin
    ```
    Replace `path\\to\\tabular-mcp` with your actual repository path.
 
-6. **Restart your editor** to load the MCP server.
 
 ### Configuration Notes
 - **Use either port or envFile**: You can specify the Power BI port directly in `args` or use `envFile` to load from `.env`.
