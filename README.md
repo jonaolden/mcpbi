@@ -4,6 +4,7 @@ This is a Model Context Protocol (MCP) server for locally running Tabular Models
 This server allows MCP-enabled LLM clients to communicate with your tabular models and help you debug, analyse and compose DAX queries. 
 
 *Example: Copilot querying Tabular Model via MCP*
+
 ![roocodedemo](https://github.com/user-attachments/assets/5dd8b5b3-0d30-4876-b8c9-87233f336e6f)
 
 # How it works 
