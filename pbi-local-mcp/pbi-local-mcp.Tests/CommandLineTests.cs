@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+
 using pbi_local_mcp.Resources;
-using Xunit;
 
 namespace pbi_local_mcp.Tests;
 
@@ -30,7 +30,7 @@ public class CommandLineTests
 
         // Note: This test would require mocking the database discovery
         // For now, we'll just test the argument parsing structure
-        
+
         // Act & Assert
         // The actual test would need to mock the database discovery
         // This is a placeholder to show the test structure

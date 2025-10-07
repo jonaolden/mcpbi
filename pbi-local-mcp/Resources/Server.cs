@@ -1,12 +1,17 @@
+using System.CommandLine;
+using System.IO;
+using System.Security.Cryptography;
+
+using Microsoft.AnalysisServices.AdomdClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System.CommandLine;
+
+using ModelContextProtocol.Server;
 
 using pbi_local_mcp.Configuration;
 using pbi_local_mcp.Core;
-using Microsoft.AnalysisServices.AdomdClient;
 
 namespace pbi_local_mcp.Resources;
 
@@ -34,10 +39,10 @@ public class ServerConfigurator
     public async Task RunAsync(string[] args)
     {
         _logger.LogInformation("Configuring MCP server...");
-        
+
         // Load .env file as fallback first (won't override existing values)
         LoadEnvFile(".env");
-        
+
         // Parse command-line arguments (will override .env values if provided)
         await ProcessCommandLineArgumentsAsync(args);
 
@@ -48,17 +53,14 @@ public class ServerConfigurator
 
         var builder = Host.CreateApplicationBuilder(args);
 
-        // Configure logging first - separate MCP and debug logging
-        builder.Logging.AddConsole(options =>
-        {
-            options.LogToStandardErrorThreshold = LogLevel.Warning; // Only errors to stderr
-        });
-        builder.Logging.SetMinimumLevel(LogLevel.Debug);
+        // Configure logging via centralized extension
+        builder.Logging.ConfigureMcpLogging();
 
         _logger.LogInformation("Starting MCP server configuration...");
 
         // Configure services
         builder.Services
+            .AddMemoryCache()
             .Configure<PowerBiConfig>(config =>
             {
                 config.Port = Environment.GetEnvironmentVariable("PBI_PORT") ?? "";
@@ -83,6 +85,35 @@ public class ServerConfigurator
             .WithStdioServerTransport()
             .WithToolsFromAssembly();
 
+        // Startup banner (replaces prior temporary diagnostic reflection block)
+        try
+        {
+            var asm = typeof(ServerConfigurator).Assembly;
+            string version = asm.GetName().Version?.ToString() ?? "n/a";
+            string hash = "n/a";
+            try
+            {
+                var path = asm.Location;
+                if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
+                {
+                    using var sha = SHA256.Create();
+                    using var fs = File.OpenRead(path);
+                    hash = Convert.ToHexString(sha.ComputeHash(fs)).Substring(0, 12);
+                }
+            }
+            catch
+            {
+                // swallow hash errors silently
+            }
+
+            _logger.LogInformation("Startup Assembly={Assembly} Version={Version} HashPrefix={Hash} (hash truncated)",
+                asm.GetName().Name, version, hash);
+        }
+        catch (Exception bannerEx)
+        {
+            _logger.LogWarning(bannerEx, "Failed to emit startup assembly banner");
+        }
+
         _logger.LogInformation("MCP server configured with tools from assembly.");
 
         await builder.Build().RunAsync();
@@ -93,10 +124,9 @@ public class ServerConfigurator
     /// </summary>
     public static async Task RunServerAsync(string[] args)
     {
-        var loggerFactory = LoggerFactory.Create(builder =>
+        var loggerFactory = LoggerFactory.Create(b =>
         {
-            builder.AddConsole();
-            builder.SetMinimumLevel(LogLevel.Debug);
+            b.ConfigureMcpLogging();
         });
 
         var logger = loggerFactory.CreateLogger<ServerConfigurator>();
@@ -122,7 +152,7 @@ public class ServerConfigurator
             {
                 var key = parts[0].Trim();
                 var value = parts[1].Trim();
-                
+
                 // Only set if the environment variable doesn't already exist (fallback behavior)
                 if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(key)))
                 {

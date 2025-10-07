@@ -1,6 +1,6 @@
-using ModelContextProtocol.Server;
-
 using System.ComponentModel;
+
+using ModelContextProtocol.Server;
 
 namespace pbi_local_mcp.Prompts;
 

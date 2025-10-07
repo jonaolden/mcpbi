@@ -1,6 +1,6 @@
-using ModelContextProtocol.Server;
-
 using System.ComponentModel;
+
+using ModelContextProtocol.Server;
 
 namespace pbi_local_mcp.Prompts;
 
@@ -29,7 +29,7 @@ public class ComplexPromptType
         [Description("Include alternative implementation suggestions")] bool includeAlternatives = true)
     {
         var basePrompt = "You are an expert DAX analyzer with deep knowledge of tabular models, performance optimization, and enterprise best practices.";
-        
+
         var depthGuidance = depth.ToLower() switch
         {
             "basic" => @"
@@ -141,7 +141,7 @@ public class ComplexPromptType
 - Provide recommendations for optimal storage mode selection"
         };
 
-        var alternativesGuidance = includeAlternatives 
+        var alternativesGuidance = includeAlternatives
             ? @"
 **Alternative Implementation Analysis:**
 - Provide 2-3 alternative calculation approaches
@@ -650,7 +650,7 @@ Please analyze and optimize the following DAX code for {bottleneckType} performa
 - Practical debugging steps and solution recommendations"
         };
 
-        var simulationGuidance = includeSimulation 
+        var simulationGuidance = includeSimulation
             ? @"
 **Visual Calculation Simulation Framework:**
 

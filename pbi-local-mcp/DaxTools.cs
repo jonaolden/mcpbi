@@ -1,5 +1,7 @@
 // File: DaxTools.cs
 using System.ComponentModel;
+using System.Diagnostics;
+using System.Text.Json;
 
 using Microsoft.Extensions.Logging; // Added for ILogger
 
@@ -17,6 +19,11 @@ public class DaxTools // Changed from static class
 {
     private readonly ITabularConnection _tabularConnection;
     private readonly ILogger<DaxTools> _logger;
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        WriteIndented = false
+    };
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DaxTools"/> class.
@@ -32,10 +39,13 @@ public class DaxTools // Changed from static class
     // Removed private static TabularConnection CreateConnection()
 
     [McpServerTool, Description("List all measures in the model with essential information (name, table, data type, visibility), optionally filtered by table name. Use GetMeasureDetails for full DAX expressions.")]
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+    /// <summary>
+    /// Lists measures in the connected model exposing essential metadata such as name, table, data type and visibility.
+    /// </summary>
+    /// <param name="tableName">Optional table name to filter measures. When null, all measures are returned.</param>
+    /// <returns>An enumerable of measure metadata rows (as dictionaries).</returns>
     public async Task<object> ListMeasures(
         [Description("Optional table name to filter measures. If null, returns all measures.")] string? tableName = null)
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     {
         try
         {
@@ -81,10 +91,13 @@ public class DaxTools // Changed from static class
     }
 
     [McpServerTool, Description("Get details for a specific measure by name.")]
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+    /// <summary>
+    /// Retrieves detailed information for a single measure (including DAX expression where available).
+    /// </summary>
+    /// <param name="measureName">The measure name to fetch details for.</param>
+    /// <returns>An enumerable with the measure detail row(s).</returns>
     public async Task<object> GetMeasureDetails(
         [Description("Name of the measure to get details for")] string measureName)
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     {
         try
         {
@@ -111,9 +124,11 @@ public class DaxTools // Changed from static class
     }
 
     [McpServerTool, Description("List all tables in the model.")]
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+    /// <summary>
+    /// Lists tables defined in the connected tabular model.
+    /// </summary>
+    /// <returns>An enumerable of table metadata rows.</returns>
     public async Task<object> ListTables()
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     {
         try
         {
@@ -135,10 +150,13 @@ public class DaxTools // Changed from static class
     }
 
     [McpServerTool, Description("Get details for a specific table by name.")]
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+    /// <summary>
+    /// Retrieves detailed metadata for a given table in the model.
+    /// </summary>
+    /// <param name="tableName">Table name to query.</param>
+    /// <returns>An enumerable with table detail row(s).</returns>
     public async Task<object> GetTableDetails(
         [Description("Name of the table to get details for")] string tableName)
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     {
         try
         {
@@ -165,10 +183,13 @@ public class DaxTools // Changed from static class
     }
 
     [McpServerTool, Description("Get columns for a specific table by name.")]
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+    /// <summary>
+    /// Returns column metadata for the specified table.
+    /// </summary>
+    /// <param name="tableName">Name of the table whose columns will be listed.</param>
+    /// <returns>An enumerable of column metadata rows.</returns>
     public async Task<object> GetTableColumns(
         [Description("Name of the table to get columns for")] string tableName)
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     {
         try
         {
@@ -195,10 +216,13 @@ public class DaxTools // Changed from static class
     }
 
     [McpServerTool, Description("Get relationships for a specific table by name.")]
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+    /// <summary>
+    /// Retrieves relationships where the specified table participates.
+    /// </summary>
+    /// <param name="tableName">The table name to inspect for relationships.</param>
+    /// <returns>An enumerable of relationship rows.</returns>
     public async Task<object> GetTableRelationships(
         [Description("Name of the table to get relationships for")] string tableName)
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     {
         try
         {
@@ -245,9 +269,7 @@ public class DaxTools // Changed from static class
     /// </summary>
     /// <param name="dax">The DAX query to execute. Can be a complete query with DEFINE block, an EVALUATE statement, or a simple expression.</param>
     /// <param name="topN">Maximum number of rows to return for table expressions (default: 10). Ignored for complete queries.</param>
-    /// <returns>Query execution result</returns>
-    /// <exception cref="ArgumentException">Thrown when query validation fails</exception>
-    /// <exception cref="Exception">Thrown when query execution fails</exception>
+    /// <returns>Query execution result or detailed error information</returns>
     [McpServerTool, Description("Execute a DAX query. Supports complete DAX queries with DEFINE blocks, EVALUATE statements, or simple expressions.")]
     public async Task<object> RunQuery(
         [Description("The DAX query to execute. Can be a complete query with DEFINE block, an EVALUATE statement, or a simple expression.")] string dax,
@@ -340,27 +362,243 @@ public class DaxTools // Changed from static class
                 _logger.LogError(execEx, "Query execution failed. Original: {OriginalQuery}, Final: {FinalQuery}, QueryType: {QueryType}",
                     originalDax, finalQuery, queryType);
 
-                // Re-throw with preserved stack trace and enhanced context
-                throw new Exception(
-                    $"DAX query execution failed: {execEx.Message}\n\n" +
-                    $"Original Query:\n{originalDax}\n\n" +
-                    $"Final Query:\n{finalQuery}\n\n" +
-                    $"Query Type: {queryType}",
-                    execEx);
+                // Return structured error information instead of throwing
+                return CreateStructuredErrorResponse(execEx, originalDax, finalQuery, queryType, "execution");
             }
         }
-        catch (ArgumentException)
+        catch (ArgumentException validationEx)
         {
-            // Re-throw argument exceptions (validation errors) as-is
+            // Log validation errors
+            _logger.LogWarning(validationEx, "Query validation failed for query: {Query}", originalDax);
+
+            // Return structured validation error information
+            return CreateStructuredErrorResponse(validationEx, originalDax, originalDax, QueryType.DAX, "validation");
+        }
+        catch (Exception ex)
+        {
+            // Log unexpected errors and return structured error information
+            _logger.LogError(ex, "Unexpected error in RunQuery for query: {Query}", originalDax);
+
+            // Return structured error information for unexpected errors
+            return CreateStructuredErrorResponse(ex, originalDax, originalDax, QueryType.DAX, "unexpected");
+        }
+    }
+
+    /// <summary>
+    /// Executes a DAX or DMV query with optional verbose diagnostic envelope.
+    /// Non-verbose (default): returns raw execution result JSON (array of row dictionaries) and throws on any error.
+    /// Verbose: returns a structured JSON envelope (VerboseQueryResult) containing success/output or detailed error info
+    /// (never throws except for cancellation). Invalid queryType causes exception (non-verbose) or validation envelope (verbose).
+    /// </summary>
+    /// <param name="query">Query text (DAX expression, EVALUATE/DEFINE block, or DMV statement when queryType=DMV).</param>
+    /// <param name="queryType">Query type hint ("DAX" | "DMV", default "DAX"). Case-insensitive.</param>
+    /// <param name="verbose">If true returns diagnostic envelope and suppresses (non-cancellation) exceptions.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>JSON string (raw result array for non-verbose success; verbose diagnostic envelope otherwise).</returns>
+    public async Task<string> RunQueryAsync(string query, string queryType = "DAX", bool verbose = false, CancellationToken ct = default)
+    {
+        var sw = Stopwatch.StartNew();
+        string originalQuery = query;
+        QueryType normalizedQueryType;
+
+        // Local JSON options (re‑use if class later adds a shared instance)
+        var jsonOptions = JsonOptions;
+
+        // Helper local function to serialize
+        string Serialize(object o) => JsonSerializer.Serialize(o, jsonOptions);
+
+        // Normalize queryType
+        bool TryNormalizeQueryType(string s, out QueryType qt)
+        {
+            if (string.Equals(s, "DAX", StringComparison.OrdinalIgnoreCase))
+            {
+                qt = QueryType.DAX;
+                return true;
+            }
+            if (string.Equals(s, "DMV", StringComparison.OrdinalIgnoreCase))
+            {
+                qt = QueryType.DMV;
+                return true;
+            }
+            qt = QueryType.DAX;
+            return false;
+        }
+
+        if (!TryNormalizeQueryType(queryType ?? "DAX", out normalizedQueryType))
+        {
+            if (!verbose)
+            {
+                throw new ArgumentException($"Invalid queryType '{queryType}'. Expected 'DAX' or 'DMV'.", nameof(queryType));
+            }
+
+            var invalidTypeEnvelope = new VerboseQueryResult(
+                Success: false,
+                ErrorCategory: "validation",
+                ErrorType: "Parameter Error",
+                ErrorMessage: $"Invalid queryType '{queryType}'. Expected 'DAX' or 'DMV'.",
+                Line: null,
+                Position: null,
+                Suggestions: new[] { "Use 'DAX' or 'DMV' (case-insensitive)." },
+                Result: null,
+                RawResult: null,
+                WasModified: false,
+                ElapsedMs: sw.ElapsedMilliseconds,
+                QueryType: queryType ?? "",
+                OriginalQuery: originalQuery ?? "",
+                FinalQuery: originalQuery ?? "",
+                TimestampUtc: DateTime.UtcNow
+            );
+            return Serialize(invalidTypeEnvelope);
+        }
+
+        // Non-verbose path: execute with legacy semantics (throw on error, return raw result JSON on success)
+        if (!verbose)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(query))
+                    throw new ArgumentException("Query cannot be null or empty.", nameof(query));
+
+                string working = query.Trim();
+                string finalQuery = working;
+                QueryType execType = normalizedQueryType;
+
+                if (normalizedQueryType == QueryType.DAX)
+                {
+                    // Perform same validation logic as RunQuery (throwing instead of returning envelope)
+                    var validationErrors = ValidateQuerySyntax(working);
+                    if (validationErrors.Any())
+                        throw new ArgumentException($"Query validation failed: {string.Join("; ", validationErrors)}", nameof(query));
+
+                    if (working.Contains("DEFINE", StringComparison.OrdinalIgnoreCase))
+                    {
+                        ValidateCompleteDAXQuery(working);
+                    }
+
+                    if (!working.StartsWith("DEFINE", StringComparison.OrdinalIgnoreCase) &&
+                        !working.StartsWith("EVALUATE", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Simple expression -> construct EVALUATE
+                        finalQuery = ConstructEvaluateStatement(working, topN: 10); // Use default topN=10 consistent with RunQuery semantics
+                    }
+                }
+
+                var execResult = await _tabularConnection.ExecAsync(finalQuery, execType, ct);
+                return Serialize(execResult);
+            }
+            catch
+            {
+                // Preserve original exception (per requirements)
+                throw;
+            }
+        }
+
+        // Verbose path
+        try
+        {
+            if (string.IsNullOrWhiteSpace(query))
+                throw new ArgumentException("Query cannot be null or empty.", nameof(query));
+
+            string working = query.Trim();
+            string finalQuery = working;
+            bool wasModified = false;
+
+            if (normalizedQueryType == QueryType.DAX)
+            {
+                // Validation (ArgumentException should be captured into envelope)
+                var validationErrors = ValidateQuerySyntax(working);
+                if (validationErrors.Any())
+                {
+                    throw new ArgumentException($"Query validation failed: {string.Join("; ", validationErrors)}", nameof(query));
+                }
+
+                if (working.Contains("DEFINE", StringComparison.OrdinalIgnoreCase))
+                {
+                    ValidateCompleteDAXQuery(working);
+                }
+
+                if (!working.StartsWith("DEFINE", StringComparison.OrdinalIgnoreCase) &&
+                    !working.StartsWith("EVALUATE", StringComparison.OrdinalIgnoreCase))
+                {
+                    finalQuery = ConstructEvaluateStatement(working, topN: 10);
+                    wasModified = true;
+                }
+            }
+
+            var execResult = await _tabularConnection.ExecAsync(finalQuery, normalizedQueryType, ct);
+            sw.Stop();
+
+            var successEnvelope = new VerboseQueryResult(
+                Success: true,
+                ErrorCategory: null,
+                ErrorType: null,
+                ErrorMessage: null,
+                Line: null,
+                Position: null,
+                Suggestions: null,
+                Result: execResult,
+                RawResult: execResult,
+                WasModified: wasModified,
+                ElapsedMs: sw.ElapsedMilliseconds,
+                QueryType: normalizedQueryType.ToString(),
+                OriginalQuery: originalQuery,
+                FinalQuery: finalQuery,
+                TimestampUtc: DateTime.UtcNow
+            );
+
+            return Serialize(successEnvelope);
+        }
+        catch (OperationCanceledException)
+        {
+            // Cancellation still throws
             throw;
         }
         catch (Exception ex)
         {
-            // Log unexpected errors and wrap with context
-            _logger.LogError(ex, "Unexpected error in RunQuery for query: {Query}", originalDax);
+            sw.Stop();
 
-            // Don't wrap in McpException to avoid serialization issues
-            throw new Exception($"An unexpected error occurred while executing the DAX query: {ex.Message}\n\nOriginal Query:\n{originalDax}", ex);
+            string errorCategory = ex is ArgumentException ? "validation" : "execution";
+            var errorType = ClassifyError(ex);
+            var suggestions = GetErrorSuggestions(errorType, ex.Message, originalQuery ?? "");
+
+            // Attempt line/position extraction
+            int? line = null;
+            int? pos = null;
+            try
+            {
+                var msg = ex.Message ?? "";
+                var pattern1 = new System.Text.RegularExpressions.Regex(@"[Ll]ine\s+(?<line>\d+)\s*(?:,|\))\s*(?:position|pos)\s*(?<pos>\d+)");
+                var pattern2 = new System.Text.RegularExpressions.Regex(@"\((?:line|Line)\s+(?<line>\d+),\s*(?:position|pos)\s*(?<pos>\d+)\)");
+                var m1 = pattern1.Match(msg);
+                var m2 = !m1.Success ? pattern2.Match(msg) : null;
+                var m = m1.Success ? m1 : (m2 != null && m2.Success ? m2 : null);
+                if (m != null)
+                {
+                    if (int.TryParse(m.Groups["line"].Value, out var l)) line = l;
+                    if (int.TryParse(m.Groups["pos"].Value, out var p)) pos = p;
+                }
+            }
+            catch { /* ignore parsing errors */ }
+
+            var errorEnvelope = new VerboseQueryResult(
+                Success: false,
+                ErrorCategory: errorCategory,
+                ErrorType: errorType,
+                ErrorMessage: ex.Message,
+                Line: line,
+                Position: pos,
+                Suggestions: suggestions,
+                Result: null,
+                RawResult: null,
+                WasModified: false,
+                ElapsedMs: sw.ElapsedMilliseconds,
+                QueryType: normalizedQueryType.ToString(),
+                OriginalQuery: originalQuery ?? "",
+                FinalQuery: originalQuery ?? "",
+                TimestampUtc: DateTime.UtcNow
+            );
+
+            return Serialize(errorEnvelope);
         }
     }
 
@@ -755,7 +993,12 @@ public class DaxTools // Changed from static class
 
     // New Tools Implementation - Based on Additional Tools Recommendations
 
-
+    /// <summary>
+    /// Validates DAX syntax and identifies potential issues with enhanced error analysis.
+    /// </summary>
+    /// <param name="daxExpression">DAX expression to validate</param>
+    /// <param name="includeRecommendations">Include performance and best practice recommendations</param>
+    /// <returns>Validation results including syntax errors, warnings, and recommendations</returns>
     [McpServerTool, Description("Validate DAX syntax and identify potential issues with enhanced error analysis.")]
     public async Task<object> ValidateDaxSyntax(
         [Description("DAX expression to validate")] string daxExpression,
@@ -822,6 +1065,12 @@ public class DaxTools // Changed from static class
         }
     }
 
+    /// <summary>
+    /// Analyzes query performance characteristics and identifies potential bottlenecks.
+    /// </summary>
+    /// <param name="daxQuery">DAX query to analyze</param>
+    /// <param name="includeOptimizations">Include complexity metrics and optimization suggestions</param>
+    /// <returns>Performance analysis results including execution time, complexity metrics, and optimization suggestions</returns>
     [McpServerTool, Description("Analyze query performance characteristics and identify potential bottlenecks.")]
     public async Task<object> AnalyzeQueryPerformance(
         [Description("DAX query to analyze")] string daxQuery,
@@ -1085,6 +1334,349 @@ public class DaxTools // Changed from static class
         if (iteratorFunctions > 2)
         {
             suggestions.Add("Multiple iterator functions detected - ensure they are necessary and consider alternatives");
+        }
+
+        return suggestions;
+    }
+
+    /// <summary>
+    /// Creates a structured error response that can be properly serialized through MCP protocol
+    /// </summary>
+    /// <param name="exception">The original exception that occurred</param>
+    /// <param name="originalQuery">The original DAX query</param>
+    /// <param name="finalQuery">The final processed DAX query</param>
+    /// <param name="queryType">The type of query (DAX or DMV)</param>
+    /// <param name="errorCategory">The category of error (execution, validation, unexpected)</param>
+    /// <returns>Structured error response object</returns>
+    private static object CreateStructuredErrorResponse(Exception exception, string originalQuery, string finalQuery, QueryType queryType, string errorCategory)
+    {
+        var errorType = ClassifyError(exception);
+        var suggestions = GetErrorSuggestions(errorType, exception.Message, originalQuery);
+
+        return new
+        {
+            Success = false,
+            ErrorCategory = errorCategory,
+            ErrorType = errorType,
+            ErrorDetails = new
+            {
+                ExceptionType = exception.GetType().Name,
+                Message = exception.Message,
+                InnerException = exception.InnerException?.Message,
+                StackTrace = exception.StackTrace?.Split('\n').Take(5).ToArray() // First 5 lines only
+            },
+            QueryInfo = new
+            {
+                QueryType = queryType.ToString(),
+                OriginalLength = originalQuery.Length,
+                FinalLength = finalQuery.Length,
+                WasModified = originalQuery != finalQuery,
+                OriginalQuery = originalQuery.Length > 1000 ? originalQuery.Substring(0, 1000) + "..." : originalQuery,
+                FinalQuery = originalQuery != finalQuery ? (finalQuery.Length > 1000 ? finalQuery.Substring(0, 1000) + "..." : finalQuery) : null
+            },
+            Suggestions = suggestions,
+            Timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss UTC"),
+            DetailedErrorMessage = CreateDetailedErrorMessage(exception, originalQuery, finalQuery, queryType)
+        };
+    }
+
+    /// <summary>
+    /// Verbose result envelope returned when <c>RunQueryAsync</c> is invoked with <c>verbose = true</c>.
+    /// Contains diagnostic information on failures or the execution result on success.
+    /// When <see cref="Success"/> is <c>false</c> the <see cref="ErrorCategory"/>, <see cref="ErrorType"/> and
+    /// <see cref="ErrorMessage"/> fields provide classification and details; <see cref="Line"/> and <see cref="Position"/>
+    /// indicate the approximate error location. <see cref="Suggestions"/> may contain remediation hints.
+    /// On success <see cref="Result"/> contains a parsed result (rows) and <see cref="RawResult"/> contains the
+    /// raw provider output. <see cref="ElapsedMs"/> measures execution duration in milliseconds.
+    /// </summary>
+    /// <param name="Success">True when the query executed successfully.</param>
+    /// <param name="ErrorCategory">High-level classification of the error (e.g. Syntax, Security, Engine).</param>
+    /// <param name="ErrorType">Specific error type or exception short name.</param>
+    /// <param name="ErrorMessage">Original error message from the provider.</param>
+    /// <param name="Line">Approximate 1-based line number where the error occurred, if available.</param>
+    /// <param name="Position">Approximate 1-based character position within the line, if available.</param>
+    /// <param name="Suggestions">Suggested remediation steps or diagnostic hints.</param>
+    /// <param name="Result">Parsed execution result (e.g. enumerable of row objects) when Success is true.</param>
+    /// <param name="RawResult">Raw provider output (format depends on the provider).</param>
+    /// <param name="WasModified">True if the query was modified by preprocessing before execution.</param>
+    /// <param name="ElapsedMs">Elapsed execution time in milliseconds.</param>
+    /// <param name="QueryType">The query type (for example: "DAX", "DMV").</param>
+    /// <param name="OriginalQuery">The original query text as submitted by the caller.</param>
+    /// <param name="FinalQuery">The final query text that was executed after preprocessing, or null if identical.</param>
+    /// <param name="TimestampUtc">UTC timestamp when the envelope was created.</param>
+    internal record VerboseQueryResult(
+        bool Success,
+        string? ErrorCategory,
+        string? ErrorType,
+        string? ErrorMessage,
+        int? Line,
+        int? Position,
+        IEnumerable<string>? Suggestions,
+        object? Result,
+        object? RawResult,
+        bool WasModified,
+        long ElapsedMs,
+        string QueryType,
+        string OriginalQuery,
+        string FinalQuery,
+        DateTime TimestampUtc
+    );
+
+    /// <summary>
+    /// Creates a detailed error message for query execution failures with diagnostics and suggestions
+    /// </summary>
+    /// <param name="exception">The original exception that occurred</param>
+    /// <param name="originalQuery">The original DAX query</param>
+    /// <param name="finalQuery">The final processed DAX query</param>
+    /// <param name="queryType">The type of query (DAX or DMV)</param>
+    /// <returns>Comprehensive error message with diagnostics</returns>
+    public static string CreateDetailedErrorMessage(Exception exception, string originalQuery, string finalQuery, QueryType queryType)
+    {
+        var errorBuilder = new System.Text.StringBuilder();
+
+        errorBuilder.AppendLine("=== DAX QUERY EXECUTION ERROR ===");
+        errorBuilder.AppendLine();
+
+        // Error classification
+        var errorType = ClassifyError(exception);
+        errorBuilder.AppendLine($"Error Classification: {errorType}");
+        errorBuilder.AppendLine($"Exception Type: {exception.GetType().Name}");
+        errorBuilder.AppendLine($"Error Message: {exception.Message}");
+        errorBuilder.AppendLine();
+
+        // Query information
+        errorBuilder.AppendLine("Query Information:");
+        errorBuilder.AppendLine($"   - Query Type: {queryType}");
+        errorBuilder.AppendLine($"   - Original Length: {originalQuery.Length} characters");
+        errorBuilder.AppendLine($"   - Final Length: {finalQuery.Length} characters");
+        errorBuilder.AppendLine($"   - Query Modified: {(originalQuery != finalQuery ? "Yes" : "No")}");
+        errorBuilder.AppendLine();
+
+        // Original query
+        errorBuilder.AppendLine("Original Query:");
+        errorBuilder.AppendLine("+" + "-".PadRight(50, '-') + "+");
+        var originalLines = originalQuery.Split('\n');
+        foreach (var line in originalLines.Take(10)) // Show first 10 lines
+        {
+            errorBuilder.AppendLine($"| {line.PadRight(50).Substring(0, Math.Min(50, line.Length))}");
+        }
+        if (originalLines.Length > 10)
+        {
+            errorBuilder.AppendLine($"| ... ({originalLines.Length - 10} more lines)");
+        }
+        errorBuilder.AppendLine("+" + "-".PadRight(50, '-') + "+");
+        errorBuilder.AppendLine();
+
+        // Final query (if different)
+        if (originalQuery != finalQuery)
+        {
+            errorBuilder.AppendLine("Processed Query:");
+            errorBuilder.AppendLine("+" + "-".PadRight(50, '-') + "+");
+            var finalLines = finalQuery.Split('\n');
+            foreach (var line in finalLines.Take(10))
+            {
+                errorBuilder.AppendLine($"| {line.PadRight(50).Substring(0, Math.Min(50, line.Length))}");
+            }
+            if (finalLines.Length > 10)
+            {
+                errorBuilder.AppendLine($"| ... ({finalLines.Length - 10} more lines)");
+            }
+            errorBuilder.AppendLine("+" + "-".PadRight(50, '-') + "+");
+            errorBuilder.AppendLine();
+        }
+
+        // Suggestions
+        var suggestions = GetErrorSuggestions(errorType, exception.Message, originalQuery);
+        if (suggestions.Any())
+        {
+            errorBuilder.AppendLine("Troubleshooting Suggestions:");
+            foreach (var suggestion in suggestions)
+            {
+                errorBuilder.AppendLine($"   - {suggestion}");
+            }
+            errorBuilder.AppendLine();
+        }
+
+        // Inner exception details
+        if (exception.InnerException != null)
+        {
+            errorBuilder.AppendLine("Inner Exception Details:");
+            errorBuilder.AppendLine($"   Type: {exception.InnerException.GetType().Name}");
+            errorBuilder.AppendLine($"   Message: {exception.InnerException.Message}");
+            errorBuilder.AppendLine();
+        }
+
+        errorBuilder.AppendLine("===================================");
+
+        return errorBuilder.ToString();
+    }
+
+    /// <summary>
+    /// Creates a detailed error message for unexpected errors
+    /// </summary>
+    /// <param name="exception">The unexpected exception</param>
+    /// <param name="originalQuery">The original query that caused the error</param>
+    /// <returns>Detailed error message for unexpected errors</returns>
+    private static string CreateUnexpectedErrorMessage(Exception exception, string originalQuery)
+    {
+        var errorBuilder = new System.Text.StringBuilder();
+
+        errorBuilder.AppendLine("=== UNEXPECTED ERROR ===");
+        errorBuilder.AppendLine();
+        errorBuilder.AppendLine("An unexpected error occurred while processing your DAX query.");
+        errorBuilder.AppendLine();
+        errorBuilder.AppendLine($"Exception Type: {exception.GetType().Name}");
+        errorBuilder.AppendLine($"Error Message: {exception.Message}");
+        errorBuilder.AppendLine();
+        errorBuilder.AppendLine("Query That Caused The Error:");
+        errorBuilder.AppendLine("+" + "-".PadRight(60, '-') + "+");
+        var queryLines = originalQuery.Split('\n');
+        foreach (var line in queryLines.Take(15)) // Show more lines for debugging
+        {
+            var displayLine = line.Length > 60 ? line.Substring(0, 57) + "..." : line;
+            errorBuilder.AppendLine($"| {displayLine.PadRight(60)}|");
+        }
+        if (queryLines.Length > 15)
+        {
+            errorBuilder.AppendLine($"| ... ({queryLines.Length - 15} more lines)".PadRight(61) + "|");
+        }
+        errorBuilder.AppendLine("+" + "-".PadRight(60, '-') + "+");
+        errorBuilder.AppendLine();
+
+        errorBuilder.AppendLine("General Troubleshooting Steps:");
+        errorBuilder.AppendLine("   - Check that your Power BI instance is running");
+        errorBuilder.AppendLine("   - Verify the connection to the tabular model");
+        errorBuilder.AppendLine("   - Ensure the query syntax is valid DAX");
+        errorBuilder.AppendLine("   - Try simplifying the query to isolate the issue");
+        errorBuilder.AppendLine();
+
+        if (exception.InnerException != null)
+        {
+            errorBuilder.AppendLine("Technical Details:");
+            errorBuilder.AppendLine($"   Inner Exception: {exception.InnerException.GetType().Name}");
+            errorBuilder.AppendLine($"   Inner Message: {exception.InnerException.Message}");
+            errorBuilder.AppendLine();
+        }
+
+        errorBuilder.AppendLine("=============================");
+
+        return errorBuilder.ToString();
+    }
+
+    /// <summary>
+    /// Classifies the error based on the exception type and message
+    /// </summary>
+    /// <param name="exception">The exception to classify</param>
+    /// <returns>Error classification string</returns>
+    public static string ClassifyError(Exception exception)
+    {
+        var message = exception.Message.ToLowerInvariant();
+        var exceptionType = exception.GetType().Name;
+
+        if (message.Contains("syntax") || message.Contains("parse"))
+            return "Syntax Error";
+        if (message.Contains("column") && (message.Contains("not found") || message.Contains("doesn't exist")))
+            return "Column Reference Error";
+        if (message.Contains("table") && (message.Contains("not found") || message.Contains("doesn't exist")))
+            return "Table Reference Error";
+        if (message.Contains("measure") && (message.Contains("not found") || message.Contains("doesn't exist")))
+            return "Measure Reference Error";
+        if (message.Contains("function") && (message.Contains("not found") || message.Contains("unknown")))
+            return "Function Error";
+        if (message.Contains("connection") || message.Contains("timeout"))
+            return "Connection Error";
+        if (message.Contains("permission") || message.Contains("access"))
+            return "Permission Error";
+        if (exceptionType.Contains("Argument"))
+            return "Parameter Error";
+        if (message.Contains("memory") || message.Contains("resource"))
+            return "Resource Error";
+
+        return "General Execution Error";
+    }
+
+    /// <summary>
+    /// Provides specific suggestions based on error type and message
+    /// </summary>
+    /// <param name="errorType">The classified error type</param>
+    /// <param name="errorMessage">The original error message</param>
+    /// <param name="query">The query that caused the error</param>
+    /// <returns>List of specific suggestions</returns>
+    public static List<string> GetErrorSuggestions(string errorType, string errorMessage, string query)
+    {
+        var suggestions = new List<string>();
+
+        switch (errorType)
+        {
+            case "Syntax Error":
+                suggestions.Add("Check for missing or unmatched parentheses, brackets, or quotes");
+                suggestions.Add("Verify that all function names are spelled correctly");
+                suggestions.Add("Ensure proper comma placement in function parameters");
+                break;
+
+            case "Column Reference Error":
+                suggestions.Add("Verify the column name exists in the specified table");
+                suggestions.Add("Check if the column name contains special characters that need escaping");
+                suggestions.Add("Use the format 'TableName'[ColumnName] for column references");
+                break;
+
+            case "Table Reference Error":
+                suggestions.Add("Confirm the table name exists in the model");
+                suggestions.Add("Check if the table name contains spaces or special characters");
+                suggestions.Add("Use single quotes around table names with spaces: 'Table Name'");
+                break;
+
+            case "Measure Reference Error":
+                suggestions.Add("Verify the measure exists and is accessible");
+                suggestions.Add("Check measure name spelling and capitalization");
+                suggestions.Add("Ensure the measure is not hidden from client tools");
+                break;
+
+            case "Function Error":
+                suggestions.Add("Check if the function name is spelled correctly");
+                suggestions.Add("Verify the correct number of parameters for the function");
+                suggestions.Add("Ensure you're using a supported DAX function");
+                break;
+
+            case "Connection Error":
+                suggestions.Add("Verify your Power BI Desktop instance is running");
+                suggestions.Add("Check that the correct port is being used");
+                suggestions.Add("Ensure the tabular model is accessible");
+                break;
+
+            case "Permission Error":
+                suggestions.Add("Check if you have read access to the data model");
+                suggestions.Add("Verify row-level security settings if applicable");
+                break;
+
+            case "Parameter Error":
+                suggestions.Add("Check that all required parameters are provided");
+                suggestions.Add("Verify parameter data types match expected values");
+                break;
+
+            case "Resource Error":
+                suggestions.Add("Try simplifying the query to reduce memory usage");
+                suggestions.Add("Consider breaking complex calculations into smaller parts");
+                suggestions.Add("Check if the dataset is too large for the operation");
+                break;
+
+            default:
+                suggestions.Add("Review the error message for specific details");
+                suggestions.Add("Try running a simpler version of the query first");
+                suggestions.Add("Check the Power BI Desktop connection status");
+                break;
+        }
+
+        // Add query-specific suggestions
+        if (query.Contains("DEFINE") && !query.Contains("EVALUATE"))
+        {
+            suggestions.Add("DEFINE blocks must be followed by an EVALUATE statement");
+        }
+
+        if (System.Text.RegularExpressions.Regex.Matches(query, @"\(").Count !=
+            System.Text.RegularExpressions.Regex.Matches(query, @"\)").Count)
+        {
+            suggestions.Add("Check for unbalanced parentheses in your query");
         }
 
         return suggestions;
