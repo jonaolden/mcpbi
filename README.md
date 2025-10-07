@@ -154,7 +154,7 @@ If you don't have Tabular Editor, you can use the included discovery tool to fin
      }
    }
    ```
-   Replace `path\\to\\release` with your actual release directory path and `YOUR_PBI_PORT_FROM_ENV` with the port number from your `.env` file.
+   Replace `path\\to\\release` with your actual release directory path and `YOUR_PBI_PORT` with the port number from PBI instance.
 
 5. **Restart your editor** to load the MCP server configuration.
 
