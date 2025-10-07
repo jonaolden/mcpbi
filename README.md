@@ -72,23 +72,17 @@ MCPBI provides 10 tools that enable LLM clients to explore, analyze, and debug y
 
 ## How These Tools Help with Power BI Development
 
-### 1. **Rapid Model Discovery**
+### 1. **Model Discovery**
 Use [`ListTables`], [`GetTableColumns`], and [`GetTableRelationships`] to quickly understand an unfamiliar model's structure without manually clicking through Power BI Desktop.
 
-### 2. **Intelligent DAX Assistance**
+### 2. **DAX Assistance**
 LLM clients can use [`ListMeasures`] and [`GetMeasureDetails`] to learn your existing DAX patterns and suggest consistent new measures that follow your naming conventions and calculation styles.
 
-### 3. **Interactive Debugging**
+### 3. **Debugging**
 Combine [`RunQuery`] with [`ValidateDaxSyntax`] to iteratively test and refine DAX expressions with immediate feedback on syntax and results.
 
 ### 4. **Performance Optimization**
 Use [`AnalyzeQueryPerformance`] to identify slow queries, then iterate improvements with [`RunQuery`] to verify performance gains.
-
-### 5. **Data Validation**
-Use [`PreviewTableData`] to verify transformations and validate that data loads correctly during model development.
-
-### 6. **Documentation Generation**
-Query model metadata using these tools to automatically generate up-to-date documentation of your model's tables, columns, relationships, and measures.
 
 ## Installation
 # Setup Instructions
