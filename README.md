@@ -108,7 +108,7 @@ The easiest is to open Tabular Editor and check the port in the connection strin
 <img width="317" height="63" alt="Tabular Editor" src="https://github.com/user-attachments/assets/eca039c7-5ca4-4fc6-a957-7684a971a01e" />
 
    
-Simply add the port to your MCP server configuration in the next step (you can ignore the database ID, as this server connects to the default model).   
+Simply add the port (63717 in example above) to your MCP server configuration in the next step (you can ignore the database ID, as this server connects to the default model).   
 If you don't have Tabular Editor, you can use the included discovery tool to find the running instance and database.
 
    Open PowerShell, navigate to the release directory, and run:
