@@ -79,3 +79,5 @@ image.png
 
 # IDE workspace files
 *.code-workspace
+docs/resource-aware-parameters-plan.md
+docs/resource-aware-parameters-REVISED-plan.md

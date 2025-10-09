@@ -13,6 +13,10 @@
     <RootNamespace>pbi_local_mcp</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    
+    <!-- Enforce critical warnings, suppress documentation warnings -->
+    <WarningsAsErrors>CS8600;CS8603;CS8604;CS1998</WarningsAsErrors>
+    <NoWarn>$(NoWarn);CS1591;CS1587</NoWarn>
   </PropertyGroup>
 
   <!-- Single-file publish configuration (only for Release builds) -->
@@ -32,7 +36,7 @@
     <PackageReference Include="System.Management"                   Version="8.0.0" />
 
     <!-- MCP Protocol -->
-    <PackageReference Include="ModelContextProtocol"                Version="0.2.0-preview.1" />
+    <PackageReference Include="ModelContextProtocol"                Version="0.4.0-preview.2" />
 
     <!-- Infrastructure (Hosting & Logging) -->
     <PackageReference Include="Microsoft.Extensions.Hosting"         Version="9.0.0" />

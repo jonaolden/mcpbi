@@ -15,7 +15,7 @@ This MCP server enables communication between clients and Power BI tabular model
 
 ## Tools
 
-MCPBI provides 10 tools that enable LLM clients to explore, analyze, and debug your Power BI models:
+MCPBI provides 12 tools that enable LLM clients to explore, analyze, and debug your Power BI models:
 
 ### Model Exploration Tools
 
@@ -68,6 +68,18 @@ MCPBI provides 10 tools that enable LLM clients to explore, analyze, and debug y
 - Provides performance ratings, complexity factors, and optimization suggestions
 - **Use case:** Identify slow queries, understand bottlenecks, and optimize DAX for better report performance
 
+### DAX Function Reference Tools
+
+**ListFunctions**
+- Lists available DAX functions with optional filtering by category (INTERFACE_NAME) or origin (MSOLAP, UDF, etc.)
+- Returns function name, description, interface classification, and origin for each function
+- **Use case:** Discover available functions by category (e.g., all DATETIME or LOGICAL functions) when developing DAX queries, or validate that specific functions are available in your model
+
+**GetFunctionDetails**
+- Retrieves comprehensive details for a specific DAX function including full parameter information
+- Returns function signature, parameter requirements (optional, repeatable, skippable), return type, and DirectQuery compatibility
+- **Use case:** Understand function signatures and parameter usage when writing complex DAX expressions, validate function parameter requirements, or check DirectQuery compatibility before deployment
+
 ## How These Tools Help with Power BI Development
 
 ### 1. **Rapid Model Discovery**
@@ -87,6 +99,12 @@ Use [`PreviewTableData`] to verify transformations and validate that data loads 
 
 ### 6. **Documentation Generation**
 Query model metadata using these tools to automatically generate up-to-date documentation of your model's tables, columns, relationships, and measures.
+
+### 7. **DAX Function Discovery**
+Use [`ListFunctions`] to discover available DAX functions by category (e.g., all date/time functions), and [`GetFunctionDetails`] to understand function signatures and parameter requirements when writing complex expressions.
+
+### 8. **Measure Validation**
+Combine [`GetFunctionDetails`] with [`ValidateDaxSyntax`] to verify that measures use functions correctly with proper parameters and DirectQuery-compatible functions when needed.
 
 ## Installation
 # Setup Instructions
@@ -148,13 +166,15 @@ If you don't have Tabular Editor, you can use the included discovery tool to fin
            "PreviewTableData",
            "RunQuery",
            "ValidateDaxSyntax",
-           "AnalyzeQueryPerformance"
+           "AnalyzeQueryPerformance",
+           "ListFunctions",
+           "GetFunctionDetails"
          ]
        }
      }
    }
    ```
-   Replace `path\\to\\release` with your actual release directory path and `YOUR_PBI_PORT_FROM_ENV` with the port number from your `.env` file.
+   Replace `path\\to\\release` with your actual release directory path and `YOUR_PBI_PORT` with the port number from PBI instance.
 
 5. **Restart your editor** to load the MCP server configuration.
 
@@ -163,7 +183,7 @@ If you don't have Tabular Editor, you can use the included discovery tool to fin
 1. **Clone the repository**:
    ```sh
    git clone <repository-url>
-   cd tabular-mcp
+   cd MCPBI
    ```
 
 2. **Build the project**:
@@ -186,11 +206,11 @@ If you don't have Tabular Editor, you can use the included discovery tool to fin
        "mcpbi-dev": {
          "type": "stdio",
          "command": "dotnet",
-         "cwd": "path\\to\\tabular-mcp",
-         "envFile": "path\\to\\tabular-mcp\\.env",
+         "cwd": "path\\to\\MCPBI",
+         "envFile": "path\\to\\MCPBI\\.env",
          "args": [
            "exec",
-           "path\\to\\tabular-mcp\\pbi-local-mcp\\bin\\Debug\\net8.0\\pbi-local-mcp.dll"
+           "path\\to\\MCPBI\\pbi-local-mcp\\bin\\Debug\\net8.0\\pbi-local-mcp.dll"
          ],
          "disabled": false,
          "alwaysAllow": [
@@ -203,13 +223,15 @@ If you don't have Tabular Editor, you can use the included discovery tool to fin
            "PreviewTableData",
            "RunQuery",
            "ValidateDaxSyntax",
-           "AnalyzeQueryPerformance"
+           "AnalyzeQueryPerformance",
+           "ListFunctions",
+           "GetFunctionDetails"
          ]
        }
      }
    }
    ```
-   Replace `path\\to\\tabular-mcp` with your actual repository path.
+   Replace `path\\to\\MCPBI` with your actual repository path.
 
 6. **Restart your editor** to load the MCP server.
 

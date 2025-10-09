@@ -65,6 +65,7 @@ public sealed class PowerBiResourceProvider
             new("powerbi://server/info",        "Power BI connection/server metadata"),
             new("powerbi://instances",          "Discovered local Power BI Desktop instances (cached 5s)"),
             new("powerbi://schema/summary",     "Lightweight model schema summary (tables/measures/columns)"),
+            new("powerbi://functions/interface-names", "List of available INTERFACE_NAME values for functions (cached)")
         };
         list.AddRange(_templates.Keys.Select(k => new ResourceDescriptor(k, _templates[k].Description)));
         return Task.FromResult<IEnumerable<ResourceDescriptor>>(list);
@@ -86,6 +87,7 @@ public sealed class PowerBiResourceProvider
                 "powerbi://server/info" => _serverInfo,
                 "powerbi://instances" => await GetInstancesAsync(ct).ConfigureAwait(false),
                 "powerbi://schema/summary" => await _tabular.GetSchemaSummaryAsync(ct).ConfigureAwait(false),
+                "powerbi://functions/interface-names" => await GetFunctionInterfaceNamesAsync(ct).ConfigureAwait(false),
                 _ when _templates.ContainsKey(uri) => _templates[uri],
                 _ => throw new Exception($"[ResourceProvider] Unknown resource URI: {uri}")
             };
@@ -109,20 +111,50 @@ public sealed class PowerBiResourceProvider
         }
 
         const string cacheKey = "PowerBiResourceProvider.Instances";
-        if (_cache.TryGetValue(cacheKey, out IEnumerable<InstanceInfo> cached))
+        if (_cache.TryGetValue(cacheKey, out IEnumerable<InstanceInfo>? cached) && cached != null)
         {
             return cached;
         }
 
         _logger.LogDebug(LogEvents.CacheMiss, "Instance list cache miss");
         var instances = await _instanceDiscovery.DiscoverInstances().ConfigureAwait(false);
-
+ 
         _cache.Set(cacheKey, instances, new MemoryCacheEntryOptions
         {
             AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(5)
         });
-
+ 
         return instances;
+    }
+ 
+    private const string InterfaceNamesCacheKey = "PowerBiResourceProvider.InterfaceNames";
+ 
+    private async Task<IEnumerable<string>> GetFunctionInterfaceNamesAsync(CancellationToken ct)
+    {
+        if (_cache.TryGetValue(InterfaceNamesCacheKey, out IEnumerable<string>? cached) && cached != null)
+        {
+            return cached;
+        }
+ 
+        _logger.LogDebug(LogEvents.CacheMiss, "Function interface names cache miss");
+ 
+        // Use DAX INFO function to retrieve interface name values
+        var daxQuery = "EVALUATE DISTINCT(SELECTCOLUMNS(INFO.FUNCTIONS(), \"INTERFACE_NAME\", [INTERFACE_NAME]))";
+        var raw = await _tabular.ExecAsync(daxQuery, QueryType.DAX, ct).ConfigureAwait(false);
+ 
+        var list = raw
+            .Where(r => r.TryGetValue("INTERFACE_NAME", out var v) && v != null)
+            .Select(r => r["INTERFACE_NAME"]!.ToString()!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(s => s)
+            .ToList();
+ 
+        _cache.Set(InterfaceNamesCacheKey, list, new MemoryCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60)
+        });
+ 
+        return list;
     }
 
     // ----- Static template catalog -----

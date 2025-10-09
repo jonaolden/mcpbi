@@ -189,8 +189,36 @@ public class TabularConnection : ITabularConnection, IDisposable
                 for (int i = 0; i < reader.FieldCount; i++)
                 {
                     var name = reader.GetName(i);
-                    var value = reader.IsDBNull(i) ? DBNull.Value : reader.GetValue(i);
-                    row[name] = value;
+                    if (reader.IsDBNull(i))
+                    {
+                        row[name] = DBNull.Value;
+                    }
+                    else
+                    {
+                        var value = reader.GetValue(i);
+                        
+                        // Check if this is a nested rowset (common in DMV queries like PARAMETERINFO)
+                        if (value is AdomdDataReader nestedReader)
+                        {
+                            var nestedResults = new List<Dictionary<string, object?>>();
+                            while (nestedReader.Read())
+                            {
+                                var nestedRow = new Dictionary<string, object?>();
+                                for (int j = 0; j < nestedReader.FieldCount; j++)
+                                {
+                                    var nestedName = nestedReader.GetName(j);
+                                    var nestedValue = nestedReader.IsDBNull(j) ? null : nestedReader.GetValue(j);
+                                    nestedRow[nestedName] = nestedValue;
+                                }
+                                nestedResults.Add(nestedRow);
+                            }
+                            row[name] = nestedResults;
+                        }
+                        else
+                        {
+                            row[name] = value;
+                        }
+                    }
                 }
                 results.Add(row);
             }

@@ -264,6 +264,256 @@ public class DaxTools // Changed from static class
         return result;
     }
 
+    [McpServerTool, Description("List available DAX functions with optional filtering. Useful for discovering functions by category (INTERFACE_NAME) or origin (MSOLAP, UDF, etc.) when developing DAX queries or validating measure expressions.")]
+    /// <summary>
+    /// Lists DAX functions available in the model using MDSCHEMA_FUNCTIONS DMV.
+    /// Returns comprehensive function metadata including name, description, interface classification, origin, return type, and other properties.
+    /// </summary>
+    /// <param name="interfaceName">Optional filter by INTERFACE_NAME (e.g., "DATETIME", "LOGICAL", "FILTER", "STATISTICAL"). Case-insensitive partial match.</param>
+    /// <param name="origin">Optional filter by ORIGIN: 1=MSOLAP (built-in), 2=UDF (user-defined), 3=RELATIONAL, 4=SCALAR. 0 returns all origins.</param>
+    /// <returns>An enumerable of function metadata rows with all MDSCHEMA_FUNCTIONS columns including FUNCTION_NAME, DESCRIPTION, PARAMETER_LIST, RETURN_TYPE, ORIGIN, INTERFACE_NAME, LIBRARY_NAME, OBJECT, CAPTION, and compatibility flags.</returns>
+    public async Task<object> ListFunctions(
+        [Description("Required: Function category (e.g., DATETIME, LOGICAL, FILTER). Use powerbi://functions/interface-names resource to discover available categories.")] string interfaceName)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(interfaceName))
+                throw new ArgumentException("interfaceName is required. Use powerbi://functions/interface-names to discover valid categories.", nameof(interfaceName));
+
+            if (!DaxSecurityUtils.IsValidIdentifier(interfaceName))
+                throw new ArgumentException("Invalid interfaceName format", nameof(interfaceName));
+
+            _logger.LogDebug("Starting ListFunctions with interfaceName: {InterfaceName}", interfaceName);
+
+            // DAX string literals use double quotes inside queries
+            var escapedInterfaceName = interfaceName.Replace("\"", "\"\"");
+            var quotedInterfaceName = $"\"{escapedInterfaceName}\"";
+            
+            // Apply FILTER on source table before SELECTCOLUMNS projection
+            // This ensures INTERFACE_NAME is available for filtering
+            // In SELECTCOLUMNS, the column reference creates an output column with brackets in the name
+            // We use simple column references which will create "[FUNCTION_NAME]" and "[DESCRIPTION]"
+            var daxQuery = $@"EVALUATE
+                SELECTCOLUMNS(
+                    FILTER(
+                        INFO.FUNCTIONS(),
+                        [INTERFACE_NAME] = {quotedInterfaceName}
+                    ),
+                    ""FUNCTION_NAME"", [FUNCTION_NAME],
+                    ""DESCRIPTION"", [DESCRIPTION]
+                )";
+    
+            _logger.LogDebug("Executing INFO.FUNCTIONS DAX query: {Query}", daxQuery);
+            var rawResult = await _tabularConnection.ExecAsync(daxQuery, QueryType.DAX);
+
+            // Ensure we return a list of dictionaries (minimal columns only)
+            var results = (rawResult as IEnumerable<Dictionary<string, object?>>)?.ToList()
+                ?? new List<Dictionary<string, object?>>();
+
+            // SELECTCOLUMNS returns column names with brackets, so we need to rename them
+            // Transform results to remove brackets from column names
+            var transformedResults = results.Select(row =>
+            {
+                var newRow = new Dictionary<string, object?>();
+                foreach (var kvp in row)
+                {
+                    // Remove leading '[' and trailing ']' from column names
+                    var cleanKey = kvp.Key.TrimStart('[').TrimEnd(']');
+                    newRow[cleanKey] = kvp.Value;
+                }
+                return newRow;
+            }).ToList();
+
+            _logger.LogDebug("Successfully executed ListFunctions, returned {Count} functions for interface {InterfaceName}",
+                transformedResults.Count, interfaceName);
+
+            return transformedResults;
+        }
+        catch (ArgumentException)
+        {
+            // Re-throw ArgumentException directly (validation errors)
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in ListFunctions with interfaceName: {InterfaceName}", interfaceName);
+            throw new Exception($"Failed to list functions: {ex.Message}", ex);
+        }
+    }
+
+    [McpServerTool, Description("Get detailed information for a specific DAX function including parameters. Essential for understanding function signatures, parameter requirements (optional, repeatable, skippable), and usage when writing or validating DAX expressions.")]
+    /// <summary>
+    /// Retrieves comprehensive details for a specific DAX function using MDSCHEMA_FUNCTIONS DMV.
+    /// Returns full function metadata including parameter information, return type, and DirectQuery compatibility.
+    /// </summary>
+    /// <param name="functionName">The exact name of the function to retrieve details for (case-insensitive).</param>
+    /// <returns>Function details including FUNCTION_NAME, DESCRIPTION, PARAMETER_LIST, flattened PARAMETERINFO array, RETURN_TYPE, ORIGIN, INTERFACE_NAME, OBJECT, CAPTION, DIRECTQUERY_PUSHABLE, and VISUAL_CALCULATIONS_INFO.</returns>
+    public async Task<object> GetFunctionDetails(
+        [Description("Name of the function to get details for (case-insensitive)")] string functionName)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(functionName))
+                throw new ArgumentException("Function name cannot be null or empty", nameof(functionName));
+
+            if (!DaxSecurityUtils.IsValidIdentifier(functionName))
+                throw new ArgumentException("Invalid function name format", nameof(functionName));
+
+            _logger.LogDebug("Starting GetFunctionDetails for function: {FunctionName}", functionName);
+
+            // For DMV queries, we use single quotes for string literals
+            var escapedFunctionName = functionName.Replace("'", "''");
+            var dmvQuery = $"SELECT * FROM $SYSTEM.MDSCHEMA_FUNCTIONS WHERE FUNCTION_NAME = '{escapedFunctionName}'";
+
+            _logger.LogDebug("Executing MDSCHEMA_FUNCTIONS query: {Query}", dmvQuery);
+            var rawResult = await _tabularConnection.ExecAsync(dmvQuery, QueryType.DMV);
+            
+            // Convert to list to work with the results
+            var resultList = (rawResult as IEnumerable<Dictionary<string, object?>>)?.ToList();
+            
+            if (resultList == null || !resultList.Any())
+            {
+                _logger.LogWarning("Function not found: {FunctionName}", functionName);
+                throw new ArgumentException($"Function '{functionName}' not found in the model", nameof(functionName));
+            }
+
+            // Process each result row to flatten PARAMETERINFO
+            var processedResults = new List<Dictionary<string, object?>>();
+            
+            foreach (var row in resultList)
+            {
+                var processedRow = new Dictionary<string, object?>(row);
+                
+                // Handle PARAMETERINFO nested rowset
+                if (row.TryGetValue("PARAMETERINFO", out var paramInfoObj) && paramInfoObj != null && paramInfoObj != DBNull.Value)
+                {
+                    _logger.LogDebug("PARAMETERINFO type: {Type}", paramInfoObj.GetType().FullName);
+                    
+                    // TabularConnection now returns nested rowsets as List<Dictionary<string, object?>>
+                    // So we can use it directly if it's already in the right format
+                    if (paramInfoObj is List<Dictionary<string, object?>> paramList)
+                    {
+                        _logger.LogDebug("PARAMETERINFO already in correct format with {Count} parameters", paramList.Count);
+                        processedRow["PARAMETERINFO"] = paramList;
+                    }
+                    else
+                    {
+                        // Fallback to flattening for other formats
+                        try
+                        {
+                            var flattenedParams = FlattenParameterInfo(paramInfoObj);
+                            _logger.LogDebug("Flattened PARAMETERINFO count: {Count}", flattenedParams.Count);
+                            processedRow["PARAMETERINFO"] = flattenedParams;
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Failed to flatten PARAMETERINFO for function: {FunctionName}", functionName);
+                            // Keep the original value if flattening fails
+                        }
+                    }
+                }
+                else
+                {
+                    _logger.LogDebug("PARAMETERINFO is null or not found for function: {FunctionName}", functionName);
+                }
+                
+                processedResults.Add(processedRow);
+            }
+
+            _logger.LogDebug("Successfully executed GetFunctionDetails for function: {FunctionName}", functionName);
+            
+            // Return single result if only one, otherwise return array
+            return processedResults.Count == 1 ? processedResults[0] : processedResults;
+        }
+        catch (ArgumentException)
+        {
+            // Let ArgumentExceptions (validation errors) propagate without wrapping
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetFunctionDetails for function: {FunctionName}", functionName);
+            throw new Exception($"Failed to get details for function '{functionName}': {ex.Message}", ex);
+        }
+    }
+
+    /// <summary>
+    /// Flattens PARAMETERINFO nested rowset into a JSON-serializable array structure.
+    /// </summary>
+    /// <param name="paramInfoObj">The PARAMETERINFO object from MDSCHEMA_FUNCTIONS DMV.</param>
+    /// <returns>A list of dictionaries containing flattened parameter information.</returns>
+    private List<Dictionary<string, object?>> FlattenParameterInfo(object paramInfoObj)
+    {
+        var result = new List<Dictionary<string, object?>>();
+
+        try
+        {
+            _logger.LogDebug("FlattenParameterInfo: Input type is {Type}", paramInfoObj.GetType().FullName);
+            
+            // PARAMETERINFO can be returned in various formats depending on the ADOMD.NET implementation
+            // It might be an IEnumerable, DataTable, or nested structure
+            
+            if (paramInfoObj is System.Data.DataTable dataTable)
+            {
+                _logger.LogDebug("FlattenParameterInfo: Processing DataTable with {RowCount} rows", dataTable.Rows.Count);
+                // Handle DataTable format
+                foreach (System.Data.DataRow row in dataTable.Rows)
+                {
+                    var paramDict = new Dictionary<string, object?>();
+                    foreach (System.Data.DataColumn col in dataTable.Columns)
+                    {
+                        paramDict[col.ColumnName] = row[col] == DBNull.Value ? null : row[col];
+                    }
+                    result.Add(paramDict);
+                }
+            }
+            else if (paramInfoObj is IEnumerable<Dictionary<string, object?>> dictEnum)
+            {
+                // Already in the desired format
+                var count = dictEnum.Count();
+                _logger.LogDebug("FlattenParameterInfo: Processing IEnumerable<Dictionary> with {Count} items", count);
+                result.AddRange(dictEnum);
+            }
+            else if (paramInfoObj is System.Collections.IEnumerable enumerable && paramInfoObj is not string)
+            {
+                _logger.LogDebug("FlattenParameterInfo: Processing generic IEnumerable");
+                var itemCount = 0;
+                // Handle generic enumerable
+                foreach (var item in enumerable)
+                {
+                    itemCount++;
+                    if (item is Dictionary<string, object?> dict)
+                    {
+                        result.Add(dict);
+                    }
+                    else
+                    {
+                        // Try to convert using reflection
+                        _logger.LogDebug("FlattenParameterInfo: Converting item {Index} of type {Type} using reflection", itemCount, item.GetType().FullName);
+                        var itemDict = new Dictionary<string, object?>();
+                        var props = item.GetType().GetProperties();
+                        foreach (var prop in props)
+                        {
+                            itemDict[prop.Name] = prop.GetValue(item);
+                        }
+                        result.Add(itemDict);
+                    }
+                }
+            }
+            else
+            {
+                // Unknown format - return empty list
+                _logger.LogWarning("PARAMETERINFO has unknown format: {Type}", paramInfoObj?.GetType().FullName);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error while flattening PARAMETERINFO");
+        }
+
+        return result;
+    }
+
     /// <summary>
     /// Execute a DAX query. Supports complete DAX queries with DEFINE blocks or simple expressions.
     /// </summary>
@@ -363,7 +613,10 @@ public class DaxTools // Changed from static class
                     originalDax, finalQuery, queryType);
 
                 // Return structured error information instead of throwing
-                return CreateStructuredErrorResponse(execEx, originalDax, finalQuery, queryType, "execution");
+                return CreateStructuredErrorResponse(execEx,
+                    originalDax ?? string.Empty,
+                    finalQuery ?? string.Empty,
+                    queryType, "execution");
             }
         }
         catch (ArgumentException validationEx)
