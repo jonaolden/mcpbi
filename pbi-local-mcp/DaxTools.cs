@@ -1319,16 +1319,18 @@ public class DaxTools // Changed from static class
     }
 
     /// <summary>
-    /// Analyzes query performance characteristics and identifies potential bottlenecks.
+    /// Analyzes query performance characteristics and identifies potential bottlenecks using DMV-based metrics.
     /// </summary>
     /// <param name="daxQuery">DAX query to analyze</param>
     /// <param name="includeOptimizations">Include complexity metrics and optimization suggestions</param>
-    /// <returns>Performance analysis results including execution time, complexity metrics, and optimization suggestions</returns>
+    /// <returns>Performance analysis results including execution time, DMV-based engine metrics, and optimization suggestions</returns>
     [McpServerTool, Description("Analyze query performance characteristics and identify potential bottlenecks.")]
     public async Task<object> AnalyzeQueryPerformance(
         [Description("DAX query to analyze")] string daxQuery,
         [Description("Include complexity metrics and optimization suggestions")] bool includeOptimizations = true)
     {
+        var diagnostics = new DmvDiagnostics();
+        
         try
         {
             if (string.IsNullOrWhiteSpace(daxQuery))
@@ -1339,6 +1341,13 @@ public class DaxTools // Changed from static class
             string executionError = "";
             bool executionSuccessful = false;
             TimeSpan executionTime = TimeSpan.Zero;
+
+            // Capture baseline session metrics before execution with diagnostics
+            var (sessionId, sessionIdMethod) = await GetCurrentSessionIdWithDiagnosticsAsync(diagnostics);
+            diagnostics.SessionId = sessionId;
+            diagnostics.SessionIdMethod = sessionIdMethod;
+            
+            var baselineMetrics = await GetSessionMetricsWithDiagnosticsAsync(sessionId, diagnostics, "baseline");
 
             // Execute the query and measure performance
             try
@@ -1354,14 +1363,25 @@ public class DaxTools // Changed from static class
                 executionTime = DateTime.UtcNow - startTime;
             }
 
+            // Capture post-execution metrics with diagnostics
+            var postMetrics = await GetSessionMetricsWithDiagnosticsAsync(sessionId, diagnostics, "post-execution");
+            var commandMetrics = await GetRecentCommandMetricsWithDiagnosticsAsync(sessionId, diagnostics);
+
+            // Calculate engine metrics from DMV data
+            var engineMetrics = CalculateEngineMetrics(baselineMetrics, postMetrics, commandMetrics, executionTime, diagnostics);
+
             // Analyze query structure and complexity
             var complexityAnalysis = AnalyzeQueryStructure(daxQuery);
             var performanceMetrics = CalculatePerformanceMetrics(daxQuery, executionTime, executionSuccessful);
 
+            // Generate performance insights
+            var insights = GeneratePerformanceInsights(executionTime, engineMetrics, complexityAnalysis, performanceMetrics, executionSuccessful);
+
             var optimizationSuggestions = new List<string>();
             if (includeOptimizations)
             {
-                optimizationSuggestions = GenerateOptimizationSuggestions(daxQuery, complexityAnalysis, performanceMetrics);
+                optimizationSuggestions = GenerateEnhancedOptimizationSuggestions(
+                    daxQuery, complexityAnalysis, performanceMetrics, engineMetrics);
             }
 
             // Count result rows if successful
@@ -1371,31 +1391,51 @@ public class DaxTools // Changed from static class
                 resultRowCount = rows.Count();
             }
 
+            // Build condensed structured output with essential decision-making data
             return new
             {
-                Query = daxQuery.Trim(),
-                ExecutionSuccessful = executionSuccessful,
-                ExecutionTime = new
+                // Execution section
+                Execution = new
                 {
-                    TotalMilliseconds = executionTime.TotalMilliseconds,
-                    TotalSeconds = executionTime.TotalSeconds,
-                    DisplayTime = $"{executionTime.TotalMilliseconds:F2} ms"
+                    Successful = executionSuccessful,
+                    TimeMs = Math.Round(executionTime.TotalMilliseconds, 2),
+                    ResultRowCount = resultRowCount,
+                    Error = string.IsNullOrEmpty(executionError) ? null : executionError
                 },
-                ExecutionError = executionError,
-                ResultRowCount = resultRowCount,
-                PerformanceMetrics = performanceMetrics,
-                ComplexityAnalysis = complexityAnalysis,
-                OptimizationSuggestions = includeOptimizations ? optimizationSuggestions : new List<string>(),
-                AnalysisDetails = new
+                
+                // Performance section - always include metrics for decision-making
+                Performance = new
                 {
-                    AnalyzedAt = DateTime.UtcNow,
-                    QueryLength = daxQuery.Length,
-                    HasTimeIntelligence = daxQuery.Contains("CALCULATE", StringComparison.OrdinalIgnoreCase) ||
-                                        daxQuery.Contains("FILTER", StringComparison.OrdinalIgnoreCase),
-                    HasAggregations = daxQuery.Contains("SUM", StringComparison.OrdinalIgnoreCase) ||
-                                    daxQuery.Contains("COUNT", StringComparison.OrdinalIgnoreCase) ||
-                                    daxQuery.Contains("AVERAGE", StringComparison.OrdinalIgnoreCase)
-                }
+                    Rating = performanceMetrics != null ?
+                        GetPropertyValue(performanceMetrics, "PerformanceRating") as string ?? "Unknown" : "Unknown",
+                    
+                    // Always include metrics - critical for demo environments and relative comparisons
+                    Metrics = engineMetrics ?? performanceMetrics,
+                    
+                    // Add source indicator to understand metric quality
+                    MetricSource = engineMetrics != null ? "DMV" : "Heuristic"
+                },
+                
+                // Analysis section - always include for decision context
+                Analysis = complexityAnalysis,
+                
+                // Only include recommendations if optimizations requested and available
+                Recommendations = includeOptimizations && optimizationSuggestions.Count > 0
+                    ? optimizationSuggestions
+                    : null,
+                
+                // Insights section - always include, critical for understanding performance
+                Insights = insights,
+                
+                // Diagnostics section (minimal, only when issues exist)
+                Diagnostics = diagnostics.Warnings.Count > 0 || sessionId == "unknown"
+                    ? new
+                    {
+                        SessionId = sessionId != "unknown" ? sessionId : null,
+                        DmvMethod = sessionId != "unknown" ? diagnostics.SessionIdMethod : null,
+                        Warnings = diagnostics.Warnings.Count > 0 ? diagnostics.Warnings : null
+                    }
+                    : null
             };
         }
         catch (Exception ex)
@@ -1403,6 +1443,742 @@ public class DaxTools // Changed from static class
             _logger.LogError(ex, "Error analyzing query performance for query: {Query}", daxQuery);
             throw;
         }
+    }
+    
+    /// <summary>
+    /// <summary>
+    /// Diagnostics class to track DMV query success/failure and provide troubleshooting information
+    /// </summary>
+    private class DmvDiagnostics
+    {
+        public string SessionId { get; set; } = "unknown";
+        public string SessionIdMethod { get; set; } = "none";
+        public bool BaselineSessionMetricsSuccess { get; set; }
+        public string? BaselineSessionMetricsError { get; set; }
+        public bool PostSessionMetricsSuccess { get; set; }
+        public string? PostSessionMetricsError { get; set; }
+        public bool CommandMetricsSuccess { get; set; }
+        public string? CommandMetricsError { get; set; }
+        public bool EngineMetricsCalculated { get; set; }
+        public string? EngineMetricsError { get; set; }
+        public List<string> Warnings { get; set; } = new();
+
+        public string GetSummary()
+        {
+            if (SessionId == "unknown")
+                return "Could not determine session ID - DMV queries require valid session identification";
+            
+            if (!BaselineSessionMetricsSuccess && !PostSessionMetricsSuccess)
+                return $"DISCOVER_SESSIONS DMV query failed - this may be a permission or version compatibility issue";
+            
+            if (!CommandMetricsSuccess)
+                return "DISCOVER_COMMANDS DMV query failed - command metrics unavailable";
+            
+            if (!EngineMetricsCalculated)
+                return "Engine metrics calculation failed - insufficient DMV data";
+            
+            return "DMV queries partially successful";
+        }
+
+        public object GetQueryStatus()
+        {
+            return new
+            {
+                SessionIdQuery = new { Method = SessionIdMethod, Success = SessionId != "unknown" },
+                BaselineMetrics = new { Success = BaselineSessionMetricsSuccess, Error = BaselineSessionMetricsError },
+                PostMetrics = new { Success = PostSessionMetricsSuccess, Error = PostSessionMetricsError },
+                CommandMetrics = new { Success = CommandMetricsSuccess, Error = CommandMetricsError },
+                EngineMetrics = new { Calculated = EngineMetricsCalculated, Error = EngineMetricsError }
+            };
+        }
+    }
+
+    /// <summary>
+    /// Retrieves current session ID using DISCOVER_SESSIONS DMV with multiple fallback methods
+    /// </summary>
+    private async Task<(string sessionId, string method)> GetCurrentSessionIdWithDiagnosticsAsync(DmvDiagnostics diagnostics)
+    {
+        var attemptedMethods = new List<string>();
+        var errors = new List<string>();
+
+        // Method 1: Query DISCOVER_SESSIONS with ORDER BY (most recently active session)
+        // This is the primary method for getting the current connection's session ID
+        try
+        {
+            const string query = "SELECT TOP 1 SESSION_SPID FROM $System.DISCOVER_SESSIONS ORDER BY SESSION_LAST_COMMAND_ELAPSED_TIME_MS DESC";
+            var result = await _tabularConnection.ExecAsync(query, QueryType.DMV);
+            
+            if (result is IEnumerable<Dictionary<string, object?>> rows)
+            {
+                var firstRow = rows.FirstOrDefault();
+                if (firstRow != null && firstRow.TryGetValue("SESSION_SPID", out var spid) && spid != null)
+                {
+                    var sessionId = spid.ToString();
+                    if (!string.IsNullOrEmpty(sessionId))
+                    {
+                        _logger.LogDebug("Session ID retrieved from DISCOVER_SESSIONS (ORDER BY): {SessionId}", sessionId);
+                        diagnostics.SessionIdMethod = "DISCOVER_SESSIONS DMV (ORDER BY most recent activity)";
+                        return (sessionId, "DISCOVER_SESSIONS DMV");
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "DISCOVER_SESSIONS with ORDER BY failed");
+            attemptedMethods.Add("DISCOVER_SESSIONS (ORDER BY)");
+            errors.Add($"DISCOVER_SESSIONS (ORDER BY): {ex.Message}");
+        }
+
+        // Method 2: Try simpler query without ORDER BY
+        // Fallback when ORDER BY clause is not supported
+        try
+        {
+            const string query = "SELECT SESSION_SPID FROM $System.DISCOVER_SESSIONS";
+            var result = await _tabularConnection.ExecAsync(query, QueryType.DMV);
+            
+            if (result is IEnumerable<Dictionary<string, object?>> rows)
+            {
+                var firstRow = rows.FirstOrDefault();
+                if (firstRow != null && firstRow.TryGetValue("SESSION_SPID", out var spid) && spid != null)
+                {
+                    var sessionId = spid.ToString();
+                    if (!string.IsNullOrEmpty(sessionId))
+                    {
+                        _logger.LogDebug("Session ID retrieved using simple DISCOVER_SESSIONS: {SessionId}", sessionId);
+                        diagnostics.SessionIdMethod = "DISCOVER_SESSIONS DMV (simple query)";
+                        return (sessionId, "DISCOVER_SESSIONS (simple)");
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "All session ID retrieval methods failed");
+            attemptedMethods.Add("DISCOVER_SESSIONS (simple)");
+            errors.Add($"DISCOVER_SESSIONS (simple): {ex.Message}");
+        }
+
+        // All methods failed - add comprehensive warning
+        _logger.LogWarning("Could not retrieve session ID using any DMV method");
+        diagnostics.SessionIdMethod = "none - all DMV methods failed";
+        diagnostics.Warnings.Add($"Session ID detection failed. DMV access may be restricted or unavailable.");
+        diagnostics.Warnings.Add($"Attempted methods: {string.Join(", ", attemptedMethods)}");
+        if (errors.Count > 0)
+        {
+            diagnostics.Warnings.Add($"Errors: {string.Join(" | ", errors.Take(2))}");
+        }
+        
+        return ("unknown", "none - all methods failed");
+    }
+
+    /// <summary>
+    /// Retrieves session metrics with diagnostic tracking
+    /// </summary>
+    private async Task<Dictionary<string, object?>?> GetSessionMetricsWithDiagnosticsAsync(
+        string sessionId, DmvDiagnostics diagnostics, string stage)
+    {
+        if (sessionId == "unknown")
+        {
+            if (stage == "baseline")
+                diagnostics.BaselineSessionMetricsError = "Session ID unknown";
+            else
+                diagnostics.PostSessionMetricsError = "Session ID unknown";
+            return null;
+        }
+
+        try
+        {
+            // Use simpler query with fewer columns that are more likely to be available
+            var query = $@"
+                SELECT * FROM $System.DISCOVER_SESSIONS 
+                WHERE SESSION_SPID = {sessionId}";
+            
+            var result = await _tabularConnection.ExecAsync(query, QueryType.DMV);
+            
+            if (result is IEnumerable<Dictionary<string, object?>> rows)
+            {
+                var metrics = rows.FirstOrDefault();
+                if (metrics != null)
+                {
+                    if (stage == "baseline")
+                        diagnostics.BaselineSessionMetricsSuccess = true;
+                    else
+                        diagnostics.PostSessionMetricsSuccess = true;
+                        
+                    _logger.LogDebug("Retrieved {Stage} session metrics with {Count} columns", stage, metrics.Count);
+                    return metrics;
+                }
+            }
+            
+            var errorMsg = "No session data returned from DISCOVER_SESSIONS";
+            if (stage == "baseline")
+                diagnostics.BaselineSessionMetricsError = errorMsg;
+            else
+                diagnostics.PostSessionMetricsError = errorMsg;
+                
+            return null;
+        }
+        catch (Exception ex)
+        {
+            var errorMsg = $"DMV query failed: {ex.Message}";
+            _logger.LogWarning(ex, "Could not retrieve {Stage} session metrics", stage);
+            
+            if (stage == "baseline")
+                diagnostics.BaselineSessionMetricsError = errorMsg;
+            else
+                diagnostics.PostSessionMetricsError = errorMsg;
+                
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Retrieves command metrics with diagnostic tracking
+    /// </summary>
+    private async Task<Dictionary<string, object?>?> GetRecentCommandMetricsWithDiagnosticsAsync(
+        string sessionId, DmvDiagnostics diagnostics)
+    {
+        if (sessionId == "unknown")
+        {
+            diagnostics.CommandMetricsError = "Session ID unknown";
+            return null;
+        }
+
+        try
+        {
+            var query = $@"
+                SELECT * FROM $System.DISCOVER_COMMANDS
+                WHERE SESSION_SPID = {sessionId}";
+            
+            var result = await _tabularConnection.ExecAsync(query, QueryType.DMV);
+            
+            if (result is IEnumerable<Dictionary<string, object?>> rows)
+            {
+                var metrics = rows.FirstOrDefault();
+                if (metrics != null)
+                {
+                    diagnostics.CommandMetricsSuccess = true;
+                    _logger.LogDebug("Retrieved command metrics with {Count} columns", metrics.Count);
+                    return metrics;
+                }
+            }
+            
+            diagnostics.CommandMetricsError = "No command data found";
+            return null;
+        }
+        catch (Exception ex)
+        {
+            diagnostics.CommandMetricsError = $"DMV query failed: {ex.Message}";
+            _logger.LogWarning(ex, "Could not retrieve command metrics from DISCOVER_COMMANDS DMV");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Enhanced engine metrics calculation with diagnostic tracking and flexible column handling
+    /// </summary>
+    private object? CalculateEngineMetrics(
+        Dictionary<string, object?>? baseline,
+        Dictionary<string, object?>? post,
+        Dictionary<string, object?>? command,
+        TimeSpan measuredExecutionTime,
+        DmvDiagnostics diagnostics)
+    {
+        try
+        {
+            // If we have no metrics at all, return null
+            if (baseline == null && post == null && command == null)
+            {
+                diagnostics.EngineMetricsError = "No DMV data available";
+                return null;
+            }
+
+            // Log available columns for debugging
+            if (post != null)
+            {
+                _logger.LogDebug("Available DMV columns: {Columns}", string.Join(", ", post.Keys));
+            }
+
+            // Try to extract metrics with flexible column name matching
+            var cpuTime = GetLongValueFlexible(post, baseline, "CPU_TIME", "SESSION_CPU_TIME_MS", "COMMAND_CPU_TIME_MS");
+            var memory = GetLongValueFlexible(post, baseline, "USED_MEMORY", "SESSION_USED_MEMORY");
+            var readKb = GetLongValueFlexible(post, baseline, "READ_KB", "SESSION_READ_KB", "READS");
+            var writeKb = GetLongValueFlexible(post, baseline, "WRITES_KB", "SESSION_WRITES_KB", "WRITES");
+
+            var totalTime = measuredExecutionTime.TotalMilliseconds;
+            
+            // Estimate SE vs FE split based on I/O activity
+            var storageEngineRatio = readKb > 0 ? Math.Min(0.8, readKb / Math.Max(1.0, totalTime * 10)) : 0.3;
+            var estimatedSeDuration = totalTime * storageEngineRatio;
+            var estimatedFeDuration = totalTime * (1 - storageEngineRatio);
+
+            diagnostics.EngineMetricsCalculated = true;
+            
+            return new
+            {
+                TotalCpuTimeMs = cpuTime,
+                MemoryUsageKB = memory,
+                
+                StorageEngineDurationMs = (long)estimatedSeDuration,
+                StorageEngineDataReadKB = readKb,
+                
+                FormulaEngineDurationMs = (long)estimatedFeDuration,
+                FormulaEngineCpuRatio = cpuTime > 0 && totalTime > 0 ? Math.Round(cpuTime / totalTime, 2) : 0,
+                
+                TotalReadKB = readKb,
+                TotalWriteKB = writeKb,
+                
+                CpuEfficiency = cpuTime > 0 && totalTime > 0 ? 
+                    Math.Round((cpuTime / totalTime) * 100, 1) : 0,
+                StorageEnginePercentage = Math.Round(storageEngineRatio * 100, 1),
+                FormulaEnginePercentage = Math.Round((1 - storageEngineRatio) * 100, 1),
+                
+                IsStorageEngineHeavy = storageEngineRatio > 0.6,
+                IsFormulaEngineHeavy = storageEngineRatio < 0.4,
+                IsBalanced = storageEngineRatio >= 0.4 && storageEngineRatio <= 0.6,
+                
+                DataQuality = new
+                {
+                    HasCpuData = cpuTime > 0,
+                    HasMemoryData = memory > 0,
+                    HasIoData = readKb > 0 || writeKb > 0,
+                    EstimatedMetrics = "SE/FE split estimated from I/O patterns"
+                }
+            };
+        }
+        catch (Exception ex)
+        {
+            diagnostics.EngineMetricsError = $"Calculation failed: {ex.Message}";
+            _logger.LogWarning(ex, "Error calculating engine metrics from DMV data");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Flexible value extraction that tries multiple column names
+    /// </summary>
+    private long GetLongValueFlexible(Dictionary<string, object?>? primary, Dictionary<string, object?>? secondary, params string[] columnNames)
+    {
+        long primaryValue = 0;
+        long secondaryValue = 0;
+
+        // Try primary dictionary
+        if (primary != null)
+        {
+            foreach (var colName in columnNames)
+            {
+                if (TryGetLongFromDict(primary, colName, out var val))
+                {
+                    primaryValue = val;
+                    break;
+                }
+            }
+        }
+
+        // Try secondary dictionary
+        if (secondary != null)
+        {
+            foreach (var colName in columnNames)
+            {
+                if (TryGetLongFromDict(secondary, colName, out var val))
+                {
+                    secondaryValue = val;
+                    break;
+                }
+            }
+        }
+
+        // Return delta if both available, otherwise return what we have
+        return primaryValue > 0 && secondaryValue > 0 ? primaryValue - secondaryValue : primaryValue;
+    }
+
+    /// <summary>
+    /// Helper to try extracting a long value from dictionary
+    /// </summary>
+    private bool TryGetLongFromDict(Dictionary<string, object?> dict, string key, out long value)
+    {
+        value = 0;
+        if (dict.TryGetValue(key, out var obj) && obj != null)
+        {
+            if (obj is long longValue)
+            {
+                value = longValue;
+                return true;
+            }
+            if (obj is int intValue)
+            {
+                value = intValue;
+                return true;
+            }
+            if (long.TryParse(obj.ToString(), out var parsedValue))
+            {
+                value = parsedValue;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Generates human-readable performance insights based on all available metrics
+    /// </summary>
+    private List<string> GeneratePerformanceInsights(
+        TimeSpan executionTime,
+        object? engineMetrics,
+        object? complexityAnalysis,
+        object? performanceMetrics,
+        bool executionSuccessful)
+    {
+        var insights = new List<string>();
+
+        if (!executionSuccessful)
+        {
+            insights.Add("WARNING: Query execution failed - performance analysis incomplete");
+            return insights;
+        }
+
+        // Execution time insights
+        var timeMs = executionTime.TotalMilliseconds;
+        if (timeMs < 50)
+            insights.Add("Excellent performance - query executed in under 50ms");
+        else if (timeMs < 500)
+            insights.Add("Good performance - query completed quickly");
+        else if (timeMs < 2000)
+            insights.Add("Moderate performance - consider optimization for frequently-run queries");
+        else if (timeMs < 5000)
+            insights.Add("Slow performance detected - optimization recommended");
+        else
+            insights.Add("Very slow performance - significant optimization needed");
+
+        // Engine metrics insights with enhanced detail
+        if (engineMetrics != null)
+        {
+            try
+            {
+                var metrics = JsonSerializer.Deserialize<Dictionary<string, object>>(
+                    JsonSerializer.Serialize(engineMetrics, JsonOptions), JsonOptions);
+
+                if (metrics != null)
+                {
+                    // Extract percentages for detailed insights
+                    var sePercent = metrics.TryGetValue("storageEnginePercentage", out var seP) ? Convert.ToDouble(seP) : 0;
+                    var fePercent = metrics.TryGetValue("formulaEnginePercentage", out var feP) ? Convert.ToDouble(feP) : 0;
+                    
+                    if (metrics.TryGetValue("isStorageEngineHeavy", out var isSe) && isSe is bool seHeavy && seHeavy)
+                    {
+                        insights.Add($"Storage Engine optimized ({sePercent:F0}% SE / {fePercent:F0}% FE) - efficiently using columnstore compression and relationships");
+                    }
+                    else if (metrics.TryGetValue("isFormulaEngineHeavy", out var isFe) && isFe is bool feHeavy && feHeavy)
+                    {
+                        insights.Add($"Formula Engine intensive ({sePercent:F0}% SE / {fePercent:F0}% FE) - row-by-row processing or complex calculations detected");
+                        insights.Add("RECOMMENDATION: Consider reducing iterator functions (SUMX, FILTERX) or simplifying calculated column logic");
+                    }
+                    else if (metrics.TryGetValue("isBalanced", out var isBal) && isBal is bool balanced && balanced)
+                    {
+                        insights.Add($"Balanced engine usage ({sePercent:F0}% SE / {fePercent:F0}% FE) - mix of data retrieval and calculations");
+                    }
+
+                    // Data quality warnings
+                    if (metrics.TryGetValue("dataQuality", out var dqObj))
+                    {
+                        var dataQuality = JsonSerializer.Deserialize<Dictionary<string, object>>(
+                            JsonSerializer.Serialize(dqObj, JsonOptions), JsonOptions);
+                        
+                        if (dataQuality != null)
+                        {
+                            var hasCpu = dataQuality.TryGetValue("hasCpuData", out var cpu) && cpu is bool cpuBool && cpuBool;
+                            var hasMem = dataQuality.TryGetValue("hasMemoryData", out var mem) && mem is bool memBool && memBool;
+                            var hasIo = dataQuality.TryGetValue("hasIoData", out var io) && io is bool ioBool && ioBool;
+
+                            if (!hasCpu && !hasMem && !hasIo)
+                            {
+                                insights.Add("NOTE: Limited DMV data quality - CPU, memory, and I/O metrics unavailable. SE/FE split is estimated from execution patterns");
+                            }
+                            else if (!hasCpu)
+                            {
+                                insights.Add("NOTE: CPU metrics unavailable from DMV - SE/FE split estimation may be less accurate");
+                            }
+                        }
+                    }
+                }
+            }
+            catch { /* Ignore serialization errors */ }
+        }
+        else
+        {
+            insights.Add("NOTE: DMV metrics unavailable - analysis based on execution time and query structure only");
+        }
+
+        // Add complexity insight if available
+        if (complexityAnalysis != null)
+        {
+            try
+            {
+                var complexity = JsonSerializer.Deserialize<Dictionary<string, object>>(
+                    JsonSerializer.Serialize(complexityAnalysis, JsonOptions), JsonOptions);
+
+                if (complexity != null && complexity.TryGetValue("estimatedComplexity", out var comp) && comp != null)
+                {
+                    var complexityScore = Convert.ToInt32(comp);
+                    if (complexityScore > 15)
+                    {
+                        insights.Add($"High query complexity detected (score: {complexityScore}) - consider breaking into smaller parts or simplifying logic");
+                    }
+                }
+            }
+            catch { /* Ignore serialization errors */ }
+        }
+
+        return insights;
+    }
+
+    /// Helper to extract property value from anonymous object
+    /// </summary>
+    private static object? GetPropertyValue(object obj, string propertyName)
+    {
+        var prop = obj.GetType().GetProperty(propertyName);
+        return prop?.GetValue(obj);
+    }
+
+    /// <summary>
+    /// Retrieves the current session ID from the DISCOVER_SESSIONS DMV.
+    /// </summary>
+    private async Task<string> GetCurrentSessionIdAsync()
+    {
+        try
+        {
+            const string query = "SELECT SESSION_SPID FROM $System.DISCOVER_SESSIONS WHERE SESSION_STATUS = 1 ORDER BY SESSION_LAST_COMMAND_ELAPSED_TIME_MS DESC";
+            var result = await _tabularConnection.ExecAsync(query, QueryType.DMV);
+            
+            if (result is IEnumerable<Dictionary<string, object?>> rows)
+            {
+                var firstRow = rows.FirstOrDefault();
+                if (firstRow != null && firstRow.TryGetValue("SESSION_SPID", out var spid) && spid != null)
+                {
+                    return spid.ToString() ?? "unknown";
+                }
+            }
+            
+            return "unknown";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not retrieve session ID from DMV");
+            return "unknown";
+        }
+    }
+
+    /// <summary>
+    /// Retrieves session-level performance metrics from DISCOVER_SESSIONS DMV.
+    /// </summary>
+    private async Task<Dictionary<string, object?>?> GetSessionMetricsAsync(string sessionId)
+    {
+        if (sessionId == "unknown")
+            return null;
+
+        try
+        {
+            var query = $@"
+                SELECT
+                    SESSION_SPID,
+                    SESSION_CPU_TIME_MS,
+                    SESSION_ELAPSED_TIME_MS,
+                    SESSION_USED_MEMORY,
+                    SESSION_READ_KB,
+                    SESSION_WRITES_KB,
+                    SESSION_LAST_COMMAND_ELAPSED_TIME_MS,
+                    SESSION_LAST_COMMAND_CPU_TIME_MS
+                FROM $System.DISCOVER_SESSIONS
+                WHERE SESSION_SPID = {sessionId}";
+            
+            var result = await _tabularConnection.ExecAsync(query, QueryType.DMV);
+            
+            if (result is IEnumerable<Dictionary<string, object?>> rows)
+            {
+                return rows.FirstOrDefault();
+            }
+            
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not retrieve session metrics from DISCOVER_SESSIONS DMV");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Retrieves recent command execution metrics from DISCOVER_COMMANDS DMV.
+    /// </summary>
+    private async Task<Dictionary<string, object?>?> GetRecentCommandMetricsAsync(string sessionId)
+    {
+        if (sessionId == "unknown")
+            return null;
+
+        try
+        {
+            var query = $@"
+                SELECT
+                    SESSION_SPID,
+                    COMMAND_CPU_TIME_MS,
+                    COMMAND_ELAPSED_TIME_MS,
+                    COMMAND_START_TIME,
+                    COMMAND_END_TIME
+                FROM $System.DISCOVER_COMMANDS
+                WHERE SESSION_SPID = {sessionId}
+                ORDER BY COMMAND_START_TIME DESC";
+            
+            var result = await _tabularConnection.ExecAsync(query, QueryType.DMV);
+            
+            if (result is IEnumerable<Dictionary<string, object?>> rows)
+            {
+                return rows.FirstOrDefault();
+            }
+            
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not retrieve command metrics from DISCOVER_COMMANDS DMV");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Calculates engine-level performance metrics by comparing baseline and post-execution DMV data.
+    /// </summary>
+    private object? CalculateEngineMetrics(
+        Dictionary<string, object?>? baseline,
+        Dictionary<string, object?>? post,
+        Dictionary<string, object?>? command,
+        TimeSpan measuredExecutionTime)
+    {
+        if (baseline == null || post == null)
+        {
+            _logger.LogDebug("DMV metrics not available, skipping engine metrics calculation");
+            return null;
+        }
+
+        try
+        {
+            // Calculate deltas
+            var cpuDelta = GetLongValue(post, "SESSION_CPU_TIME_MS") - GetLongValue(baseline, "SESSION_CPU_TIME_MS");
+            var memoryUsed = GetLongValue(post, "SESSION_USED_MEMORY");
+            var readKbDelta = GetLongValue(post, "SESSION_READ_KB") - GetLongValue(baseline, "SESSION_READ_KB");
+            var writeKbDelta = GetLongValue(post, "SESSION_WRITES_KB") - GetLongValue(baseline, "SESSION_WRITES_KB");
+
+            // Get command-specific metrics if available
+            var commandCpu = command != null ? GetLongValue(command, "COMMAND_CPU_TIME_MS") : 0;
+            var commandElapsed = command != null ? GetLongValue(command, "COMMAND_ELAPSED_TIME_MS") : 0;
+
+            // Estimate Storage Engine vs Formula Engine split
+            // SE queries are typically I/O heavy (reads), FE queries are CPU heavy with less I/O
+            var totalTime = measuredExecutionTime.TotalMilliseconds;
+            var storageEngineRatio = readKbDelta > 0 ? Math.Min(0.8, readKbDelta / Math.Max(1.0, totalTime)) : 0.2;
+            var estimatedSeDuration = totalTime * storageEngineRatio;
+            var estimatedFeDuration = totalTime * (1 - storageEngineRatio);
+
+            return new
+            {
+                TotalCpuTimeMs = cpuDelta > 0 ? cpuDelta : commandCpu,
+                MemoryUsageKB = memoryUsed,
+                
+                // Storage Engine metrics (estimated)
+                StorageEngineDurationMs = (long)estimatedSeDuration,
+                StorageEngineDataReadKB = readKbDelta,
+                
+                // Formula Engine metrics (estimated)
+                FormulaEngineDurationMs = (long)estimatedFeDuration,
+                FormulaEngineCpuRatio = cpuDelta > 0 && totalTime > 0 ? Math.Round(cpuDelta / totalTime, 2) : 0,
+                
+                // I/O Statistics
+                TotalReadKB = readKbDelta,
+                TotalWriteKB = writeKbDelta,
+                
+                // Performance indicators
+                CpuEfficiency = cpuDelta > 0 && totalTime > 0 ?
+                    Math.Round((cpuDelta / totalTime) * 100, 1) : 0,
+                StorageEnginePercentage = Math.Round(storageEngineRatio * 100, 1),
+                FormulaEnginePercentage = Math.Round((1 - storageEngineRatio) * 100, 1),
+                
+                // Quality metrics
+                IsStorageEngineHeavy = storageEngineRatio > 0.6,
+                IsFormulaEngineHeavy = storageEngineRatio < 0.4,
+                IsBalanced = storageEngineRatio >= 0.4 && storageEngineRatio <= 0.6
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error calculating engine metrics from DMV data");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Helper method to safely extract long values from DMV result dictionaries.
+    /// </summary>
+    private long GetLongValue(Dictionary<string, object?> dict, string key)
+    {
+        if (dict.TryGetValue(key, out var value) && value != null)
+        {
+            if (value is long longValue)
+                return longValue;
+            if (value is int intValue)
+                return intValue;
+            if (long.TryParse(value.ToString(), out var parsedValue))
+                return parsedValue;
+        }
+        return 0;
+    }
+
+    /// <summary>
+    /// Generates enhanced optimization suggestions based on both code analysis and DMV metrics.
+    /// </summary>
+    private List<string> GenerateEnhancedOptimizationSuggestions(
+        string query,
+        object complexityAnalysis,
+        object performanceMetrics,
+        object? engineMetrics)
+    {
+        var suggestions = GenerateOptimizationSuggestions(query, complexityAnalysis, performanceMetrics);
+
+        // Add DMV-based suggestions if engine metrics are available
+        if (engineMetrics != null)
+        {
+            var metrics = JsonSerializer.Deserialize<Dictionary<string, object>>(
+                JsonSerializer.Serialize(engineMetrics, JsonOptions), JsonOptions);
+
+            if (metrics != null)
+            {
+                // Formula Engine heavy suggestions
+                if (metrics.TryGetValue("isFormulaEngineHeavy", out var isFe) && isFe is bool feHeavy && feHeavy)
+                {
+                    suggestions.Insert(0, "⚠️ Formula Engine heavy query detected - Consider reducing iterator functions (SUMX, FILTERX) and complex calculated columns");
+                    suggestions.Add("Tip: Use relationships and measures instead of calculated columns where possible");
+                }
+
+                // Storage Engine heavy suggestions
+                if (metrics.TryGetValue("isStorageEngineHeavy", out var isSe) && isSe is bool seHeavy && seHeavy)
+                {
+                    suggestions.Insert(0, "✓ Storage Engine optimized - Query efficiently uses relationships and filters");
+                }
+
+                // High CPU usage
+                if (metrics.TryGetValue("cpuEfficiency", out var cpuEff) && cpuEff is double cpu && cpu > 80)
+                {
+                    suggestions.Add("⚠️ High CPU utilization detected - Consider optimizing complex calculations or using variables");
+                }
+
+                // Memory pressure
+                if (metrics.TryGetValue("memoryUsageKB", out var mem) && mem is long memory && memory > 100000) // > 100MB
+                {
+                    suggestions.Add("⚠️ High memory consumption - Consider filtering data earlier or using selective imports");
+                }
+            }
+        }
+
+        return suggestions;
     }
 
     // Helper methods for analysis tools
