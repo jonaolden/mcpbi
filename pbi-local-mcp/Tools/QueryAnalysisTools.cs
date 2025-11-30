@@ -40,12 +40,10 @@ public class QueryAnalysisTools
     /// Validates DAX syntax and identifies potential issues with enhanced error analysis.
     /// </summary>
     /// <param name="daxExpression">DAX expression to validate</param>
-    /// <param name="includeRecommendations">Include performance and best practice recommendations</param>
-    /// <returns>Validation results including syntax errors, warnings, and recommendations</returns>
+    /// <returns>Validation results including syntax errors and warnings</returns>
     [McpServerTool, Description("Validate DAX syntax and identify issues.")]
     public async Task<object> ValidateQuery(
-        [Description("DAX expression")] string daxExpression,
-        [Description("Include recommendations")] bool includeRecommendations = true)
+        [Description("DAX expression")] string daxExpression)
     {
         try
         {
@@ -58,7 +56,6 @@ public class QueryAnalysisTools
             // Basic syntax validation
             var syntaxErrors = new List<string>();
             var warnings = new List<string>();
-            var recommendations = new List<string>();
 
             // Check balanced delimiters
             DaxSyntaxValidator.CheckBalancedDelimiters(daxExpression, '(', ')', "parentheses", syntaxErrors);
@@ -66,7 +63,7 @@ public class QueryAnalysisTools
             DaxSyntaxValidator.CheckBalancedQuotes(daxExpression, syntaxErrors);
 
             // Check for common DAX patterns and issues
-            AnalyzeDaxPatterns(daxExpression, warnings, recommendations, includeRecommendations);
+            AnalyzeDaxPatterns(daxExpression, warnings);
 
             // Try to execute a simple validation query
             bool executionValid = false;
@@ -100,8 +97,7 @@ public class QueryAnalysisTools
             // Calculate complexity metrics
             var complexityMetrics = CalculateDaxComplexity(daxExpression);
 
-            // Always include recommendations field when requested, even if empty
-            var result = new Dictionary<string, object?>
+            return new Dictionary<string, object?>
             {
                 ["expression"] = daxExpression.Trim(),
                 ["isValid"] = !syntaxErrors.Any() && executionValid,
@@ -117,14 +113,6 @@ public class QueryAnalysisTools
                     ExpressionLength = daxExpression.Length
                 }
             };
-
-            // Add recommendations field when requested (always include, even if empty)
-            if (includeRecommendations)
-            {
-                result["recommendations"] = recommendations;
-            }
-
-            return result;
         }
         catch (Exception ex)
         {
@@ -137,13 +125,11 @@ public class QueryAnalysisTools
     /// Analyzes query performance characteristics and identifies potential bottlenecks using DMV-based metrics.
     /// </summary>
     /// <param name="daxQuery">DAX query to analyze</param>
-    /// <param name="includeOptimizations">Include complexity metrics and optimization suggestions</param>
     /// <param name="iterations">Number of iterations to run the query for aggregated statistics (default: 1)</param>
-    /// <returns>Performance analysis results including execution time, DMV-based engine metrics, and optimization suggestions</returns>
+    /// <returns>Performance analysis results including execution time and DMV-based engine metrics</returns>
     [McpServerTool, Description("Analyze query performance and identify bottlenecks.")]
     public async Task<object> AnalyzeQueryPerformance(
         [Description("DAX query")] string daxQuery,
-        [Description("Include optimizations")] bool includeOptimizations = true,
         [Description("Iterations for statistics (1-100, default 1)")] int iterations = 1)
     {
         // Validate connection before proceeding
@@ -225,16 +211,6 @@ public class QueryAnalysisTools
             var complexityAnalysis = AnalyzeQueryStructure(daxQuery);
             var performanceMetrics = CalculatePerformanceMetrics(daxQuery, averageExecutionTime, allRunsSuccessful);
 
-            // Generate performance insights using average execution time
-            var insights = GeneratePerformanceInsights(averageExecutionTime, engineMetrics, complexityAnalysis, performanceMetrics, allRunsSuccessful);
-
-            var optimizationSuggestions = new List<string>();
-            if (includeOptimizations)
-            {
-                optimizationSuggestions = GenerateEnhancedOptimizationSuggestions(
-                    daxQuery, complexityAnalysis, performanceMetrics, engineMetrics);
-            }
-
             int resultRowCount = 0;
             if (allRunsSuccessful && firstQueryResult is IEnumerable<Dictionary<string, object?>> rows)
             {
@@ -275,12 +251,6 @@ public class QueryAnalysisTools
                 },
 
                 analysis = complexityAnalysis,
-
-                Recommendations = includeOptimizations && optimizationSuggestions.Count > 0
-                    ? optimizationSuggestions
-                    : null,
-
-                Insights = insights,
 
                 Diagnostics = diagnostics.Warnings.Count > 0 || sessionId == "unknown"
                     ? new
@@ -669,187 +639,25 @@ public class QueryAnalysisTools
     /// <summary>
     /// Generates human-readable performance insights based on all available metrics
     /// </summary>
-    private List<string> GeneratePerformanceInsights(
-        TimeSpan executionTime,
-        object? engineMetrics,
-        object? complexityAnalysis,
-        object? performanceMetrics,
-        bool executionSuccessful)
-    {
-        var insights = new List<string>();
-
-        if (!executionSuccessful)
-        {
-            insights.Add("WARNING: Query execution failed - performance analysis incomplete");
-            return insights;
-        }
-
-        // Engine metrics insights
-        if (engineMetrics != null)
-        {
-            try
-            {
-                var metrics = JsonSerializer.Deserialize<Dictionary<string, object>>(
-                    JsonSerializer.Serialize(engineMetrics, JsonOptions), JsonOptions);
-
-                if (metrics != null)
-                {
-                    var sePercent = metrics.TryGetValue("storageEnginePercentage", out var seP) ? Convert.ToDouble(seP) : 0;
-                    var fePercent = metrics.TryGetValue("formulaEnginePercentage", out var feP) ? Convert.ToDouble(feP) : 0;
-
-                    if (metrics.TryGetValue("isStorageEngineHeavy", out var isSe) && isSe is bool seHeavy && seHeavy)
-                    {
-                        insights.Add($"Storage Engine optimized ({sePercent:F0}% SE / {fePercent:F0}% FE) - efficiently using columnstore compression and relationships");
-                    }
-                    else if (metrics.TryGetValue("isFormulaEngineHeavy", out var isFe) && isFe is bool feHeavy && feHeavy)
-                    {
-                        insights.Add($"Formula Engine intensive ({sePercent:F0}% SE / {fePercent:F0}% FE) - row-by-row processing or complex calculations detected");
-                        insights.Add("RECOMMENDATION: Consider reducing iterator functions (SUMX, FILTERX) or simplifying calculated column logic");
-                    }
-                    else if (metrics.TryGetValue("isBalanced", out var isBal) && isBal is bool balanced && balanced)
-                    {
-                        insights.Add($"Balanced engine usage ({sePercent:F0}% SE / {fePercent:F0}% FE) - mix of data retrieval and calculations");
-                    }
-
-                    // Data quality warnings
-                    if (metrics.TryGetValue("dataQuality", out var dqObj))
-                    {
-                        var dataQuality = JsonSerializer.Deserialize<Dictionary<string, object>>(
-                            JsonSerializer.Serialize(dqObj, JsonOptions), JsonOptions);
-
-                        if (dataQuality != null)
-                        {
-                            var hasCpu = dataQuality.TryGetValue("hasCpuData", out var cpu) && cpu is bool cpuBool && cpuBool;
-                            var hasMem = dataQuality.TryGetValue("hasMemoryData", out var mem) && mem is bool memBool && memBool;
-                            var hasIo = dataQuality.TryGetValue("hasIoData", out var io) && io is bool ioBool && ioBool;
-
-                            if (!hasCpu && !hasMem && !hasIo)
-                            {
-                                insights.Add("NOTE: Limited DMV data quality - CPU, memory, and I/O metrics unavailable. SE/FE split is estimated from execution patterns");
-                            }
-                            else if (!hasCpu)
-                            {
-                                insights.Add("NOTE: CPU metrics unavailable from DMV - SE/FE split estimation may be less accurate");
-                            }
-                        }
-                    }
-                }
-            }
-            catch { /* Ignore serialization errors */ }
-        }
-        else
-        {
-            insights.Add("NOTE: DMV metrics unavailable - analysis based on execution time and query structure only");
-        }
-
-        // Complexity insight
-        if (complexityAnalysis != null)
-        {
-            try
-            {
-                var complexity = JsonSerializer.Deserialize<Dictionary<string, object>>(
-                    JsonSerializer.Serialize(complexityAnalysis, JsonOptions), JsonOptions);
-
-                if (complexity != null && complexity.TryGetValue("estimatedComplexity", out var comp) && comp != null)
-                {
-                    var complexityScore = Convert.ToInt32(comp);
-                    if (complexityScore > 15)
-                    {
-                        insights.Add($"High query complexity detected (score: {complexityScore}) - consider breaking into smaller parts or simplifying logic");
-                    }
-                }
-            }
-            catch { /* Ignore serialization errors */ }
-        }
-
-        return insights;
-    }
-
-    private static object? GetPropertyValue(object obj, string propertyName)
-    {
-        var prop = obj.GetType().GetProperty(propertyName);
-        return prop?.GetValue(obj);
-    }
-
-    private List<string> GenerateEnhancedOptimizationSuggestions(
-        string query,
-        object complexityAnalysis,
-        object performanceMetrics,
-        object? engineMetrics)
-    {
-        var suggestions = GenerateOptimizationSuggestions(query, complexityAnalysis, performanceMetrics);
-
-        if (engineMetrics != null)
-        {
-            var metrics = JsonSerializer.Deserialize<Dictionary<string, object>>(
-                JsonSerializer.Serialize(engineMetrics, JsonOptions), JsonOptions);
-
-            if (metrics != null)
-            {
-                if (metrics.TryGetValue("isFormulaEngineHeavy", out var isFe) && isFe is bool feHeavy && feHeavy)
-                {
-                    suggestions.Insert(0, "⚠️ Formula Engine heavy query detected - Consider reducing iterator functions (SUMX, FILTERX) and complex calculated columns");
-                    suggestions.Add("Tip: Use relationships and measures instead of calculated columns where possible");
-                }
-
-                if (metrics.TryGetValue("isStorageEngineHeavy", out var isSe) && isSe is bool seHeavy && seHeavy)
-                {
-                    suggestions.Insert(0, "✓ Storage Engine optimized - Query efficiently uses relationships and filters");
-                }
-
-                if (metrics.TryGetValue("cpuEfficiency", out var cpuEff) && cpuEff is double cpu && cpu > 80)
-                {
-                    suggestions.Add("⚠️ High CPU utilization detected - Consider optimizing complex calculations or using variables");
-                }
-
-                if (metrics.TryGetValue("memoryUsageKB", out var mem) && mem is long memory && memory > 100000)
-                {
-                    suggestions.Add("⚠️ High memory consumption - Consider filtering data earlier or using selective imports");
-                }
-            }
-        }
-
-        return suggestions;
-    }
-
-    private static void AnalyzeDaxPatterns(string expression, List<string> warnings, List<string> recommendations, bool includeRecommendations)
+    private static void AnalyzeDaxPatterns(string expression, List<string> warnings)
     {
         if (string.IsNullOrEmpty(expression))
             return;
 
         if (expression.Contains("SUMX", StringComparison.OrdinalIgnoreCase) && expression.Contains("FILTER", StringComparison.OrdinalIgnoreCase))
         {
-            warnings.Add("SUMX with FILTER detected - consider using CALCULATE for better performance");
+            warnings.Add("SUMX with FILTER detected");
         }
 
         if (System.Text.RegularExpressions.Regex.IsMatch(expression, @"CALCULATE\s*\(\s*CALCULATE", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
         {
-            warnings.Add("Nested CALCULATE functions detected - this may cause unexpected results");
+            warnings.Add("Nested CALCULATE functions detected");
         }
 
         var calculateCount = System.Text.RegularExpressions.Regex.Matches(expression, @"\bCALCULATE\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Count;
         if (calculateCount > 3)
         {
-            warnings.Add($"High number of CALCULATE functions ({calculateCount}) - consider simplifying the expression");
-        }
-
-        if (includeRecommendations)
-        {
-            if (expression.Contains("SUM", StringComparison.OrdinalIgnoreCase) && !expression.Contains("CALCULATE", StringComparison.OrdinalIgnoreCase))
-            {
-                recommendations.Add("Consider using CALCULATE with filters instead of basic aggregation for more flexibility");
-            }
-
-            if (expression.Length > 500)
-            {
-                recommendations.Add("Long expression detected - consider breaking into multiple measures for better maintainability");
-            }
-
-            if (!expression.Contains("FORMAT", StringComparison.OrdinalIgnoreCase) &&
-                (expression.Contains("/", StringComparison.OrdinalIgnoreCase) || expression.Contains("DIVIDE", StringComparison.OrdinalIgnoreCase)))
-            {
-                recommendations.Add("Consider using FORMAT function for better number presentation in reports");
-            }
+            warnings.Add($"High number of CALCULATE functions ({calculateCount})");
         }
     }
 
@@ -947,38 +755,5 @@ public class QueryAnalysisTools
             FunctionDensity = queryLength > 0 ? (double)functionCount / queryLength * 100 : 0,
             Successful = successful
         };
-    }
-
-    private static List<string> GenerateOptimizationSuggestions(string query, object complexityAnalysis, object performanceMetrics)
-    {
-        var suggestions = new List<string>();
-
-        if (query.Contains("SUMX", StringComparison.OrdinalIgnoreCase) && query.Contains("FILTER", StringComparison.OrdinalIgnoreCase))
-        {
-            suggestions.Add("Replace SUMX(FILTER(...)) with CALCULATE(SUM(...), Filter) for better performance");
-        }
-
-        if (System.Text.RegularExpressions.Regex.Matches(query, @"\bCALCULATE\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Count > 2)
-        {
-            suggestions.Add("Consider consolidating multiple CALCULATE functions to reduce complexity");
-        }
-
-        if (query.Contains("ALL(", StringComparison.OrdinalIgnoreCase) && !query.Contains("CALCULATE", StringComparison.OrdinalIgnoreCase))
-        {
-            suggestions.Add("Using ALL() without CALCULATE may not provide expected results - consider wrapping in CALCULATE");
-        }
-
-        if (query.Length > 1000)
-        {
-            suggestions.Add("Consider breaking down this large query into smaller, more manageable parts");
-        }
-
-        var iteratorFunctions = System.Text.RegularExpressions.Regex.Matches(query, @"\b(SUMX|AVERAGEX|COUNTX|MAXX|MINX)\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Count;
-        if (iteratorFunctions > 2)
-        {
-            suggestions.Add("Multiple iterator functions detected - ensure they are necessary and consider alternatives");
-        }
-
-        return suggestions;
     }
 }
