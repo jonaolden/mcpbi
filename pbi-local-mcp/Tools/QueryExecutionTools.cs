@@ -232,6 +232,7 @@ public class QueryExecutionTools
     /// <param name="verbose">If true returns diagnostic envelope and suppresses (non-cancellation) exceptions.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>JSON string (raw result array for non-verbose success; verbose diagnostic envelope otherwise).</returns>
+    [McpServerTool, Description("Execute DAX or DMV query with optional verbose diagnostics. Returns JSON string with raw results or diagnostic envelope including error details and performance metrics.")]
     public async Task<string> RunQueryAsync(string query, string queryType = "DAX", bool verbose = false, CancellationToken ct = default)
     {
         // Validate connection before proceeding

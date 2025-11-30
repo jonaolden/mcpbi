@@ -144,7 +144,7 @@ public class QueryAnalysisTools
     public async Task<object> AnalyzeQueryPerformance(
         [Description("DAX query")] string daxQuery,
         [Description("Include optimizations")] bool includeOptimizations = true,
-        [Description("Iterations for statistics")] int iterations = 1)
+        [Description("Iterations for statistics (1-100, default 1)")] int iterations = 1)
     {
         // Validate connection before proceeding
         await _tabularConnection.ValidateConnectionAsync();
@@ -156,8 +156,8 @@ public class QueryAnalysisTools
             if (string.IsNullOrWhiteSpace(daxQuery))
                 throw new ArgumentException("DAX query cannot be empty", nameof(daxQuery));
 
-            if (iterations < 1)
-                throw new ArgumentException("Iterations must be >= 1", nameof(iterations));
+            if (iterations < 1 || iterations > 100)
+                throw new ArgumentException("Iterations must be between 1 and 100", nameof(iterations));
 
             object? firstQueryResult = null;
             string executionError = "";
@@ -270,8 +270,6 @@ public class QueryAnalysisTools
 
                 performance = new
                 {
-                    rating = performanceMetrics != null ?
-                        GetPropertyValue(performanceMetrics, "PerformanceRating") as string ?? "Unknown" : "Unknown",
                     metrics = engineMetrics ?? performanceMetrics,
                     metricSource = engineMetrics != null ? "DMV" : "Heuristic"
                 },
@@ -686,19 +684,6 @@ public class QueryAnalysisTools
             return insights;
         }
 
-        // Execution time insights
-        var timeMs = executionTime.TotalMilliseconds;
-        if (timeMs < 50)
-            insights.Add("Excellent performance - query executed in under 50ms");
-        else if (timeMs < 500)
-            insights.Add("Good performance - query completed quickly");
-        else if (timeMs < 2000)
-            insights.Add("Moderate performance - consider optimization for frequently-run queries");
-        else if (timeMs < 5000)
-            insights.Add("Slow performance detected - optimization recommended");
-        else
-            insights.Add("Very slow performance - significant optimization needed");
-
         // Engine metrics insights
         if (engineMetrics != null)
         {
@@ -955,22 +940,8 @@ public class QueryAnalysisTools
         var queryLength = query.Length;
         var functionCount = System.Text.RegularExpressions.Regex.Matches(query, @"\b[A-Z]+\s*\(", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Count;
 
-        string performanceRating = "Unknown";
-        if (successful)
-        {
-            performanceRating = executionTime.TotalMilliseconds switch
-            {
-                < 100 => "Excellent",
-                < 500 => "Good",
-                < 2000 => "Moderate",
-                < 5000 => "Slow",
-                _ => "Very Slow"
-            };
-        }
-
         return new
         {
-            PerformanceRating = performanceRating,
             ExecutionTimeMs = executionTime.TotalMilliseconds,
             QueryComplexityFactor = (queryLength / 100.0) + (functionCount * 0.5),
             FunctionDensity = queryLength > 0 ? (double)functionCount / queryLength * 100 : 0,

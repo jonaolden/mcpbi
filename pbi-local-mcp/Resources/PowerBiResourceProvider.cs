@@ -11,7 +11,6 @@ namespace pbi_local_mcp.Resources;
 /// Provides Power BI specific metadata and predefined DAX template resources to MCP clients.
 /// Resources exposed (URIs):
 ///  - powerbi://server/info        (basic connection/server metadata)
-///  - powerbi://instances          (discovered local Power BI Desktop instances - cached 5s)
 ///  - powerbi://schema/summary     (lightweight model schema counts - internally cached in ITabularConnection)
 ///  - dax://templates/*            (static DAX template descriptors)
 /// </summary>
@@ -20,7 +19,6 @@ public sealed class PowerBiResourceProvider
     // EventIds centralized in LogEvents
 
     private readonly ITabularConnection _tabular;
-    private readonly IInstanceDiscovery? _instanceDiscovery;
     private readonly ILogger<PowerBiResourceProvider> _logger;
     private readonly IMemoryCache _cache;
     private readonly ServerInfo _serverInfo;
@@ -33,19 +31,16 @@ public sealed class PowerBiResourceProvider
     /// <param name="tabularConnection">Connection used to query the tabular model for metadata and schema information.</param>
     /// <param name="logger">Logger instance for diagnostic messages.</param>
     /// <param name="memoryCache">Memory cache used for short-lived resource caching.</param>
-    /// <param name="instanceDiscovery">Optional instance discovery service for enumerating local Power BI instances.</param>
     /// <param name="config">Optional Power BI configuration options.</param>
     public PowerBiResourceProvider(
         ITabularConnection tabularConnection,
         ILogger<PowerBiResourceProvider> logger,
         IMemoryCache memoryCache,
-        IInstanceDiscovery? instanceDiscovery = null,
         IOptions<PowerBiConfig>? config = null)
     {
         _tabular = tabularConnection ?? throw new ArgumentNullException(nameof(tabularConnection));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _cache = memoryCache ?? throw new ArgumentNullException(nameof(memoryCache));
-        _instanceDiscovery = instanceDiscovery;
 
         _serverInfo = new ServerInfo(
             _tabular.Port,
@@ -63,7 +58,6 @@ public sealed class PowerBiResourceProvider
         var list = new List<ResourceDescriptor>
         {
             new("powerbi://server/info",        "Power BI connection/server metadata"),
-            new("powerbi://instances",          "Discovered local Power BI Desktop instances (cached 5s)"),
             new("powerbi://schema/summary",     "Lightweight model schema summary (tables/measures/columns)"),
             new("powerbi://functions/interface-names", "List of available INTERFACE_NAME values for functions (cached)")
         };
@@ -85,7 +79,6 @@ public sealed class PowerBiResourceProvider
             return uri switch
             {
                 "powerbi://server/info" => _serverInfo,
-                "powerbi://instances" => await GetInstancesAsync(ct).ConfigureAwait(false),
                 "powerbi://schema/summary" => await _tabular.GetSchemaSummaryAsync(ct).ConfigureAwait(false),
                 "powerbi://functions/interface-names" => await GetFunctionInterfaceNamesAsync(ct).ConfigureAwait(false),
                 _ when _templates.ContainsKey(uri) => _templates[uri],
@@ -101,30 +94,6 @@ public sealed class PowerBiResourceProvider
             _logger.LogError(LogEvents.ResourceError, ex, "Failed reading resource {Uri}", uri);
             throw new Exception($"[ResourceProvider] Failed to read resource '{uri}': {ex.Message}", ex);
         }
-    }
-
-    private async Task<IEnumerable<InstanceInfo>> GetInstancesAsync(CancellationToken ct)
-    {
-        if (_instanceDiscovery == null)
-        {
-            return Array.Empty<InstanceInfo>();
-        }
-
-        const string cacheKey = "PowerBiResourceProvider.Instances";
-        if (_cache.TryGetValue(cacheKey, out IEnumerable<InstanceInfo>? cached) && cached != null)
-        {
-            return cached;
-        }
-
-        _logger.LogDebug(LogEvents.CacheMiss, "Instance list cache miss");
-        var instances = await _instanceDiscovery.DiscoverInstances().ConfigureAwait(false);
-
-        _cache.Set(cacheKey, instances, new MemoryCacheEntryOptions
-        {
-            AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(5)
-        });
-
-        return instances;
     }
 
     private const string InterfaceNamesCacheKey = "PowerBiResourceProvider.InterfaceNames";

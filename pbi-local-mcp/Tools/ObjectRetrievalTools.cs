@@ -28,9 +28,9 @@ public class ObjectRetrievalTools
     // CONSOLIDATED TOOLS
     // ========================================================================
 
-    [McpServerTool, Description("List model objects with filtering by type, table, visibility, and description.")]
+    [McpServerTool, Description("List model objects with filtering by type, table, visibility, and description. Valid types: table, column, measure, hierarchy, calculation_group, calculation_item, relationship.")]
     public async Task<object> ListObjects(
-        [Description("Object type or null for all")] string? type = null,
+        [Description("Object type (table|column|measure|hierarchy|calculation_group|calculation_item|relationship) or null for summary")] string? type = null,
         [Description("Filter by parent table name")] string? tableName = null,
         [Description("Filter by hidden status")] bool? isHidden = null,
         [Description("Filter by description presence")] bool? hasDescription = null,
@@ -46,6 +46,20 @@ public class ObjectRetrievalTools
             if (!string.IsNullOrWhiteSpace(tableName) && !DaxSecurityUtils.IsValidIdentifier(tableName))
                 throw new ArgumentException("Invalid table name format", nameof(tableName));
 
+            // Early validation for type parameter
+            if (!string.IsNullOrWhiteSpace(type))
+            {
+                var validTypes = new[] { "table", "column", "measure", "hierarchy",
+                    "calculation_group", "calculationgroup", "calculation_item", "calculationitem", "relationship" };
+                var normalizedInput = type.ToLowerInvariant().Trim();
+                if (!validTypes.Contains(normalizedInput))
+                {
+                    throw new ArgumentException(
+                        $"Invalid type '{type}'. Valid types: table, column, measure, hierarchy, calculation_group, calculation_item, relationship",
+                        nameof(type));
+                }
+            }
+
             var normalizedType = type?.ToLowerInvariant().Trim();
             var results = new List<Dictionary<string, object?>>();
 
@@ -59,11 +73,7 @@ public class ObjectRetrievalTools
                 "calculation_group" or "calculationgroup" => await ListCalculationGroupsDetailed(isHidden, hasDescription),
                 "calculation_item" or "calculationitem" => await ListCalculationItemsDetailed(tableName, isHidden),
                 "relationship" => await ListRelationshipsDetailed(tableName, isHidden),
-                "kpi" => await ListKPIsDetailed(tableName, isHidden),
-                "parameter" => await ListParametersDetailed(isHidden, hasDescription),
-                "perspective" => await ListPerspectivesDetailed(hasDescription),
-                "translation" => await ListTranslationsDetailed(),
-                _ => throw new ArgumentException($"Unknown object type '{type}'. Valid types: table, column, measure, hierarchy, calculation_group, calculation_item, relationship, kpi, parameter, perspective, translation", nameof(type))
+                _ => throw new ArgumentException($"Unknown object type '{type}'. Valid types: table, column, measure, hierarchy, calculation_group, calculation_item, relationship", nameof(type))
             };
 
             return new
@@ -82,11 +92,11 @@ public class ObjectRetrievalTools
         }
     }
 
-    [McpServerTool, Description("Get detailed information about a semantic model object. Use lineageTag (GUID from list_objects) OR name with type. For columns/measures/calculation_items, tableName is required when using name.")]
+    [McpServerTool, Description("Get detailed information about a semantic model object by name and type. For columns/measures/calculation_items, tableName parameter is required.")]
     public async Task<object> GetObjectDetails(
-        [Description("LineageTag (GUID) OR object name. LineageTag is preferred and faster.")] string identifier,
-        [Description("Required for name lookup: 'table', 'measure', 'column', 'relationship', 'calculation_group', 'calculation_item'")] string? type = null,
-        [Description("Required for columns, measures, and calculation_items when using name (not lineageTag)")] string? tableName = null,
+        [Description("Object name")] string name,
+        [Description("Object type: 'table', 'measure', 'column', 'relationship', 'calculation_group', 'calculation_item'")] string type,
+        [Description("Parent table name (required for column, measure, calculation_item types)")] string? tableName = null,
         [Description("Dependency level: 'none' (default), 'direct' (immediate refs), 'full' (complete graph)")] string includeDependencies = "none",
         [Description("Include extended metadata and calculation items list")] bool includeMetadata = true)
     {
@@ -95,33 +105,31 @@ public class ObjectRetrievalTools
             // Validate connection before proceeding
             await _tabularConnection.ValidateConnectionAsync();
 
-            if (string.IsNullOrWhiteSpace(identifier))
-                throw new ArgumentException("Identifier cannot be null or empty", nameof(identifier));
+            if (string.IsNullOrWhiteSpace(name))
+                throw new ArgumentException("Name cannot be null or empty", nameof(name));
 
-            bool isLineageTag = Guid.TryParse(identifier, out _);
+            if (string.IsNullOrWhiteSpace(type))
+                throw new ArgumentException("Type parameter is required. Valid types: 'table', 'measure', 'column', 'relationship', 'calculation_group', 'calculation_item'", nameof(type));
 
-            if (!isLineageTag && string.IsNullOrWhiteSpace(type))
-                throw new ArgumentException("Type parameter is required when using name-based lookup. Valid types: 'table', 'measure', 'column', 'relationship', 'calculation_group', 'calculation_item'", nameof(type));
-
-            var normalizedType = type?.ToLowerInvariant().Trim();
+            var normalizedType = type.ToLowerInvariant().Trim();
             var depLevel = includeDependencies?.ToLowerInvariant().Trim() ?? "none";
 
             if (depLevel != "none" && depLevel != "direct" && depLevel != "full")
                 throw new ArgumentException("includeDependencies must be 'none', 'direct', or 'full'", nameof(includeDependencies));
 
-            Dictionary<string, object?>? objectDetails = isLineageTag
-                ? await GetObjectByLineageTag(identifier, includeMetadata)
-                : await GetObjectByName(identifier, normalizedType!, tableName, includeMetadata);
+            // Validate that tableName is provided for types that require it
+            if ((normalizedType == "column" || normalizedType == "measure" || normalizedType == "calculation_item")
+                && string.IsNullOrWhiteSpace(tableName))
+            {
+                throw new ArgumentException($"tableName parameter is required for type '{type}'", nameof(tableName));
+            }
+
+            Dictionary<string, object?>? objectDetails = await GetObjectByName(name, normalizedType, tableName, includeMetadata);
 
             if (objectDetails == null)
             {
-                var hint = normalizedType switch
-                {
-                    "calculation_item" => " Note: calculation_items may lack lineageTags; use name with tableName (the calculation group name).",
-                    "column" or "measure" => " Hint: These types require 'tableName' parameter.",
-                    _ => ""
-                };
-                throw new ArgumentException($"Object '{identifier}' not found (type: {type ?? "unknown"}, table: {tableName ?? "not specified"}).{hint}");
+                throw new ArgumentException($"Object '{name}' of type '{type}' not found" +
+                    (string.IsNullOrWhiteSpace(tableName) ? "" : $" in table '{tableName}'"));
             }
 
             if (depLevel != "none")
@@ -139,7 +147,7 @@ public class ObjectRetrievalTools
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error in GetObjectDetails for identifier={Identifier}", identifier);
+            _logger.LogError(ex, "Error in GetObjectDetails for name={Name}, type={Type}", name, type);
             return new { error = $"Failed to retrieve object details: {ex.Message}" };
         }
     }
@@ -723,137 +731,6 @@ public class ObjectRetrievalTools
             ["toTable"] = GetInfoViewValue(r, "ToTable", "RELATIONSHIPS"),
             ["toColumn"] = GetInfoViewValue(r, "ToColumn", "RELATIONSHIPS")
         }).ToList();
-    }
-
-    private Task<List<Dictionary<string, object?>>> ListKPIsDetailed(string? tableName, bool? isHidden) => Task.FromResult(new List<Dictionary<string, object?>>());
-    private Task<List<Dictionary<string, object?>>> ListParametersDetailed(bool? isHidden, bool? hasDescription) => Task.FromResult(new List<Dictionary<string, object?>>());
-    private Task<List<Dictionary<string, object?>>> ListPerspectivesDetailed(bool? hasDescription) => Task.FromResult(new List<Dictionary<string, object?>>());
-    private Task<List<Dictionary<string, object?>>> ListTranslationsDetailed() => Task.FromResult(new List<Dictionary<string, object?>>());
-
-    private async Task<Dictionary<string, object?>?> GetObjectByLineageTag(string lineageTag, bool includeMetadata)
-    {
-        // Try measures first
-        var measureQuery = $@"EVALUATE FILTER(INFO.VIEW.MEASURES(), [LineageTag] = ""{lineageTag}"")";
-        _logger.LogDebug("GetObjectByLineageTag: Executing query for lineageTag '{LineageTag}': {Query}", lineageTag, measureQuery);
-        var result = await _tabularConnection.ExecAsync(measureQuery, QueryType.DAX);
-        var items = (result as IEnumerable<Dictionary<string, object?>>)?.ToList();
-        _logger.LogDebug("GetObjectByLineageTag: Query returned {Count} results", items?.Count ?? 0);
-
-        if (items != null && items.Any())
-        {
-            var measure = items.First();
-            return new Dictionary<string, object?>
-            {
-                ["lineageTag"] = GetInfoViewValue(measure, "LineageTag", "MEASURES"),
-                ["name"] = GetInfoViewValue(measure, "Name", "MEASURES"),
-                ["type"] = "measure",
-                ["table"] = GetInfoViewValue(measure, "Table", "MEASURES"),
-                ["expression"] = GetInfoViewValue(measure, "Expression", "MEASURES"),
-                ["dataType"] = GetInfoViewValue(measure, "DataType", "MEASURES"),
-                ["isHidden"] = GetInfoViewValue(measure, "IsHidden", "MEASURES"),
-                ["description"] = GetInfoViewValue(measure, "Description", "MEASURES")
-            };
-        }
-
-        // Try calculation groups (lineageTag is stored in TABLES, not CALCULATION_GROUPS)
-        try
-        {
-            var cgQuery = "SELECT * FROM $SYSTEM.TMSCHEMA_CALCULATION_GROUPS";
-            var tablesQuery = $"SELECT * FROM $SYSTEM.TMSCHEMA_TABLES WHERE LineageTag = '{lineageTag.Replace("'", "''")}'";
-
-            var tablesResult = await _tabularConnection.ExecAsync(tablesQuery, QueryType.DMV);
-            var tables = (tablesResult as IEnumerable<Dictionary<string, object?>>)?.ToList();
-
-            if (tables != null && tables.Any())
-            {
-                var table = tables.First();
-                var tableId = table.GetValueOrDefault("ID")?.ToString();
-
-                // Check if this table is a calculation group
-                var cgResult = await _tabularConnection.ExecAsync(cgQuery, QueryType.DMV);
-                var calcGroups = (cgResult as IEnumerable<Dictionary<string, object?>>)?.ToList() ?? new List<Dictionary<string, object?>>();
-
-                var cg = calcGroups.FirstOrDefault(c => c.GetValueOrDefault("TableID")?.ToString() == tableId);
-
-                if (cg != null)
-                {
-                    var cgDetails = new Dictionary<string, object?>
-                    {
-                        ["lineageTag"] = table.GetValueOrDefault("LineageTag"),
-                        ["name"] = table.GetValueOrDefault("Name"),
-                        ["type"] = "calculation_group",
-                        ["isHidden"] = table.GetValueOrDefault("IsHidden"),
-                        ["description"] = cg.GetValueOrDefault("Description"),
-                        ["precedence"] = cg.GetValueOrDefault("Precedence")
-                    };
-
-                    // Add calculation items if includeMetadata is true
-                    if (includeMetadata)
-                    {
-                        try
-                        {
-                            // Use the same approach as ListCalculationItemsDetailed - query all items and filter by table name
-                            var groupName = table.GetValueOrDefault("Name")?.ToString() ?? "";
-                            var calcItemsList = await ListCalculationItemsDetailed(groupName, null);
-
-                            // Map items to match expected format
-                            cgDetails["calculationItems"] = calcItemsList.Select(ci => new Dictionary<string, object?>
-                            {
-                                ["lineageTag"] = ci.GetValueOrDefault("lineageTag"),
-                                ["name"] = ci.GetValueOrDefault("name"),
-                                ["ordinal"] = ci.GetValueOrDefault("ordinal"),
-                                ["expression"] = ci.GetValueOrDefault("expressionPreview"),
-                                ["description"] = ci.GetValueOrDefault("description"),
-                                ["calculationGroup"] = ci.GetValueOrDefault("calculationGroup")
-                            }).ToList();
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogDebug(ex, "Failed to retrieve calculation items for calculation group with lineageTag: {LineageTag}", lineageTag);
-                            cgDetails["calculationItems"] = new List<Dictionary<string, object?>>();
-                        }
-                    }
-
-                    return cgDetails;
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogDebug(ex, "Calculation group lookup failed for lineageTag: {LineageTag}", lineageTag);
-        }
-
-        // Try calculation items
-        try
-        {
-            var ciQuery = $@"SELECT CI.*, CG.Name AS GroupName
-                            FROM $SYSTEM.TMSCHEMA_CALCULATION_ITEMS CI
-                            INNER JOIN $SYSTEM.TMSCHEMA_CALCULATION_GROUPS CG ON CI.CalculationGroupID = CG.ID
-                            WHERE CI.LineageTag = '{lineageTag.Replace("'", "''")}'";
-            var ciResult = await _tabularConnection.ExecAsync(ciQuery, QueryType.DMV);
-            var ciItems = (ciResult as IEnumerable<Dictionary<string, object?>>)?.ToList();
-
-            if (ciItems != null && ciItems.Any())
-            {
-                var ci = ciItems.First();
-                return new Dictionary<string, object?>
-                {
-                    ["lineageTag"] = GetInfoViewValue(ci, "LineageTag"),
-                    ["name"] = GetInfoViewValue(ci, "Name"),
-                    ["type"] = "calculation_item",
-                    ["calculationGroup"] = GetInfoViewValue(ci, "GroupName"),
-                    ["ordinal"] = GetInfoViewValue(ci, "Ordinal"),
-                    ["expression"] = GetInfoViewValue(ci, "Expression"),
-                    ["description"] = GetInfoViewValue(ci, "Description")
-                };
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogDebug(ex, "Calculation item lookup failed for lineageTag: {LineageTag}", lineageTag);
-        }
-
-        return null;
     }
 
     private async Task<Dictionary<string, object?>?> GetObjectByName(string name, string type, string? tableName, bool includeMetadata)
