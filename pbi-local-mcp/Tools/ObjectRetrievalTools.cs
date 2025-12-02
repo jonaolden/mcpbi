@@ -156,20 +156,21 @@ public class ObjectRetrievalTools
     // RETAINED TOOLS - Not redundant with consolidated tools
     // ========================================================================
 
-    [McpServerTool, Description("Get comprehensive model summary in single call. Returns all tables, measures, columns, relationships, and calculation groups. Higher token usage but saves multiple API round trips. Ideal for models with request count limits.")]
+    [McpServerTool, Description("Get comprehensive model summary in single call. Returns all tables, measures, relationships, and calculation groups. Higher token usage but saves multiple API round trips. Ideal for models with request count limits.")]
     public async Task<object> GetModelSummary(
-        [Description("Include measure/column expressions (default: true)")] bool includeExpressions = true,
-        [Description("Include hidden objects (default: false)")] bool includeHidden = false,
+        [Description("Include measure/column expressions (default: false)")] bool includeExpressions = false,
+        [Description("Include hidden objects (default: true)")] bool includeHidden = true,
         [Description("Include relationship details (default: true)")] bool includeRelationships = true,
-        [Description("Maximum columns per table in summary (default: 50, 0 = all)")] int maxColumnsPerTable = 50)
+        [Description("Include columns in table details (default: false)")] bool includeColumns = false,
+        [Description("Maximum columns per table in summary when includeColumns=true (default: 50, 0 = all)")] int maxColumnsPerTable = 50)
     {
         try
         {
             // Validate connection before proceeding
             await _tabularConnection.ValidateConnectionAsync();
 
-            _logger.LogDebug("GetModelSummary called with includeExpressions={IncludeExpressions}, includeHidden={IncludeHidden}, includeRelationships={IncludeRelationships}",
-                includeExpressions, includeHidden, includeRelationships);
+            _logger.LogDebug("GetModelSummary called with includeExpressions={IncludeExpressions}, includeHidden={IncludeHidden}, includeRelationships={IncludeRelationships}, includeColumns={IncludeColumns}",
+                includeExpressions, includeHidden, includeRelationships, includeColumns);
 
             var summary = new Dictionary<string, object?>();
 
@@ -221,13 +222,17 @@ public class ObjectRetrievalTools
                 .Where(t => includeHidden || !(Convert.ToBoolean(GetInfoViewValue(t, "IsHidden", "TABLES") ?? false)))
                 .ToList();
 
-            // 3. Get all columns
-            var columnsResult = await _tabularConnection.ExecAsync("EVALUATE INFO.VIEW.COLUMNS()", QueryType.DAX);
-            var allColumns = (columnsResult as IEnumerable<Dictionary<string, object?>>)?.ToList() ?? new List<Dictionary<string, object?>>();
+            // 3. Get all columns (only if requested)
+            var columns = new List<Dictionary<string, object?>>();
+            if (includeColumns)
+            {
+                var columnsResult = await _tabularConnection.ExecAsync("EVALUATE INFO.VIEW.COLUMNS()", QueryType.DAX);
+                var allColumns = (columnsResult as IEnumerable<Dictionary<string, object?>>)?.ToList() ?? new List<Dictionary<string, object?>>();
 
-            var columns = allColumns
-                .Where(c => includeHidden || !(Convert.ToBoolean(GetInfoViewValue(c, "IsHidden", "COLUMNS") ?? false)))
-                .ToList();
+                columns = allColumns
+                    .Where(c => includeHidden || !(Convert.ToBoolean(GetInfoViewValue(c, "IsHidden", "COLUMNS") ?? false)))
+                    .ToList();
+            }
 
             // 4. Get all measures
             var measuresResult = await _tabularConnection.ExecAsync("EVALUATE INFO.VIEW.MEASURES()", QueryType.DAX);
@@ -251,13 +256,8 @@ public class ObjectRetrievalTools
             var tablesSummary = tables.Select(t =>
             {
                 var tableName = GetInfoViewValue(t, "Name", "TABLES")?.ToString() ?? "";
-                var tableColumns = columnsByTable.ContainsKey(tableName) ? columnsByTable[tableName] : new List<Dictionary<string, object?>>();
+                var tableColumns = includeColumns && columnsByTable.ContainsKey(tableName) ? columnsByTable[tableName] : new List<Dictionary<string, object?>>();
                 var tableMeasures = measuresByTable.ContainsKey(tableName) ? measuresByTable[tableName] : new List<Dictionary<string, object?>>();
-
-                // Apply column limit if specified
-                var columnsToInclude = maxColumnsPerTable > 0 && tableColumns.Count > maxColumnsPerTable
-                    ? tableColumns.Take(maxColumnsPerTable).ToList()
-                    : tableColumns;
 
                 var tableInfo = new Dictionary<string, object?>
                 {
@@ -265,15 +265,7 @@ public class ObjectRetrievalTools
                     ["isHidden"] = GetInfoViewValue(t, "IsHidden", "TABLES"),
                     ["description"] = GetInfoViewValue(t, "Description", "TABLES"),
                     ["dataCategory"] = GetInfoViewValue(t, "DataCategory", "TABLES"),
-                    ["columnCount"] = tableColumns.Count,
                     ["measureCount"] = tableMeasures.Count,
-                    ["columns"] = columnsToInclude.Select(c => new Dictionary<string, object?>
-                    {
-                        ["name"] = GetInfoViewValue(c, "Name", "COLUMNS"),
-                        ["dataType"] = GetInfoViewValue(c, "DataType", "COLUMNS"),
-                        ["isHidden"] = GetInfoViewValue(c, "IsHidden", "COLUMNS"),
-                        ["description"] = GetInfoViewValue(c, "Description", "COLUMNS")
-                    }).ToList(),
                     ["measures"] = tableMeasures.Select(m =>
                     {
                         var measureInfo = new Dictionary<string, object?>
@@ -294,11 +286,29 @@ public class ObjectRetrievalTools
                     }).ToList()
                 };
 
-                // Add truncation indicator
-                if (maxColumnsPerTable > 0 && tableColumns.Count > maxColumnsPerTable)
+                // Add column information only if requested
+                if (includeColumns)
                 {
-                    tableInfo["columnsTruncated"] = true;
-                    tableInfo["totalColumns"] = tableColumns.Count;
+                    // Apply column limit if specified
+                    var columnsToInclude = maxColumnsPerTable > 0 && tableColumns.Count > maxColumnsPerTable
+                        ? tableColumns.Take(maxColumnsPerTable).ToList()
+                        : tableColumns;
+
+                    tableInfo["columnCount"] = tableColumns.Count;
+                    tableInfo["columns"] = columnsToInclude.Select(c => new Dictionary<string, object?>
+                    {
+                        ["name"] = GetInfoViewValue(c, "Name", "COLUMNS"),
+                        ["dataType"] = GetInfoViewValue(c, "DataType", "COLUMNS"),
+                        ["isHidden"] = GetInfoViewValue(c, "IsHidden", "COLUMNS"),
+                        ["description"] = GetInfoViewValue(c, "Description", "COLUMNS")
+                    }).ToList();
+
+                    // Add truncation indicator
+                    if (maxColumnsPerTable > 0 && tableColumns.Count > maxColumnsPerTable)
+                    {
+                        tableInfo["columnsTruncated"] = true;
+                        tableInfo["totalColumns"] = tableColumns.Count;
+                    }
                 }
 
                 return tableInfo;
@@ -384,6 +394,7 @@ public class ObjectRetrievalTools
                 ["includeExpressions"] = includeExpressions,
                 ["includeHidden"] = includeHidden,
                 ["includeRelationships"] = includeRelationships,
+                ["includeColumns"] = includeColumns,
                 ["maxColumnsPerTable"] = maxColumnsPerTable,
                 ["source"] = "GetModelSummary"
             };
