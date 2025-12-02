@@ -156,6 +156,246 @@ public class ObjectRetrievalTools
     // RETAINED TOOLS - Not redundant with consolidated tools
     // ========================================================================
 
+    [McpServerTool, Description("Get comprehensive model summary in single call. Returns all tables, measures, columns, relationships, and calculation groups. Higher token usage but saves multiple API round trips. Ideal for models with request count limits.")]
+    public async Task<object> GetModelSummary(
+        [Description("Include measure/column expressions (default: true)")] bool includeExpressions = true,
+        [Description("Include hidden objects (default: false)")] bool includeHidden = false,
+        [Description("Include relationship details (default: true)")] bool includeRelationships = true,
+        [Description("Maximum columns per table in summary (default: 50, 0 = all)")] int maxColumnsPerTable = 50)
+    {
+        try
+        {
+            // Validate connection before proceeding
+            await _tabularConnection.ValidateConnectionAsync();
+
+            _logger.LogDebug("GetModelSummary called with includeExpressions={IncludeExpressions}, includeHidden={IncludeHidden}, includeRelationships={IncludeRelationships}",
+                includeExpressions, includeHidden, includeRelationships);
+
+            var summary = new Dictionary<string, object?>();
+
+            // 1. Get overall counts
+            var countsSummary = await ListAllObjectsSummary();
+            var counts = countsSummary.ToDictionary(
+                item => item["objectType"]?.ToString() ?? "unknown",
+                item => item.ContainsKey("count") ? item["count"] : 0);
+            summary["counts"] = counts;
+
+            // 2. Get all tables (excluding calculation groups)
+            var tablesResult = await _tabularConnection.ExecAsync("EVALUATE INFO.VIEW.TABLES()", QueryType.DAX);
+            var allTables = (tablesResult as IEnumerable<Dictionary<string, object?>>)?.ToList() ?? new List<Dictionary<string, object?>>();
+
+            // Filter out calculation groups
+            var calcGroupLineageTags = new HashSet<string?>();
+            try
+            {
+                var cgQuery = "SELECT * FROM $SYSTEM.TMSCHEMA_CALCULATION_GROUPS";
+                var cgResult = await _tabularConnection.ExecAsync(cgQuery, QueryType.DMV);
+                var calcGroups = (cgResult as IEnumerable<Dictionary<string, object?>>)?.ToList() ?? new List<Dictionary<string, object?>>();
+
+                if (calcGroups.Any())
+                {
+                    var tablesQueryDmv = "SELECT * FROM $SYSTEM.TMSCHEMA_TABLES";
+                    var tablesResultDmv = await _tabularConnection.ExecAsync(tablesQueryDmv, QueryType.DMV);
+                    var tablesDmv = (tablesResultDmv as IEnumerable<Dictionary<string, object?>>)?.ToList() ?? new List<Dictionary<string, object?>>();
+
+                    var calcGroupTableIds = calcGroups
+                        .Select(cg => cg.GetValueOrDefault("TableID")?.ToString())
+                        .Where(id => !string.IsNullOrEmpty(id))
+                        .ToHashSet();
+
+                    calcGroupLineageTags = tablesDmv
+                        .Where(t => calcGroupTableIds.Contains(t.GetValueOrDefault("ID")?.ToString() ?? ""))
+                        .Select(t => t.GetValueOrDefault("LineageTag")?.ToString())
+                        .Where(lt => !string.IsNullOrEmpty(lt))
+                        .ToHashSet();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Calculation groups not available in this model");
+            }
+
+            // Filter tables
+            var tables = allTables
+                .Where(t => !calcGroupLineageTags.Contains(GetInfoViewValue(t, "LineageTag", "TABLES")?.ToString()))
+                .Where(t => includeHidden || !(Convert.ToBoolean(GetInfoViewValue(t, "IsHidden", "TABLES") ?? false)))
+                .ToList();
+
+            // 3. Get all columns
+            var columnsResult = await _tabularConnection.ExecAsync("EVALUATE INFO.VIEW.COLUMNS()", QueryType.DAX);
+            var allColumns = (columnsResult as IEnumerable<Dictionary<string, object?>>)?.ToList() ?? new List<Dictionary<string, object?>>();
+
+            var columns = allColumns
+                .Where(c => includeHidden || !(Convert.ToBoolean(GetInfoViewValue(c, "IsHidden", "COLUMNS") ?? false)))
+                .ToList();
+
+            // 4. Get all measures
+            var measuresResult = await _tabularConnection.ExecAsync("EVALUATE INFO.VIEW.MEASURES()", QueryType.DAX);
+            var allMeasures = (measuresResult as IEnumerable<Dictionary<string, object?>>)?.ToList() ?? new List<Dictionary<string, object?>>();
+
+            var measures = allMeasures
+                .Where(m => includeHidden || !(Convert.ToBoolean(GetInfoViewValue(m, "IsHidden", "MEASURES") ?? false)))
+                .ToList();
+
+            // 5. Group columns by table
+            var columnsByTable = columns
+                .GroupBy(c => GetInfoViewValue(c, "Table", "COLUMNS")?.ToString() ?? "")
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            // 6. Group measures by table
+            var measuresByTable = measures
+                .GroupBy(m => GetInfoViewValue(m, "Table", "MEASURES")?.ToString() ?? "")
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            // 7. Build comprehensive table information
+            var tablesSummary = tables.Select(t =>
+            {
+                var tableName = GetInfoViewValue(t, "Name", "TABLES")?.ToString() ?? "";
+                var tableColumns = columnsByTable.ContainsKey(tableName) ? columnsByTable[tableName] : new List<Dictionary<string, object?>>();
+                var tableMeasures = measuresByTable.ContainsKey(tableName) ? measuresByTable[tableName] : new List<Dictionary<string, object?>>();
+
+                // Apply column limit if specified
+                var columnsToInclude = maxColumnsPerTable > 0 && tableColumns.Count > maxColumnsPerTable
+                    ? tableColumns.Take(maxColumnsPerTable).ToList()
+                    : tableColumns;
+
+                var tableInfo = new Dictionary<string, object?>
+                {
+                    ["name"] = tableName,
+                    ["isHidden"] = GetInfoViewValue(t, "IsHidden", "TABLES"),
+                    ["description"] = GetInfoViewValue(t, "Description", "TABLES"),
+                    ["dataCategory"] = GetInfoViewValue(t, "DataCategory", "TABLES"),
+                    ["columnCount"] = tableColumns.Count,
+                    ["measureCount"] = tableMeasures.Count,
+                    ["columns"] = columnsToInclude.Select(c => new Dictionary<string, object?>
+                    {
+                        ["name"] = GetInfoViewValue(c, "Name", "COLUMNS"),
+                        ["dataType"] = GetInfoViewValue(c, "DataType", "COLUMNS"),
+                        ["isHidden"] = GetInfoViewValue(c, "IsHidden", "COLUMNS"),
+                        ["description"] = GetInfoViewValue(c, "Description", "COLUMNS")
+                    }).ToList(),
+                    ["measures"] = tableMeasures.Select(m =>
+                    {
+                        var measureInfo = new Dictionary<string, object?>
+                        {
+                            ["name"] = GetInfoViewValue(m, "Name", "MEASURES"),
+                            ["dataType"] = GetInfoViewValue(m, "DataType", "MEASURES"),
+                            ["isHidden"] = GetInfoViewValue(m, "IsHidden", "MEASURES"),
+                            ["description"] = GetInfoViewValue(m, "Description", "MEASURES")
+                        };
+
+                        if (includeExpressions)
+                        {
+                            var expression = GetInfoViewValue(m, "Expression", "MEASURES")?.ToString() ?? "";
+                            measureInfo["expression"] = expression;
+                        }
+
+                        return measureInfo;
+                    }).ToList()
+                };
+
+                // Add truncation indicator
+                if (maxColumnsPerTable > 0 && tableColumns.Count > maxColumnsPerTable)
+                {
+                    tableInfo["columnsTruncated"] = true;
+                    tableInfo["totalColumns"] = tableColumns.Count;
+                }
+
+                return tableInfo;
+            }).ToList();
+
+            summary["tables"] = tablesSummary;
+
+            // 8. Get relationships if requested
+            if (includeRelationships)
+            {
+                var relationshipsResult = await _tabularConnection.ExecAsync("EVALUATE INFO.VIEW.RELATIONSHIPS()", QueryType.DAX);
+                var allRelationships = (relationshipsResult as IEnumerable<Dictionary<string, object?>>)?.ToList() ?? new List<Dictionary<string, object?>>();
+
+                var relationshipsSummary = allRelationships.Select(r => new Dictionary<string, object?>
+                {
+                    ["fromTable"] = GetInfoViewValue(r, "FromTable", "RELATIONSHIPS"),
+                    ["fromColumn"] = GetInfoViewValue(r, "FromColumn", "RELATIONSHIPS"),
+                    ["toTable"] = GetInfoViewValue(r, "ToTable", "RELATIONSHIPS"),
+                    ["toColumn"] = GetInfoViewValue(r, "ToColumn", "RELATIONSHIPS"),
+                    ["crossFilterDirection"] = GetInfoViewValue(r, "CrossFilterDirection", "RELATIONSHIPS"),
+                    ["isActive"] = GetInfoViewValue(r, "IsActive", "RELATIONSHIPS")
+                }).ToList();
+
+                summary["relationships"] = relationshipsSummary;
+            }
+
+            // 9. Get calculation groups
+            try
+            {
+                var calcGroupsList = await ListCalculationGroupsDetailed(includeHidden ? null : false, null);
+                if (calcGroupsList.Any())
+                {
+                    var calcGroupsSummary = new List<Dictionary<string, object?>>();
+
+                    foreach (var cg in calcGroupsList)
+                    {
+                        var cgName = cg.GetValueOrDefault("name")?.ToString();
+                        var cgInfo = new Dictionary<string, object?>
+                        {
+                            ["name"] = cgName,
+                            ["isHidden"] = cg.GetValueOrDefault("isHidden"),
+                            ["description"] = cg.GetValueOrDefault("description"),
+                            ["precedence"] = cg.GetValueOrDefault("precedence")
+                        };
+
+                        // Get calculation items for this group
+                        if (!string.IsNullOrEmpty(cgName))
+                        {
+                            var calcItems = await ListCalculationItemsDetailed(cgName, null);
+                            cgInfo["calculationItems"] = calcItems.Select(ci =>
+                            {
+                                var itemInfo = new Dictionary<string, object?>
+                                {
+                                    ["name"] = ci.GetValueOrDefault("name"),
+                                    ["ordinal"] = ci.GetValueOrDefault("ordinal"),
+                                    ["description"] = ci.GetValueOrDefault("description")
+                                };
+
+                                if (includeExpressions)
+                                {
+                                    itemInfo["expressionPreview"] = ci.GetValueOrDefault("expressionPreview");
+                                }
+
+                                return itemInfo;
+                            }).ToList();
+                        }
+
+                        calcGroupsSummary.Add(cgInfo);
+                    }
+
+                    summary["calculationGroups"] = calcGroupsSummary;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Calculation groups not available in this model");
+            }
+
+            // 10. Add metadata
+            summary["metadata"] = new Dictionary<string, object?>
+            {
+                ["retrievedAt"] = DateTime.UtcNow,
+                ["includeExpressions"] = includeExpressions,
+                ["includeHidden"] = includeHidden,
+                ["includeRelationships"] = includeRelationships,
+                ["maxColumnsPerTable"] = maxColumnsPerTable,
+                ["source"] = "GetModelSummary"
+            };
+
+            return summary;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetModelSummary");
+            throw new Exception($"Failed to get model summary: {ex.Message}", ex);
+        }
+    }
 
     [McpServerTool, Description("List DAX functions by category.")]
     public async Task<object> ListFunctions(
